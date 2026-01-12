@@ -8,7 +8,7 @@ pub struct Flags {
     ///
     /// For each source file named filename.eta, a diagnostic output file
     /// named filename.lexed is generated.
-    #[arg(long)]
+    #[arg(short = 'l', long)]
     pub lex: bool,
 
     /// Specify where to place generated diagnostic files.
