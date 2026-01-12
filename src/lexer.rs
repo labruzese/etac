@@ -23,6 +23,10 @@ pub type Lexer<'input> = logos::Lexer<'input, Token>;
 )]
 #[logos(error(errors::NoFileDiagnostic, NoFileDiagnostic::from_lexer))]
 pub enum Token {
+    #[token("use")]
+    KeywordUse,
+    #[token("length")]
+    KeywordLength,
     #[token("while")]
     KeywordWhile,
     #[token("if")]
@@ -31,6 +35,13 @@ pub enum Token {
     KeywordElse,
     #[token("return")]
     KeywordReturn,
+    #[token("int")]
+    KeywordInt,
+    #[token("bool")]
+    KeywordBool,
+
+    #[token(";")]
+    SemiColon,
 
     #[token("_")]
     Discard,
@@ -45,7 +56,7 @@ pub enum Token {
         .map_err(|err: ParseBoolError| error!("illegal boolean literal: {}", err)
         .with_primary_label(&lex.span(), err.to_string().replace("target type", "boolean"))))]
     BoolLiteral(bool),
-    #[regex(r#"'([^'\\]|\\.)*'"#, parse_char)]
+    #[regex(r#"'([^'\\]|\\.)?'"#, parse_char)]
     CharLiteral(u32),
     #[regex(r#""([^"\\]|\\.)*""#, unescape_string)]
     StrLiteral(String),
@@ -106,11 +117,16 @@ pub enum Token {
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Token::KeywordUse => write!(f, "use"),
+            Token::KeywordLength => write!(f, "length"),
             Token::KeywordWhile => write!(f, "while"),
             Token::KeywordIf => write!(f, "if"),
             Token::KeywordElse => write!(f, "else"),
             Token::KeywordReturn => write!(f, "return"),
+            Token::KeywordInt => write!(f, "int"),
+            Token::KeywordBool => write!(f, "bool"),
 
+            Token::SemiColon => write!(f, ";"),
             Token::Discard => write!(f, "_"),
             Token::OfType => write!(f, ":"),
             Token::Assign => write!(f, "="),
@@ -160,7 +176,7 @@ impl fmt::Display for Token {
 
 /// Escape codes get lexed into their actual string during lexing.
 /// Parsing does not need to worry about sanatizing string literals.
-/// Supports: \n \r \t \0 \\ \" \' and \u{...hex...}
+/// Supports: \n \r \t \0 \\ \" \' and \x{...hex...}
 fn unescape_string<'s>(lex: &Lexer<'s>) -> Result<String, NoFileDiagnostic> {
     let span = lex.span();
     let s = lex.slice();
@@ -186,10 +202,10 @@ fn unescape_string<'s>(lex: &Lexer<'s>) -> Result<String, NoFileDiagnostic> {
             '\\' => out.push('\\'),
             '"' => out.push('"'),
             '\'' => out.push('\''),
-            'u' => {
-                // Expect \u{...hex...}
+            'x' => {
+                // Expect \x{...hex...}
                 if chars.next() != Some('{') {
-                    return Err(NoFileDiagnostic::error("expected {...} after \\u")
+                    return Err(NoFileDiagnostic::error("expected {...} after \\x")
                         .with_primary_label(&span, "in this string"));
                 }
                 let mut hex = String::new();
@@ -202,11 +218,11 @@ fn unescape_string<'s>(lex: &Lexer<'s>) -> Result<String, NoFileDiagnostic> {
                     chars.next();
                 }
                 if hex.is_empty() {
-                    return Err(NoFileDiagnostic::error("empty unicode codepoint in \\u{}")
+                    return Err(NoFileDiagnostic::error("empty unicode codepoint in \\x{}")
                         .with_primary_label(&span, "in this string"));
                 }
                 let code = u32::from_str_radix(hex.trim(), 16).map_err(|_| {
-                    NoFileDiagnostic::error("invalid hex in \\u{...}")
+                    NoFileDiagnostic::error("invalid hex in \\x{...}")
                         .with_primary_label(&span, "in this string")
                 })?;
                 let ch = char::from_u32(code).ok_or(
@@ -230,6 +246,14 @@ fn parse_char<'s>(lex: &Lexer<'s>) -> Result<u32, NoFileDiagnostic> {
     let span = lex.span();
     let s = lex.slice();
     let s = &s[1..s.len() - 1]; //shadow
+    if s.is_empty() {
+        return Err(
+            NoFileDiagnostic::error("empty character literal").with_primary_label(&span, "here")
+        );
+    }
+    if s.len() == 1 {
+        return Ok(s.chars().next().expect("") as u32);
+    }
     match s {
         "\\n" => Ok('\n' as u32),
         "\\r" => Ok('\r' as u32),
@@ -238,11 +262,11 @@ fn parse_char<'s>(lex: &Lexer<'s>) -> Result<u32, NoFileDiagnostic> {
         "\\\\" => Ok('\\' as u32),
         "\\\"" => Ok('\"' as u32),
         "\\\'" => Ok('\'' as u32),
-        "\\u" => {
+        "\\x" => {
             let mut chars = s.chars().skip(2).peekable();
-            // Expect \u{...hex...}
+            // Expect \x{...hex...}
             if chars.next() != Some('{') {
-                return Err(NoFileDiagnostic::error("expected {...} after \\u")
+                return Err(NoFileDiagnostic::error("expected {...} after \\x")
                     .with_primary_label(&span, "in this char"));
             }
             let mut hex = String::new();
@@ -255,11 +279,11 @@ fn parse_char<'s>(lex: &Lexer<'s>) -> Result<u32, NoFileDiagnostic> {
                 chars.next();
             }
             if hex.is_empty() {
-                return Err(NoFileDiagnostic::error("empty unicode codepoint in \\u{}")
+                return Err(NoFileDiagnostic::error("empty unicode codepoint in \\x{}")
                     .with_primary_label(&span, "in this char"));
             }
             let code = u32::from_str_radix(hex.trim(), 16).map_err(|_| {
-                NoFileDiagnostic::error("invalid hex in \\u{...}")
+                NoFileDiagnostic::error("invalid hex in \\x{...}")
                     .with_primary_label(&span, "in this char")
             })?;
             let ch = char::from_u32(code).ok_or(
