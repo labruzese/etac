@@ -62,7 +62,7 @@ pub enum Token {
     StrLiteral(String),
     #[regex("[a-zA-Z][a-zA-Z0-9_’']*", |lex| lex.slice().to_string())]
     Identifier(String),
-    #[regex("-?[1-9][0-9]*|0", |lex| lex.slice().parse()
+    #[regex("[1-9][0-9]*|0", |lex| lex.slice().parse()
         .map_err(|err: ParseIntError| error!("illegal integer literal: {}", err)
         .with_primary_label(&lex.span(), err.to_string().replace("target type", "integer"))))]
     Integer(i32),
