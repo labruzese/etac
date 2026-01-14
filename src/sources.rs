@@ -4,6 +4,10 @@ use std::fmt::{self, Display};
 use std::path::Path;
 use std::rc::Rc;
 
+/// Span is a file and byte range
+mod span;
+pub use span::*;
+
 /// A unique identifier for a source file.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct FileId(String);
@@ -18,21 +22,6 @@ impl fmt::Display for FileId {
 pub struct EtaSource {
     pub name: String,
     pub source: Rc<str>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EtaSpan<'fid> {
-    pub file_id: &'fid FileId,
-    pub range: std::ops::Range<usize>,
-}
-
-impl<'fid> From<(&'fid FileId, std::ops::Range<usize>)> for EtaSpan<'fid> {
-    fn from(value: (&'fid FileId, std::ops::Range<usize>)) -> Self {
-        EtaSpan {
-            file_id: value.0,
-            range: value.1,
-        }
-    }
 }
 
 /// Stores the source code and names for all files being compiled, to be indexed with FileId
