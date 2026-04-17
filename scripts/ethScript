@@ -35,7 +35,7 @@ etac ("Test --help") "--help" {
     ;
 }
 
-etac ("Test --lex") "--lex" {
+etac ("Test --lex") ["./pa1"] "--lex" {
     ex1.eta;
     ex2.eta (Lexical, "empty character literal");
     spec1.eta;
@@ -50,4 +50,23 @@ etac ("Test --lex") "--lex" {
     mdarrays.eta;
     add.eta;
     beauty.eta;
+}
+
+etac ("Test --parse") ["./pa2"] "--parse" {
+    ex1.eta;
+    ex2.eta;
+    ex3.eta (Syntax, "Unexpected token +");
+    spec1.eta;
+    spec2.eta;
+    spec3.eta;
+    gcd.eta;
+    ratadd.eta;
+    ratadduse.eta;
+    insertionsort.eta;
+    arrayinit.eta;
+    arrayinit2.eta;
+    mdarrays.eta;
+    add.eta (Syntax, "Unexpected token +");
+    beauty.eta (Syntax, "Unexpected token ==");
+    io.eti;
 }
