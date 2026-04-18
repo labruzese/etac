@@ -2,7 +2,10 @@ mod lexer_logger;
 use crate::cli;
 use crate::lexer;
 use crate::sources::{EtaSpan, FileId, SourceManager};
+use lalrpop_util::lalrpop_mod;
 use lexer_logger::*;
+
+lalrpop_mod!(grammar);
 
 // Update signature to take file_id and the manager
 pub fn parse(sm: &SourceManager, file_id: &FileId) {

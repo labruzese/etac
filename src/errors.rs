@@ -1,3 +1,5 @@
+#![allow(unused)]
+
 use std::{fmt::Debug, ops::Range};
 
 use ariadne::{Color, Label, Report, ReportKind};
