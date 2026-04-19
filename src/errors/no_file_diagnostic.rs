@@ -11,36 +11,40 @@ pub struct NoFileDiagnostic {
     pub code: Option<String>,
     pub message: String,
     pub labels: Vec<(Range<usize>, String, Color)>,
+    pub loc: Range<usize>,
     pub note: Option<String>,
 }
 
 impl NoFileDiagnostic {
-    pub fn error(message: impl Into<String>) -> Self {
+    pub fn error(span: Range<usize>, message: impl Into<String>) -> Self {
         Self {
             level: Level::Error,
             code: None,
             message: message.into(),
             labels: Vec::new(),
+            loc: span,
             note: None,
         }
     }
 
-    pub fn warning(message: impl Into<String>) -> Self {
+    pub fn warning(span: Range<usize>, message: impl Into<String>) -> Self {
         Self {
             level: Level::Warning,
             code: None,
             message: message.into(),
             labels: Vec::new(),
+            loc: span,
             note: None,
         }
     }
 
-    pub fn note(message: impl Into<String>) -> Self {
+    pub fn note(span: Range<usize>, message: impl Into<String>) -> Self {
         Self {
             level: Level::Note,
             code: None,
             message: message.into(),
             labels: Vec::new(),
+            loc: span,
             note: None,
         }
     }
@@ -50,8 +54,8 @@ impl NoFileDiagnostic {
         self
     }
 
-    pub fn with_primary_label(mut self, span: &Range<usize>, message: impl Into<String>) -> Self {
-        self.labels.push((span.clone(), message.into(), Color::Red));
+    pub fn with_primary_label(mut self, message: impl Into<String>) -> Self {
+        self.labels.push((self.loc.clone(), message.into(), Color::Red));
         self
     }
 
@@ -85,6 +89,10 @@ impl NoFileDiagnostic {
                     )
                 })
                 .collect(),
+            loc: EtaSpan {
+                file_id: file, 
+                range: self.loc
+            },
             note: self.note,
         }
     }
@@ -92,6 +100,6 @@ impl NoFileDiagnostic {
 
 impl Default for NoFileDiagnostic {
     fn default() -> Self {
-        Self::error("Default error message")
+        Self::error((0usize..0), "Default error message")
     }
 }

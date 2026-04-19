@@ -7,37 +7,41 @@ pub struct Diagnostic<'fid> {
     pub code: Option<String>,
     pub message: String,
     pub labels: Vec<(EtaSpan<'fid>, String, Color)>,
+    pub loc: EtaSpan<'fid>,
     pub note: Option<String>,
 }
 
 /// Diagnostic Builder except every state is valid so we don't need an explicit builder struct
 impl<'fid> Diagnostic<'fid> {
-    pub fn error(message: impl Into<String>) -> Self {
+    pub fn error(span: EtaSpan<'fid>, message: impl Into<String>) -> Self {
         Self {
             level: Level::Error,
             code: None,
             message: message.into(),
             labels: Vec::new(),
+            loc: span,
             note: None,
         }
     }
 
-    pub fn warning(message: impl Into<String>) -> Self {
+    pub fn warning(span: EtaSpan<'fid>, message: impl Into<String>) -> Self {
         Self {
             level: Level::Warning,
             code: None,
             message: message.into(),
             labels: Vec::new(),
+            loc: span,
             note: None,
         }
     }
 
-    pub fn note(message: impl Into<String>) -> Self {
+    pub fn note(span: EtaSpan<'fid>, message: impl Into<String>) -> Self {
         Self {
             level: Level::Note,
             code: None,
             message: message.into(),
             labels: Vec::new(),
+            loc: span,
             note: None,
         }
     }
@@ -47,8 +51,8 @@ impl<'fid> Diagnostic<'fid> {
         self
     }
 
-    pub fn with_primary_label(mut self, span: EtaSpan<'fid>, message: impl Into<String>) -> Self {
-        self.labels.push((span, message.into(), Color::Red));
+    pub fn with_primary_label(mut self, message: impl Into<String>) -> Self {
+        self.labels.push((self.loc.clone(), message.into(), Color::Red));
         self
     }
 
@@ -60,12 +64,5 @@ impl<'fid> Diagnostic<'fid> {
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.note = Some(note.into());
         self
-    }
-}
-
-/// Required to be ariadne::Span
-impl<'fid> Default for Diagnostic<'fid> {
-    fn default() -> Self {
-        Self::error("Default error message")
     }
 }

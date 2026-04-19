@@ -20,7 +20,7 @@ impl fmt::Display for FileId {
 
 /// Concrete struct where the source information lives
 pub struct EtaSource {
-    pub name: String,
+    pub name: FileId,
     pub source: Rc<str>,
 }
 
@@ -41,13 +41,17 @@ impl SourceManager {
         self.sources.keys()
     }
 
+    pub fn sources(&self) -> impl Iterator<Item = &EtaSource> {
+        self.sources.values()
+    }
+
     /// Add a new source file to the manager.
     pub fn add(&mut self, name: impl Into<String>, src: Rc<str>) -> FileId {
         let name = name.into();
 
         let id = FileId(name.clone());
         self.sources
-            .insert(FileId(name.clone()), EtaSource { name, source: src });
+            .insert(FileId(name.clone()), EtaSource { name: FileId(name), source: src });
 
         id
     }
@@ -55,19 +59,19 @@ impl SourceManager {
     /// id -> Borrow the file name
     pub fn get_file_name(&self, id: &FileId) -> Option<&str> {
         self.sources.get(id).map(|s| {
-            if let Some(n) = Path::new(s.name.as_str())
+            if let Some(n) = Path::new(s.name.0.as_str())
                 .file_stem()
                 .and_then(|x| x.to_str())
             {
                 n
             } else {
-                s.name.as_str()
+                s.name.0.as_str()
             }
         })
     }
 
     /// id -> Get a new (rc) pointer to the source str
-    pub fn get_source(&self, id: &FileId) -> Option<Rc<str>> {
+    pub fn get_source_str(&self, id: &FileId) -> Option<Rc<str>> {
         self.sources.get(id).map(|s| s.source.clone())
     }
 }

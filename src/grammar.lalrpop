@@ -13,8 +13,9 @@
 use crate::ast::*;
 use crate::lexer::Token;
 use crate::errors::NoFileDiagnostic;
+use lalrpop_util::ErrorRecovery;
 
-grammar;
+grammar(errors: &mut Vec<ErrorRecovery<usize, Token, NoFileDiagnostic>>);
 
 // ----------------------------------------------------------------------
 // Separator macros (right-recursive)

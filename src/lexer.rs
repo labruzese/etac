@@ -9,7 +9,7 @@ use crate::{
 impl NoFileDiagnostic {
     fn from_lexer(lex: &mut logos::Lexer<'_, Token>) -> Self {
         let loc = lex.span();
-        error!("unknown token").with_primary_label(&loc, "this token")
+        error!(loc, "unknown token").with_primary_label("this token")
     }
 }
 
@@ -121,8 +121,7 @@ pub enum Token {
 
 fn parse_int(lex: &mut Lexer) -> Result<u64, NoFileDiagnostic> {
     lex.slice().parse::<u64>().map_err(|err: ParseIntError| {
-        error!("illegal integer literal: {}", err).with_primary_label(
-            &lex.span(),
+        error!(lex.span(), "illegal integer literal: {}", err).with_primary_label(
             err.to_string().replace("number too extreme to fit in target type", "integer out of range"),
         )
     })
@@ -135,8 +134,8 @@ fn parse_char(lex: &mut Lexer) -> Result<u32, NoFileDiagnostic> {
     // Strip surrounding quotes.
     let inner = &raw[1..raw.len() - 1];
     decode_char_content(inner).ok_or_else(|| {
-        error!("invalid character literal: {}", raw)
-            .with_primary_label(&lex.span(), format!("cannot decode {}", raw))
+        error!(lex.span(), "invalid character literal: {}", raw)
+            .with_primary_label( format!("cannot decode {}", raw))
     })
 }
 
@@ -154,8 +153,8 @@ fn parse_str(lex: &mut Lexer) -> Result<String, NoFileDiagnostic> {
         }
         // Escape.
         let esc = it.next().ok_or_else(|| {
-            error!("unterminated escape in string literal")
-                .with_primary_label(&lex.span(), "dangling backslash")
+            error!(lex.span(), "unterminated escape in string literal")
+                .with_primary_label("dangling backslash")
         })?;
         match esc {
             'n' => out.push('\n'),
@@ -168,8 +167,8 @@ fn parse_str(lex: &mut Lexer) -> Result<String, NoFileDiagnostic> {
             'x' => {
                 // \x{HHHHHH}
                 if it.next() != Some('{') {
-                    return Err(error!("malformed unicode escape")
-                        .with_primary_label(&lex.span(), "expected `{` after `\\x`"));
+                    return Err(error!(lex.span(), "malformed unicode escape")
+                        .with_primary_label("expected `{` after `\\x`"));
                 }
                 let mut hex = String::new();
                 loop {
@@ -177,25 +176,25 @@ fn parse_str(lex: &mut Lexer) -> Result<String, NoFileDiagnostic> {
                         Some('}') => break,
                         Some(h) if h.is_ascii_hexdigit() => hex.push(h),
                         _ => {
-                            return Err(error!("malformed unicode escape")
-                                .with_primary_label(&lex.span(), "expected hex digits and `}`"))
+                            return Err(error!(lex.span(), "malformed unicode escape")
+                                .with_primary_label("expected hex digits and `}`"))
                         }
                     }
                 }
                 let codepoint = u32::from_str_radix(&hex, 16).map_err(|e| {
-                    error!("invalid unicode escape: {}", e)
-                        .with_primary_label(&lex.span(), e.to_string())
+                    error!(lex.span(), "invalid unicode escape: {}", e)
+                        .with_primary_label(e.to_string())
                 })?;
                 if let Some(ch) = char::from_u32(codepoint) {
                     out.push(ch);
                 } else {
-                    return Err(error!("invalid unicode codepoint: U+{:X}", codepoint)
-                        .with_primary_label(&lex.span(), "not a valid unicode scalar"));
+                    return Err(error!(lex.span(), "invalid unicode codepoint: U+{:X}", codepoint)
+                        .with_primary_label("not a valid unicode scalar"));
                 }
             }
             other => {
-                return Err(error!("unknown escape: \\{}", other)
-                    .with_primary_label(&lex.span(), format!("unknown escape: \\{}", other)))
+                return Err(error!(lex.span(), "unknown escape: \\{}", other)
+                    .with_primary_label(format!("unknown escape: \\{}", other)))
             }
         }
     }

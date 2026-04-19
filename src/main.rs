@@ -10,6 +10,7 @@ mod ast;
 mod cli;
 mod errors;
 mod lexer;
+mod logger;
 mod parser;
 mod sources;
 
@@ -31,7 +32,7 @@ fn main() {
         );
     }
 
-    for id in source_manager.ids() {
-        parser::parse(&source_manager, &id);
+    for source in source_manager.sources() {
+        parser::parse(&source);
     }
 }

@@ -8,22 +8,22 @@ use crate::sources::{EtaSpan, FileId, SourceManager};
 
 #[macro_export]
 macro_rules! error {
-    ($($arg:tt)*) => {
-        NoFileDiagnostic::error(format!($($arg)*))
+    ($span:expr, $($arg:tt)*) => {
+        NoFileDiagnostic::error($span, format!($($arg)*))
     };
 }
 
 #[macro_export]
 macro_rules! warn {
-    ($($arg:tt)*) => {
-        NoFileDiagnostic::warning(format!($($arg)*))
+    ($span:expr, $($arg:tt)*) => {
+        NoFileDiagnostic::warning($span, format!($($arg)*))
     };
 }
 
 #[macro_export]
 macro_rules! note {
-    ($($arg:tt)*) => {
-        NoFileDiagnostic::note(format!($($arg)*))
+    ($span:expr, $($arg:tt)*) => {
+        NoFileDiagnostic::note($span, format!($($arg)*))
     };
 }
 
@@ -84,7 +84,7 @@ impl SourceManager {
         }
 
         // Print to stderr
-        if let Some(src) = self.get_source(fid) {
+        if let Some(src) = self.get_source_str(fid) {
             let _ = builder.finish().eprint((fid, ariadne::Source::from(src)));
         }
     }
