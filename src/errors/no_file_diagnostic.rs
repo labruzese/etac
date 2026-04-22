@@ -70,7 +70,7 @@ impl NoFileDiagnostic {
         self
     }
 
-    pub fn specify_file(self, source: Source) -> Diagnostic {
+    pub fn specify_file(self, file_id: &FileId) -> Diagnostic {
         Diagnostic {
             level: self.level,
             code: self.code,
@@ -81,7 +81,7 @@ impl NoFileDiagnostic {
                 .map(|(r, l, c)| {
                     (
                         EtaSpan {
-                            source: source.clone(),
+                            file_id: file_id.clone(),
                             range: r,
                         },
                         l,
@@ -90,7 +90,7 @@ impl NoFileDiagnostic {
                 })
                 .collect(),
             loc: EtaSpan {
-                source, 
+                file_id: file_id.clone(), 
                 range: self.loc
             },
             note: self.note,

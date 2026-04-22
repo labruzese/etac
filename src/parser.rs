@@ -1,32 +1,34 @@
-use crate::ast;
+use std::rc::Rc;
+use std::sync::Mutex;
+
+use crate::{ast, source, LOGGER};
 use crate::errors::{Diagnostic, NoFileDiagnostic};
 use crate::lexer;
+use crate::logger;
 use crate::lexer::Token;
 use crate::logger::*;
-use crate::sources::FileId;
+use crate::sources::{FileId, Sources};
 use crate::{cli, error};
+use ariadne::Cache;
 use lalrpop_util::{lalrpop_mod, ParseError};
 
 lalrpop_mod!(grammar);
 
 // Update signature to take file_id and the manager
-pub fn parse<'a>(source_name: FileId, source_content: &str) -> Result<ast::Program, Vec<Diagnostic>> {
-    let options = cli::flags();
-    let lexer = lexer::Lexer::new(source_content).spanned();
-
-    // make some writer for verbose lexing if flag is set
-    let mut logger = Logger::new(options, source_name, source_content.as_ref());
+pub fn parse(file_id: FileId) -> Result<ast::Program, Vec<Diagnostic>> {
+    let source = source!(file_id);
+    let lexer = lexer::Lexer::new(source.text()).spanned();
 
     // lex (unfortunately we can't stream the lexer since we need to complete lexing even if parsing
     // fails)
     let tokens: Vec<Result<(usize, Token, usize), NoFileDiagnostic>> = lexer
         .map(|(tok, span)| match tok {
             Ok(t) => {
-                logger.log_token(span.start, span.end, &t);
+                logger!(|l| l.log_token((&file_id, span.clone()).into(), &t));
                 Ok((span.start, t, span.end))
             }
             Err(d) => {
-                logger.log_lexical_error(span.start, span.end, &d.message);
+                logger!(|l| l.log_lexical_error((&file_id, span).into(), &d.message));
                 Err(d)
             }
         })
@@ -36,27 +38,26 @@ pub fn parse<'a>(source_name: FileId, source_content: &str) -> Result<ast::Progr
     let mut recovered: Vec<lalrpop_util::ErrorRecovery<usize, Token, NoFileDiagnostic>> =
         Vec::new();
     let result = grammar::ProgramParser::new().parse(&mut recovered, tokens);
-    logger.flush();
 
     if result.is_err() || !recovered.is_empty() {
-        let mut errors: Vec<Diagnostic<'a>> = recovered
+        let mut errors: Vec<Diagnostic> = recovered
             .into_iter()
-            .map(|r| to_diag(r.error).specify_file(&source.name))
+            .map(|r| to_diag(r.error).specify_file(&file_id))
             .collect();
 
         if let Err(e) = result {
-            errors.push(to_diag(e).specify_file(&source.name));
+            errors.push(to_diag(e).specify_file(&file_id));
         }
 
         for err in errors.iter() {
-            logger.log_syntatic_error(err.loc.range.start, err.loc.range.end, &err.message);
+            logger!(|l| l.log_syntatic_error(err.loc, &err.message));
         }
 
         return Err(errors);
     }
 
     let program = result.unwrap();
-    logger.log_parse(&program);
+    logger!(|l| l.log_parse(&file_id, &program));
     Ok(program)
 }
 
