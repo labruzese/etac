@@ -1,5 +1,5 @@
 use clap::{CommandFactory, Parser};
-use std::{path::PathBuf, sync::OnceLock};
+use std::{path::PathBuf};
 
 #[derive(Debug, Clone, Parser)]
 #[command(name = "etac", about = "Rust Implementation of Eta Compiler")]
@@ -38,22 +38,13 @@ pub struct Flags {
     pub source_files: Vec<PathBuf>,
 }
 
-/// Global flags for this program
-static FLAGS: OnceLock<Flags> = OnceLock::new();
-
-/// Parses arguments from CLI and initializes the global FLAGS.
-pub fn init() {
+pub fn parse_flags() -> Flags {
     let flags = Flags::parse();
 
-    // Requirement: Invoking etac without any source files should also print a synopsis.
     if flags.source_files.is_empty() {
         let _ = Flags::command().print_help();
         std::process::exit(0);
     }
 
-    FLAGS.set(flags).expect("Flags already initialized");
-}
-
-pub fn flags() -> &'static Flags {
-    FLAGS.get().expect("Flags not initialized")
+    flags
 }
