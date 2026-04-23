@@ -1,6 +1,42 @@
 use std::fmt::Debug;
 
+use crate::sources::span::EtaSpan;
+
 mod printer;
+
+#[derive(Debug, Clone)]
+pub enum AstNode {
+    Program(Program),
+    Use(Use),
+    Definition(Definition),
+    Method(Method),
+    GlobDecl(GlobDecl),
+    Value(Value),
+    Decl(Decl),
+    Type(Type),
+    Block(Block),
+    Stmt(Stmt),
+    Assignment(Assignment),
+    AssignLeft(AssignLeft),
+    Var(Var),
+    IfStmt(IfStmt),
+    WhileStmt(WhileStmt),
+    ReturnStmt(ReturnStmt),
+    ProcCall(ProcCall),
+    Expr(Expr),
+    UOp(UOp),
+    BinOp(BinOp),
+    Id(Id),
+    IntLit(IntLit),
+    BoolLit(BoolLit),
+    CharLit(CharLit),
+}
+
+#[derive(Debug, Clone)]
+pub struct SpannedAstNode {
+    span: EtaSpan,
+    ast: AstNode,
+}
 
 pub type Id = String;
 pub type IntLit = i128;
