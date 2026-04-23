@@ -29,6 +29,4 @@ fn main() {
             }
         }
     }
-
-    ctx.logger.flush();
 }

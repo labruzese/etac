@@ -1,16 +1,17 @@
-// src/logger.rs
 use crate::ast;
 use crate::cli::Flags;
-use crate::sources::{EtaSpan, FileId, Sources};
-use ariadne::Cache;
+use crate::sources::FileId;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 
+type WriterMap = HashMap<FileId, Option<BufWriter<File>>>;
+
 pub struct Logger {
-    lexer_writers: Option<HashMap<FileId, BufWriter<File>>>,
-    parser_writers: Option<HashMap<FileId, BufWriter<File>>>,
+    lexer_writers: RefCell<Option<WriterMap>>,
+    parser_writers: RefCell<Option<WriterMap>>,
     diag_root: PathBuf,
 }
 
@@ -21,94 +22,84 @@ impl Logger {
                 .expect("unable to create diagnostic output directory");
         }
         Self {
-            lexer_writers: flags.lex.then(HashMap::new),
-            parser_writers: flags.parse.then(HashMap::new),
+            lexer_writers: RefCell::new(flags.lex.then(HashMap::new)),
+            parser_writers: RefCell::new(flags.parse.then(HashMap::new)),
             diag_root: flags.diag_path.clone(),
         }
     }
 
+    /// Run `f` against the writer for `file` in `bucket`, creating it on
+    /// first use. No-op if the bucket is disabled (`None`) or the file's
+    /// writer was removed (after an error).
+    fn with_writer(
+        bucket: &RefCell<Option<WriterMap>>,
+        diag_root: &Path,
+        file: &FileId,
+        ext: &'static str,
+        f: impl FnOnce(&mut BufWriter<File>),
+    ) {
+        let mut guard = bucket.borrow_mut();
+        let Some(writers) = guard.as_mut() else { return; };
+        match writers.get_mut(file) {
+            Some(Some(w)) => f(w),
+            Some(None) => (),
+            None => { 
+                let mut w = open_log(diag_root, file.as_str(), ext);
+                f(&mut w);
+                writers.insert(file.clone(), Some(w)); 
+            },
+        }
+    }
+
     pub fn log_token(
-        &mut self,
-        sources: &mut Sources,
-        at: EtaSpan,
+        &self,
+        file: &FileId,
+        at: (usize, usize),
         token: &impl std::fmt::Display,
     ) {
-        let Some(writers) = self.lexer_writers.as_mut() else {
-            return;
-        };
-        let (line, col) = line_col(sources, &at);
-        let diag_root = &self.diag_root;
-        let w = writers
-            .entry(at.file_id.clone())
-            .or_insert_with(|| open_log(diag_root, at.file_id.as_str(), "lexed"));
-        writeln!(w, "{}:{} {}", line, col, token).unwrap();
+        Self::with_writer(&self.lexer_writers, &self.diag_root, file, "lexed", |w| {
+            writeln!(w, "{}:{} {}", at.0, at.1, token).unwrap();
+        });
     }
 
-    pub fn log_lexical_error(&mut self, sources: &mut Sources, at: EtaSpan, message: &str) {
-        let Some(writers) = self.lexer_writers.as_mut() else {
-            return;
-        };
-        let (line, col) = line_col(sources, &at);
-        let diag_root = &self.diag_root;
-        let w = writers
-            .entry(at.file_id.clone())
-            .or_insert_with(|| open_log(diag_root, at.file_id.as_str(), "lexed"));
-        writeln!(w, "{}:{} error:{}", line, col, message).unwrap();
-        self.lexer_writers = None; // detach after first report
+    pub fn log_lexical_error(&self, file: &FileId, at: (usize, usize), message: &str) {
+        Self::with_writer(&self.lexer_writers, &self.diag_root, file, "lexed", |w| {
+            writeln!(w, "{}:{} error:{}", at.0, at.1, message).unwrap();
+        });
+        let mut guard = self.lexer_writers.borrow_mut();
+        let Some(writers) = guard.as_mut() else { return; };
+        writers.insert(file.clone(), None); // remove writer (only report first error)
     }
 
-    // log_parse doesn't need line/col so no Sources needed
-    pub fn log_parse(&mut self, file_id: &FileId, program: &ast::Program) {
-        let Some(writers) = self.parser_writers.as_mut() else {
-            return;
-        };
-        let diag_root = &self.diag_root;
-        let w = writers
-            .entry(file_id.clone())
-            .or_insert_with(|| open_log(diag_root, file_id.as_str(), "parsed"));
-        writeln!(w, "{}", program).unwrap();
+    pub fn log_parse(&self, file: &FileId, program: &ast::Program) {
+        Self::with_writer(&self.parser_writers, &self.diag_root, file, "parsed", |w| {
+            writeln!(w, "{}", program).unwrap();
+        });
     }
 
-    pub fn log_syntactic_error(&mut self, sources: &mut Sources, at: EtaSpan, message: &str) {
-        let Some(writers) = self.parser_writers.as_mut() else {
-            return;
-        };
-        let (line, col) = line_col(sources, &at);
-        let diag_root = &self.diag_root;
-        let w = writers
-            .entry(at.file_id.clone())
-            .or_insert_with(|| open_log(diag_root, at.file_id.as_str(), "parsed"));
-        writeln!(w, "{}:{} error:{}", line, col, message).unwrap();
-        self.parser_writers = None;
+    pub fn log_syntactic_error(&self, file: &FileId, at: (usize, usize), message: &str) {
+        Self::with_writer(&self.parser_writers, &self.diag_root, file, "parsed", |w| {
+            writeln!(w, "{}:{} error:{}", at.0, at.1, message).unwrap();
+        });
+        let mut guard = self.parser_writers.borrow_mut();
+        let Some(writers) = guard.as_mut() else { return; };
+        writers.insert(file.clone(), None); // remove writer (only report first error)
     }
-
-    pub fn flush(&mut self) {
-        if let Some(m) = &mut self.lexer_writers {
-            for w in m.values_mut() {
-                let _ = w.flush();
-            }
-        }
-        if let Some(m) = &mut self.parser_writers {
-            for w in m.values_mut() {
-                let _ = w.flush();
-            }
-        }
-    }
-}
-
-fn line_col(sources: &mut Sources, at: &EtaSpan) -> (usize, usize) {
-    let src = sources.fetch(&at.file_id).expect("missing file");
-    let (_, l, c) = src.get_byte_line(at.range.start).expect("bad byte offset");
-    (l + 1, c + 1)
 }
 
 fn open_log(root: &Path, file_name: &str, ext: &str) -> BufWriter<File> {
-    let path = root.join(file_name).with_extension(ext);
+    let path = if root == "-" {
+        PathBuf::from("/dev/stdout")
+    } else { 
+        root.join(file_name).with_extension(ext)
+    };
+
     BufWriter::new(
         OpenOptions::new()
             .write(true)
             .create(true)
             .truncate(true)
+            .create_new(false)
             .open(path)
             .expect("unable to open diagnostic file"),
     )

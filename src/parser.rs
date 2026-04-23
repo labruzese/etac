@@ -9,23 +9,25 @@ use lalrpop_util::{lalrpop_mod, ParseError};
 
 lalrpop_mod!(grammar);
 
-// src/parser.rs
 pub fn parse(ctx: &mut Context, file_id: &FileId) -> Result<ast::Program, Vec<Diagnostic>> {
     let source = ctx
         .sources
-        .text(file_id);
+        .text(file_id)
+        .map_err(|e| vec![e])?;
+
+    let mut line_col = |offset: usize| ctx.sources.lc_index(&file_id, offset).unwrap();
 
     let lexer = lexer::Lexer::new(&source).spanned();
     let tokens: Vec<Result<(usize, Token, usize), NoFileDiagnostic>> = lexer
         .map(|(tok, span)| match tok {
             Ok(t) => {
                 ctx.logger
-                    .log_token(&mut ctx.sources, (file_id, span.clone()).into(), &t);
+                    .log_token(&file_id, line_col(span.start), &t);
                 Ok((span.start, t, span.end))
             }
             Err(d) => {
                 ctx.logger
-                    .log_lexical_error(&mut ctx.sources, (file_id, span).into(), &d.message);
+                    .log_lexical_error(&file_id, line_col(span.start), &d.message);
                 Err(d)
             }
         })
@@ -44,7 +46,7 @@ pub fn parse(ctx: &mut Context, file_id: &FileId) -> Result<ast::Program, Vec<Di
         }
         for err in &errors {
             ctx.logger
-                .log_syntactic_error(&mut ctx.sources, err.loc.clone(), &err.message);
+                .log_syntactic_error(&file_id, line_col(err.loc.range.start), &err.message);
         }
         return Err(errors);
     }

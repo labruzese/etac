@@ -23,13 +23,8 @@ grammar(errors: &mut Vec<ErrorRecovery<usize, Token, NoFileDiagnostic>>);
 
 // One or more T separated by `,`, NO trailing comma.
 CommaPlus<T>: Vec<T> = {
-    <e:T>                                      => vec![e],
-    <e:T> "," <mut rest:CommaPlus<T>>          => {
-        let mut v = Vec::with_capacity(rest.len() + 1);
-        v.push(e);
-        v.append(&mut rest);
-        v
-    },
+    <e:T>                              => vec![e],
+    <mut v:CommaPlus<T>> "," <e:T>     => { v.push(e); v },
 };
 
 // Zero or more T separated by `,`, NO trailing comma.
@@ -458,7 +453,7 @@ Primary: Expr = {
 Lit: Lit = {
     <n:"intlit">  => Lit::IntLit(n as i128),
     <b:"boollit"> => Lit::BoolLit(b),
-    <c:"charlit"> => Lit::CharLit(char::from_u32(c).unwrap_or('\u{FFFD}')),
+    <c:"charlit"> => Lit::CharLit(char::from_u32(c).expect("lexer should have rejected invalid codepoint")),
     <s:"strlit">  => Lit::ArrLit(ArrLit::StringLit(s)),
     // Array constructor; trailing comma permitted.
     "{" <exprs:CommaTrailing<Expr>> "}" => Lit::ArrLit(ArrLit::Array(exprs)),

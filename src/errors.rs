@@ -1,10 +1,11 @@
 #![allow(unused)]
 
+use crate::sources::span::EtaSpan;
 use std::{fmt::Debug, ops::Range, rc::Rc};
 
 use ariadne::{Color, Label, Report, ReportKind};
 
-use crate::sources::{EtaSpan, FileId, Sources};
+use crate::sources::{FileId, Sources};
 
 #[macro_export]
 macro_rules! error {

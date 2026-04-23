@@ -1,12 +1,15 @@
 use ariadne::{Cache, Source};
 use std::borrow::Borrow;
 use std::collections::HashMap;
-use std::convert::Infallible;
 use std::fmt;
 use std::rc::Rc;
 
-mod span;
-pub use span::*;
+pub mod span;
+mod line_index;
+
+use crate::error;
+use crate::errors::{NoFileDiagnostic, Diagnostic};
+use line_index::LineIndex;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FileId(Rc<str>);
@@ -29,6 +32,7 @@ impl Borrow<str> for FileId {
 
 pub struct Sources {
     texts: HashMap<FileId, Rc<str>>,
+    indexes: HashMap<FileId, LineIndex>,
     ariadne_sources: HashMap<FileId, Source<Rc<str>>>,
 }
 
@@ -36,21 +40,42 @@ impl Sources {
     pub fn new() -> Self {
         Self {
             texts: HashMap::new(),
+            indexes: HashMap::new(),
             ariadne_sources: HashMap::new(),
         }
     }
 
     /// Cheap: `Rc` bump on cache hit, disk read + insert on miss.
     /// Panics if the file can't be read
-    pub fn text(&mut self, id: &FileId) -> Rc<str> {
+    pub fn text(&mut self, id: &FileId) -> Result<Rc<str>, Diagnostic> {
         if let Some(rc) = self.texts.get(id) {
-            return Rc::clone(rc);
+            return Ok(Rc::clone(rc));
         }
-        let rc: Rc<str> = std::fs::read_to_string(id.as_str())
+        let rc = std::fs::read_to_string(id.as_str())
             .map(Rc::from)
-            .unwrap_or_else(|e| panic!("failed to read {}: {}", id, e));
-        self.texts.insert(id.clone(), Rc::clone(&rc));
-        rc
+            .map_err(|e| error!(0..0, "failed to read {}: {}", id, e).specify_file(&id));
+        if let Ok(rc1) = rc {
+            self.texts.insert(id.clone(), Rc::clone(&rc1));
+            Ok(rc1)
+        } else { rc }
+    }
+
+    pub fn lc_index(&mut self, id: &FileId, offset: usize) -> Result<(usize, usize), Diagnostic> {
+        if let Some(idx) = self.indexes.get(id) {
+            return Ok(idx.line_col(offset));
+        }
+        let rc = std::fs::read_to_string(id.as_str())
+            .map(Rc::from)
+            .map_err(|e| error!(0..0, "failed to read {}: {}", id, e).specify_file(&id));
+        if let Ok(rc1) = rc {
+            self.texts.insert(id.clone(), Rc::clone(&rc1));
+            let index = LineIndex::new(&rc1);
+            let res = index.line_col(offset);
+            self.indexes.insert(id.clone(), index);
+            Ok(res)
+        } else {
+           Err(rc.expect_err("unreachable"))
+        }
     }
 
     /// Inject a source directly — handy for tests and for sources that
@@ -69,6 +94,8 @@ impl Sources {
     }
 }
 
+// for aridane 
+
 impl Default for Sources {
     fn default() -> Self { Self::new() }
 }
@@ -78,10 +105,10 @@ impl Cache<FileId> for Sources {
 
     fn fetch(&mut self, id: &FileId) -> Result<&Source<Rc<str>>, impl fmt::Debug> {
         if !self.ariadne_sources.contains_key(id) {
-            let rc = self.text(id);
+            let rc = self.text(id)?;
             self.ariadne_sources.insert(id.clone(), Source::from(rc));
         }
-        Ok::<_, Infallible>(self.ariadne_sources.get(id).unwrap())
+        Ok::<_, Diagnostic>(self.ariadne_sources.get(id).unwrap())
     }
 
     fn display<'a>(&self, id: &'a FileId) -> Option<impl fmt::Display + 'a> {
