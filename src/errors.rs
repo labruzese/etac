@@ -47,28 +47,6 @@ impl ariadne::Span for EtaSpan {
     fn end(&self)   -> usize   { self.range.end }
 }
 
-#[derive(Clone, Copy)]
-pub struct NoSpan {}
-#[derive(Clone, Copy)]
-pub struct NoCache {}
-impl ariadne::Span for NoSpan {
-    type SourceId = ();
-    fn source(&self) -> &Self::SourceId {&()}
-    fn start(&self) -> usize {0}
-    fn end(&self) -> usize {0}
-}
-impl ariadne::Cache<()> for NoCache {
-    type Storage = &'static str;
-    fn fetch(&mut self, id: &()) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
-        static SOURCE: std::sync::LazyLock<ariadne::Source<&'static str>> 
-                     = std::sync::LazyLock::new(||ariadne::Source::from(""));
-        Ok::<_, Infallible>(&SOURCE)
-    }
-    fn display<'a>(&self, id: &'a ()) -> Option<impl std::fmt::Display + 'a> {
-        Some("")
-    }
-}
-
 /// write the diagnostic to stderr (pretty)
 pub fn emit(sources: &mut Sources, diag: Diagnostic) {
     let kind = match diag.level {
@@ -99,3 +77,28 @@ pub fn emit_raw(level: crate::errors::Level, msg: impl ToString) {
         .finish()
         .eprint(NO_CACHE);
 }
+
+#[derive(Clone, Copy)]
+/// dummy struct for satisfying ariadne when we don't have a source
+pub struct NoSpan {}
+#[derive(Clone, Copy)]
+/// dummy struct for satisfying ariadne when we don't have a source
+pub struct NoCache {}
+impl ariadne::Span for NoSpan {
+    type SourceId = ();
+    fn source(&self) -> &Self::SourceId {&()}
+    fn start(&self) -> usize {0}
+    fn end(&self) -> usize {0}
+}
+impl ariadne::Cache<()> for NoCache {
+    type Storage = &'static str;
+    fn fetch(&mut self, id: &()) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
+        static SOURCE: std::sync::LazyLock<ariadne::Source<&'static str>> 
+                     = std::sync::LazyLock::new(||ariadne::Source::from(""));
+        Ok::<_, Infallible>(&SOURCE)
+    }
+    fn display<'a>(&self, id: &'a ()) -> Option<impl std::fmt::Display + 'a> {
+        Some("")
+    }
+}
+
