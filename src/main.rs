@@ -10,7 +10,7 @@ mod sources;
 use context::Context;
 use sources::SourceId;
 
-use crate::sources::{FileId, InterfaceId};
+use crate::sources::{InterfaceId};
 
 fn main() {
     env_logger::init();
@@ -19,14 +19,14 @@ fn main() {
 
     let mut sources: Vec<SourceId> = vec![];
     let mut interfaces: Vec<InterfaceId> = vec![];
-    // convert / check sources
+
+    // check & convert sources
     for file in &ctx.flags.source_files {
         let Some(file_str) = file.to_str() else {
-                errors::emit(&mut ctx.files, error!(
-                    &FileId::new("??"), 
-                    0..0usize,
-                    "non-UTF8 file name {}", file.to_string_lossy()
-                ));
+                errors::emit_raw(
+                    errors::Level::Error,
+                    format!("non-UTF8 file name {}", file.to_string_lossy())
+                );
                 return;
         };
 
@@ -34,11 +34,10 @@ fn main() {
             Some("eta") => sources.push(SourceId::new(file_str)),
             Some("eti") => interfaces.push(InterfaceId::new(file_str)),
             extension => {
-                errors::emit(&mut ctx.files, error!(
-                    &FileId::new(file_str), 
-                    0..0usize,
-                    "unknown file type {}", extension.unwrap_or("")
-                ));
+                errors::emit_raw(
+                    errors::Level::Error,
+                    format!("unknown file type {}", extension.unwrap_or(""))
+                );
             }
         }
     }

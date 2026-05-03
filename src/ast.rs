@@ -12,6 +12,7 @@ macro_rules! sp {
 mod printer;
 
 #[derive(Debug, Clone)]
+/// Wraps an AST node with it's span, both file and location
 pub struct Spanned<T> {
     pub span: EtaSpan,
     pub node: T,

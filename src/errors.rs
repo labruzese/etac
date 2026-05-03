@@ -1,7 +1,8 @@
 #![allow(unused)]
 
-use crate::sources::span::EtaSpan;
+use crate::sources::{span::EtaSpan, FileId};
 use std::{fmt::Debug, ops::Range, rc::Rc};
+use std::convert::Infallible;
 
 use ariadne::{Color, Label, Report, ReportKind};
 
@@ -38,6 +39,7 @@ pub enum Level {
 mod diagnostic;
 pub use diagnostic::*;
 
+/// So that ariadne can report errors given EtaSpans
 impl ariadne::Span for EtaSpan {
     type SourceId = SourceId;
     fn source(&self) -> &SourceId { &self.file_id }
@@ -45,6 +47,29 @@ impl ariadne::Span for EtaSpan {
     fn end(&self)   -> usize   { self.range.end }
 }
 
+#[derive(Clone, Copy)]
+pub struct NoSpan {}
+#[derive(Clone, Copy)]
+pub struct NoCache {}
+impl ariadne::Span for NoSpan {
+    type SourceId = ();
+    fn source(&self) -> &Self::SourceId {&()}
+    fn start(&self) -> usize {0}
+    fn end(&self) -> usize {0}
+}
+impl ariadne::Cache<()> for NoCache {
+    type Storage = &'static str;
+    fn fetch(&mut self, id: &()) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
+        static SOURCE: std::sync::LazyLock<ariadne::Source<&'static str>> 
+                     = std::sync::LazyLock::new(||ariadne::Source::from(""));
+        Ok::<_, Infallible>(&SOURCE)
+    }
+    fn display<'a>(&self, id: &'a ()) -> Option<impl std::fmt::Display + 'a> {
+        Some("")
+    }
+}
+
+/// write the diagnostic to stderr (pretty)
 pub fn emit(sources: &mut Sources, diag: Diagnostic) {
     let kind = match diag.level {
         Level::Error   => ReportKind::Error,
@@ -58,4 +83,19 @@ pub fn emit(sources: &mut Sources, diag: Diagnostic) {
         b = b.with_label(Label::new(span).with_message(msg).with_color(color));
     }
     let _ = b.finish().eprint(sources);
+}
+
+/// write a diagnostic that doesn't have any locatoin information
+pub fn emit_raw(level: crate::errors::Level, msg: impl ToString) {
+    let kind = match level {
+        Level::Error   => ReportKind::Error,
+        Level::Warning => ReportKind::Warning,
+        Level::Note    => ReportKind::Advice,
+    };
+    static NO_SPAN: NoSpan = NoSpan {};
+    static NO_CACHE: NoCache = NoCache {};
+    Report::build(kind, NO_SPAN)
+        .with_message(msg.to_string())
+        .finish()
+        .eprint(NO_CACHE);
 }

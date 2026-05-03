@@ -2,6 +2,7 @@ use crate::cli::Flags;
 use crate::logger::Logger;
 use crate::sources::Sources;
 
+/// Holds the context the compiler might need
 pub struct Context {
     pub flags: Flags,
     pub files: Sources,
