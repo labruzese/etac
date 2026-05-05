@@ -1,58 +1,9 @@
-# eth test script
-#
-# This file is a test script for eth (etac Test Harness).  It
-# conforms to the following grammar:
-#
-#   ScriptFile      ::= Commands+
-#   Command         ::= build
-#                     | CompilerTest
-#   CompilerTest    ::= TestKind (\(TestName\))? ([TestPath])? ("CmdLineArgs")?
-#                           { (FileTest;)* }
-#   TestKind        ::= etac
-#   TestName        ::= LitString
-#   FileTest        ::= Filenames Description? FailureSet?
-#   Filenames       ::= Filename+
-#   Description     ::= LitString
-#   FailureSet      ::= Failure (, Failure)*
-#   Failure         ::= \( ErrorKind \)
-#                     | \( ErrorKind, LitString \)
-#
-#   TestPath        :   the path to the test files, enclosed in quotes,
-#                       relative to the path given in eth's -testpath flag.
-#   CmdLineArgs     :   command-line arguments for etac
-#   Filename        :   the name of a file, interpreted from TestPath.
-#   LitString       :   a literal string, enclosed in quotes.
-#   ErrorKind       :   one of, or a unique prefix of one of the following
-#                       strings: "Lexical Error", "Syntax Error", or
-#                       "Semantic Error".
-#
-# eth runs the commands in order of appearance.
+# eth test script for custom PA2 parser tests
 
 # build compiler first
 build
 
-etac ("Test --help") "--help" {
-    ;
-}
-
-etac ("Test --lex") ["../pa1"] "--lex" {
-    ex1.eta;
-    ex2.eta (Lexical, "empty character literal");
-    spec1.eta;
-    spec2.eta;
-    spec3.eta;
-    gcd.eta;
-    ratadd.eta;
-    ratadduse.eta;
-    insertionsort.eta;
-    arrayinit.eta;
-    arrayinit2.eta;
-    mdarrays.eta;
-    add.eta;
-    beauty.eta;
-}
-
-etac ("Test --parse") "--parse" {
+etac ("Test --parse provided") ["../resources/eta-files/provided/pa2"] "-libpath ../resources/eta-files/custom/misc/libpath --parse" {
     ex1.eta;
     ex2.eta;
     ex3.eta (Syntax, "Unexpected token +");
@@ -69,4 +20,64 @@ etac ("Test --parse") "--parse" {
     add.eta (Syntax, "Unexpected token +");
     beauty.eta (Syntax, "Unexpected token ==");
     io.eti;
+}
+
+etac ("Test --parse custom") ["../resources/eta-files/custom/pa2"] "-libpath ../resources/eta-files/custom/misc/libpath --parse" {
+    empty_body.eta;
+    global_vars.eta;
+    multi_use.eta;
+    high_mult_mod.eta;
+    all_comparisons.eta;
+    procedure.eta;
+    nested_blocks.eta;
+    fancy_ids.eta;
+    trailing_comma.eta;
+    empty_array.eta;
+    while_no_braces.eta;
+    chained_if.eta;
+    paren_expr.eta;
+    multi_return.eta;
+    complex_interface.eti;
+    array_chain_index.eta;
+    unary_chain.eta;
+    swap_assign.eta;
+    deeply_nested.eta;
+    bool_short_circuit.eta;
+    return_only_block.eta;
+    no_type_decl.eta;
+    array_decls.eta;
+    length_array.eta;
+    multi_var_decls.eta;
+    var_decls.eta;
+    unary_minus.eta;
+    error_if_start.eta (Syntax, "Unexpected token if");
+    error_return_start.eta (Syntax, "Unexpected token return");
+    error_use_after_def.eta (Syntax, "Unexpected token use");
+    error_while_start.eta (Syntax, "Unexpected token while");
+    error_empty_eta.eta (Syntax, "unexpected end of file.");
+    error_empty_eti.eti (Syntax, "unexpected end of file.");
+    error_eta_nofunctions.eta (Syntax, "unexpected end of file.");
+    error_eta_unfinished.eta (Syntax, "unexpected end of file.");
+    error_eti_unfinished.eti (Syntax, "unexpected end of file.");
+    string_index.eta;
+    gd_assign01.eta;
+    gd_assign03.eta;
+    gd_assign04.eta;
+    gd_block01.eta;
+    gd_block02.eta;
+    gd_globlarrinit.eta (Syntax, "Syntax error: unexpected string whoops.");
+    gd_globlarrinit1.eta (Syntax, "Syntax error: unexpected integer 4.");
+    gd_globlarrinit2.eta (Syntax, "Syntax error: unexpected {.");
+    ref_expr06.eta;
+    referr_block01.eta (Syntax, "Syntax error: unexpected ;.");
+    referr_empty.eta (Syntax, "Syntax error: unexpected end of file.");
+    referr_use01.eta (Syntax, "Syntax error: unexpected end of file.");
+    referr_use02.eta (Syntax, "Syntax error: unexpected end of file.");
+    referr_vardecl01.eta (Syntax, "Syntax error: unexpected integer 1.");
+    referr_vardecl02.eta (Syntax, "Syntax error: unexpected integer 1.");
+    referr_vardecl03.eta (Syntax, "Syntax error: unexpected _.");
+    etierr_x01.eti (Syntax, "Syntax error: unexpected end of file.");
+    etierr_x04.eti (Syntax, "Syntax error: unexpected end of file.");
+    funccall_indexing.eta;
+    err_toss_indexing.eta (Syntax, "Unexpected token [");
 }

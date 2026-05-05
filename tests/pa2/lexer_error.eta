@@ -1,0 +1,4 @@
+// lexically invalid
+main(args: int[][]) {
+    x:int = '\q'
+}

@@ -1,0 +1,4 @@
+x'y(a_b: int, c'd: int): int {
+    x'_1: int = a_b + c'd
+    return x'_1
+}

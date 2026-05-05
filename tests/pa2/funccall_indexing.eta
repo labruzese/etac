@@ -1,0 +1,4 @@
+main(args: int[][]) {
+    g()[0] = 5
+    g(arg)[x] = y
+}
