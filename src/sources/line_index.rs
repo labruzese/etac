@@ -29,7 +29,7 @@ impl LineIndex {
         // count characters, not bytes
         let char_col = text[line_start..offset]
             .chars()
-            .map(|c| unicode_width::UnicodeWidthChar::width(c).unwrap_or(0))
+            .map(|c| unicode_width::UnicodeWidthChar::width_cjk(c).unwrap_or(0))
             .sum::<usize>();
         (line_idx + 1, char_col + 1)
     }
