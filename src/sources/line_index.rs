@@ -18,13 +18,16 @@ impl LineIndex {
         Self { line_starts }
     }
 
-    /// 1-indexed (line, column). Column is a byte offset from the start of
-    /// the line, matching ariadne's `Source::get_byte_line`.
-    pub fn line_col(&self, offset: usize) -> (usize, usize) {
+    /// 1-indexed (line, column). Column is a **character** offset,
+    /// suitable for display to users.
+    pub fn line_col(&self, offset: usize, text: &str) -> (usize, usize) {
         let line_idx = self
             .line_starts
             .partition_point(|&start| start <= offset)
             .saturating_sub(1);
-        (line_idx + 1, offset - self.line_starts[line_idx] + 1)
+        let line_start = self.line_starts[line_idx];
+        // count characters, not bytes
+        let char_col = text[line_start..offset].chars().count();
+        dbg!((line_idx + 1, char_col + 1))
     }
 }

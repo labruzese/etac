@@ -66,22 +66,22 @@ impl Sources {
         } else { rc }
     }
 
+    // provides the char line:col (not byte offset line:col)
     pub fn lc_index(&mut self, id: &FileId, offset: usize) -> Result<(usize, usize), Diagnostic> {
         if let Some(idx) = self.indexes.get(id) {
-            return Ok(idx.line_col(offset));
+            let text = self.texts.get(id).expect("text always inserted with index");
+            return Ok(idx.line_col(offset, text));
         }
         let rc = std::fs::read_to_string(id.as_str())
             .map(Rc::from)
-            .map_err(|e| error!(id, 0..0, "failed to read {id}: {e}"));
-        if let Ok(rc1) = rc {
-            self.texts.insert(id.clone(), Rc::clone(&rc1));
-            let index = LineIndex::new(&rc1);
-            let res = index.line_col(offset);
-            self.indexes.insert(id.clone(), index);
-            Ok(res)
-        } else {
-           Err(rc.expect_err("unreachable"))
-        }
+            .map_err(|e| error!(id, 0..0, "failed to read {id}: {e}"))
+            ?;
+
+        self.texts.insert(id.clone(), Rc::clone(&rc));
+        let index = LineIndex::new(&rc);
+        let res = index.line_col(offset, &rc);
+        self.indexes.insert(id.clone(), index);
+        Ok(res)
     }
 
     /// Inject a source directly — handy for tests and for sources that
