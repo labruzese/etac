@@ -27,7 +27,10 @@ impl LineIndex {
             .saturating_sub(1);
         let line_start = self.line_starts[line_idx];
         // count characters, not bytes
-        let char_col = text[line_start..offset].chars().count();
-        dbg!((line_idx + 1, char_col + 1))
+        let char_col = text[line_start..offset]
+            .chars()
+            .map(|c| unicode_width::UnicodeWidthChar::width(c).unwrap_or(0))
+            .sum::<usize>();
+        (line_idx + 1, char_col + 1)
     }
 }
