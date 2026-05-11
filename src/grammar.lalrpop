@@ -295,6 +295,7 @@ DeclTargets: Vec<Spanned<Decl>> = {
 
 // contains r0 non-decl target (not valid multi-decl)
 NonDeclTargets: Vec<Target> = {
+    <t:NonDeclTarget> => vec![t],
     <mut p:DeclTargets> "," <n:NonDeclTarget> =>
 	p.into_iter().map(|d| Target::Decl(d)).chain(std::iter::once(n)).collect(),
     <mut p:NonDeclTargets> "," <n:NonDeclTarget> => {
