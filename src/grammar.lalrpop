@@ -1,14 +1,14 @@
-use crate::ast::*;
+use lalrpop_util::ErrorRecovery;
 use either::Either;
+use crate::ast::*;
 use crate::sp;
+use crate::error;
 use crate::lexer::Token;
 use crate::errors::Diagnostic;
 use crate::sources::{FileId, span::EtaSpan};
-use lalrpop_util::ErrorRecovery;
-use crate::error;
 
 grammar(
-    file_id: &FileId,
+    f: &FileId,
     errors:  &mut Vec<ErrorRecovery<usize, Token, Diagnostic>>
 );
 
@@ -16,7 +16,7 @@ grammar(
 
 /// Wrap any rule in a `Spanned`. Captures `@L`..`@R` around the inner rule.
 Sp<T>: Spanned<T> = 
-    <l:@L> <n:T> <r:@R> => sp!(file_id, l, n, r);
+    <l:@L> <n:T> <r:@R> => sp!(f, l, n, r);
 
 // One or more T separated by `,`, NO trailing comma.
 CommaPlus<T>: Vec<T> = {
@@ -150,9 +150,9 @@ GlobDecl: GlobDecl = {
 };
 
 GlobalValue: Value = {
-    <l:@L> "-" <n:"intlit"> <r:@R> 	=> Value::IntLit(sp!(file_id, l, -(n as i128), r)),
-    <l:@L> <n:"intlit"> <r:@R>    	=> Value::IntLit(sp!(file_id, l, n as i128, r)),
-    <l:@L> <b:"boollit"> <r:@R>		=> Value::BoolLit(sp!(file_id, l, b, r)),
+    <l:@L> "-" <n:"intlit"> <r:@R> 	=> Value::IntLit(sp!(f, l, -(n as i128), r)),
+    <l:@L> <n:"intlit"> <r:@R>    	=> Value::IntLit(sp!(f, l, n as i128, r)),
+    <l:@L> <b:"boollit"> <r:@R>		=> Value::BoolLit(sp!(f, l, b, r)),
 };
 
 
@@ -178,9 +178,9 @@ TypeUnsized: Type = {
             .collect();
         all.into_iter().rev().fold(base, |inner, dim| match dim {
             Either::Left((l, size, r)) =>
-                Type::SizedArray(sp!(file_id, l, SizedArray { of: Box::new(inner), size }, r)),
+                Type::SizedArray(sp!(f, l, SizedArray { of: Box::new(inner), size }, r)),
             Either::Right((l, r)) =>
-                Type::UnsizedArray(sp!(file_id, l, UnsizedArray { of: Box::new(inner) }, r)),
+                Type::UnsizedArray(sp!(f, l, UnsizedArray { of: Box::new(inner) }, r)),
         })
     }
 };
@@ -189,7 +189,7 @@ TypeSized: Type = {
     <BaseType>,
     <base:BaseType> <dims:SizedDim+> => {
         dims.into_iter().rev().fold(base, |inner, (l, size, r)| {
-            Type::SizedArray(sp!(file_id, l, SizedArray { of: Box::new(inner), size }, r))
+            Type::SizedArray(sp!(f, l, SizedArray { of: Box::new(inner), size }, r))
         })
     }
 };
@@ -199,7 +199,7 @@ GlobDeclType: Type = {
     <TypeUnsized>,
     <base:BaseType> "[" <l:@L> <size:Expr> <r:@R> "]" =>? 
         Err(error!(
-		file_id,
+		f,
 		l..r,
 		"Global arrays can't be initialized at the point of declaration")
 	    .with_primary_label("initialization happens here")
@@ -207,8 +207,8 @@ GlobDeclType: Type = {
 };
 
 BaseType: Type = {
-    <l:@L> <s:"int"> <r:@R> 	=> Type::Int((file_id, l..r).into()),
-    <l:@L> <s:"bool"> <r:@R>	=> Type::Bool((file_id, l..r).into()),
+    <l:@L> <s:"int"> <r:@R> 	=> Type::Int((f, l..r).into()),
+    <l:@L> <s:"bool"> <r:@R>	=> Type::Bool((f, l..r).into()),
 }
 
 // ----- Blocks -----
@@ -257,49 +257,16 @@ StmtClosed: Stmt = {
     <ifstmt:Sp<IfStmtClosed>> 	 => Stmt::IfStmt(ifstmt),
     <wlstmt:Sp<WhileStmtClosed>> => Stmt::WhileStmt(wlstmt),
     <stmts:Sp<Block>>  		 => Stmt::Block(stmts),
-
-    <l:@L> <ts:Targets> "=" <values:CommaPlus<Expr>> <r:@R> => 
-	Stmt::Assignment(sp!(file_id, l, Assignment { targets: ts, values }, r)),
-
-    // ProcCall + Decls (no catch-all for bare lvalues)
-    <l:@L> <ts:Targets> <r:@R> =>? {
-	// Single proc call → valid statement
-	if matches!(ts.as_slice(), [Target::LValue(LValue::ProcCall(_))]) {
-	    let Target::LValue(LValue::ProcCall(pc)) = ts.into_iter().next().unwrap() else { unreachable!() };
-	    return Ok(Stmt::ProcCall(pc));
-	}
-
-	// No decls at all → this isn't a statement, reject
-	if !ts.iter().any(|t| matches!(t, Target::Decl(_))) {
-	    let span = match &ts[0] {
-		Target::LValue(LValue::Index(sn)) => sn.span.range.clone(),
-		Target::LValue(LValue::Id(sn)) => sn.span.range.clone(),
-		Target::LValue(LValue::ProcCall(sn)) => sn.span.range.clone(),
-		Target::Discard(span) => span.range.clone(),
-		_ => unreachable!(),
-	    };
-	    return Err(error!(file_id, span, "expected a statement")
-		    .with_primary_label("not a statement"),
-	    )?;
-	}
-
-	// Has at least one decl — validate the rest are also decls
-	let decls: Result<Vec<_>, _> = ts.into_iter().map(|t| {
-	    let span = match t {
-		Target::Decl(d) => { return Ok(d) },
-		Target::LValue(LValue::Index(sn)) => sn.span.range,
-		Target::LValue(LValue::Id(sn)) => sn.span.range,
-		Target::LValue(LValue::ProcCall(sn)) => sn.span.range,
-		Target::Discard(span) => span.range,
-	    };
-	    Err(error!(file_id, span,
-		"illegal declaration in multi-declaration")
-		.with_primary_label("here")
-		.with_note("multi-decls must all be of the form 'id:type, ...'")
-	    )
-	}).collect();
-	Ok(Stmt::Decls(decls?))
-    },
+    <pcall:Sp<ProcCall>>	 => Stmt::ProcCall(pcall),
+    <decls:DeclTargets>		 => Stmt::Decls(decls),
+    <l:@L> <ts:DeclTargets> "=" <values:CommaPlus<Expr>> <r:@R> => 
+	Stmt::Assignment(sp!(f, l, 
+	    Assignment { 
+		targets: ts.into_iter().map(|d| Target::Decl(d)).collect(), 
+		values 
+	    }, r)),
+    <l:@L> <ts:NonDeclTargets> "=" <values:CommaPlus<Expr>> <r:@R> => 
+	Stmt::Assignment(sp!(f, l, Assignment { targets: ts, values }, r)),
 };
 
 IfStmtClosed: IfStmt = {
@@ -317,16 +284,30 @@ Decl: Decl = {
     <id:Sp<"ident">> ":" <typ:Type> => Decl { id, typ },
 };
 
-Targets: Vec<Target> = {
-    <t:Target> => vec![t],
-    <mut p:Targets> "," <n:Target> => {
+// pure decl target also valid as multi-decl
+DeclTargets: Vec<Spanned<Decl>> = {
+    <d:Sp<Decl>> => vec![d],
+    <mut p:DeclTargets> "," <n:Sp<Decl>> => {
+	p.extend(vec![n]);
+	p
+    }
+}
+
+// contains r0 non-decl target (not valid multi-decl)
+NonDeclTargets: Vec<Target> = {
+    <mut p:DeclTargets> "," <n:NonDeclTarget> =>
+	p.into_iter().map(|d| Target::Decl(d)).chain(std::iter::once(n)).collect(),
+    <mut p:NonDeclTargets> "," <n:NonDeclTarget> => {
 	p.extend(vec![n]);
 	p
     },
+    <mut p:NonDeclTargets> "," <n:Sp<Decl>> => {
+	p.extend(vec![Target::Decl(n)]);
+	p
+    }
 };
 
-Target: Target = {
-    <d:Sp<Decl>> => Target::Decl(d),
+NonDeclTarget: Target = {
     <l:LValue> 	 => Target::LValue(l),
     <s:Sp<"_">>  => Target::Discard(s.span),
 }
@@ -334,7 +315,7 @@ Target: Target = {
 LValue: LValue = {
     <base:LValueBase> <indices:Sp<ArrayIndex>*> => {
         indices.into_iter().fold(base, |lv, ai| {
-            LValue::Index(sp!(file_id, ai.span.range.start, LValueIndex { of: Box::new(lv), index: ai.node }, ai.span.range.end))
+            LValue::Index(sp!(f, ai.span.range.start, LValueIndex { of: Box::new(lv), index: ai.node }, ai.span.range.end))
         })
     },
 }
@@ -393,31 +374,31 @@ Expr: Expr = {
 
     #[precedence(level="1")]
     <l:@L> <op:Sp<UnaryOp>> <e:Expr> <r:@R>
-        => Expr::Unary(sp!(file_id, l, ExprUOp { op, expr: Box::new(e) }, r)),
+        => Expr::Unary(sp!(f, l, ExprUOp { op, expr: Box::new(e) }, r)),
 
     #[precedence(level="2")] #[assoc(side="left")]
     <l:@L> <left:Expr> <op:Sp<MulOp>> <right:Expr> <r:@R>
-        => Expr::Binary(sp!(file_id, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
+        => Expr::Binary(sp!(f, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
 
     #[precedence(level="3")] #[assoc(side="left")]
     <l:@L> <left:Expr> <op:Sp<AddOp>> <right:Expr> <r:@R>
-        => Expr::Binary(sp!(file_id, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
+        => Expr::Binary(sp!(f, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
 
     #[precedence(level="4")] #[assoc(side="left")]
     <l:@L> <left:Expr> <op:Sp<RelOp>> <right:Expr> <r:@R>
-        => Expr::Binary(sp!(file_id, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
+        => Expr::Binary(sp!(f, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
 
     #[precedence(level="5")] #[assoc(side="left")]
     <l:@L> <left:Expr> <op:Sp<EqOp>> <right:Expr> <r:@R>
-        => Expr::Binary(sp!(file_id, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
+        => Expr::Binary(sp!(f, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
 
     #[precedence(level="6")] #[assoc(side="left")]
     <l:@L> <left:Expr> <op:Sp<AndOp>> <right:Expr> <r:@R>
-        => Expr::Binary(sp!(file_id, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
+        => Expr::Binary(sp!(f, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
 
     #[precedence(level="7")] #[assoc(side="left")]
     <l:@L> <left:Expr> <op:Sp<OrOp>> <right:Expr> <r:@R>
-        => Expr::Binary(sp!(file_id, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
+        => Expr::Binary(sp!(f, l, ExprBinOp { op, left: Box::new(left), right: Box::new(right) }, r)),
 };
 
 // ---- Primary: atoms, postfix indexing, parens. ----
@@ -425,7 +406,7 @@ Primary: Expr = {
     <array:PrimaryBase> <indices:Sp<ArrayIndex>*> => {
         indices.into_iter().fold(array, |lv, ai| {
 	    Expr::Index(sp!(
-		file_id,
+		f,
 		ai.span.range.start,
 		ExprIndex { array: Box::new(lv), index: Box::new(ai.node) },
 		ai.span.range.end
@@ -437,14 +418,14 @@ Primary: Expr = {
 PrimaryBase: Expr = {
     <lit:Lit>                            			=> Expr::Lit(lit),
     <id:Sp<"ident">>                         			=> Expr::Id(id),
-    <l:@L> <id:Sp<"ident">> "(" <a:Comma<Expr>> ")" <r:@R>	=> Expr::Call(sp!(file_id, l, ProcCall { id, args: a }, r)),
-    <l:@L> "length" "(" <e:Expr> ")" <r:@R>     		=> Expr::Length(sp!(file_id, l, Box::new(e), r)),
+    <l:@L> <id:Sp<"ident">> "(" <a:Comma<Expr>> ")" <r:@R>	=> Expr::Call(sp!(f, l, ProcCall { id, args: a }, r)),
+    <l:@L> "length" "(" <e:Expr> ")" <r:@R>     		=> Expr::Length(sp!(f, l, Box::new(e), r)),
     "(" <Expr> ")",
 }
 
 Lit: Lit = {
-    <l:@L> <n:"intlit"> <r:@R>          => Lit::IntLit(sp!(file_id, l, n as i128, r)),
-    <l:@L> <c:"charlit"> <r:@R>		=> Lit::CharLit(sp!(file_id, l, char::from_u32(c).expect("lexer should have rejected invalid codepoint"), r)),
+    <l:@L> <n:"intlit"> <r:@R>          => Lit::IntLit(sp!(f, l, n as i128, r)),
+    <l:@L> <c:"charlit"> <r:@R>		=> Lit::CharLit(sp!(f, l, char::from_u32(c).expect("lexer should have rejected invalid codepoint"), r)),
     <b:Sp<"boollit">> 			=> Lit::BoolLit(b),
     <s:Sp<"strlit">>  			=> Lit::ArrLit(ArrLit::StringLit(s)),
     "{" <exprs:CommaTrailing<Expr>> "}" => Lit::ArrLit(ArrLit::Array(exprs)),

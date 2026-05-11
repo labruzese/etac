@@ -23,6 +23,7 @@ impl fmt::Display for Sexpr {
     }
 }
 
+#[allow(unused)]
 impl Sexpr {
     /// Render this node with all children beyond depth 0 replaced by (…)
     pub fn elided(&self) -> String {
