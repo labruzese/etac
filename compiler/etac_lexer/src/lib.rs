@@ -21,6 +21,7 @@ impl<'source> Lexer<'source> {
         Self { inner: <Token as Logos>::lexer_with_extras(source, file_id).spanned() }
     }
 }
+// transformed for lalrpop
 impl Iterator for Lexer<'_> {
     type Item = Result<(usize, Token, usize), Diagnostic>;
 
@@ -34,7 +35,6 @@ impl Iterator for Lexer<'_> {
 }
 
 // logos
-
 #[derive(Debug, Clone, PartialEq, Logos)]
 #[logos(skip r"[ \t\n\f\r]+")]
 #[logos(skip r"//[^\n]*")]
