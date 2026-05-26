@@ -1,11 +1,10 @@
 use lalrpop_util::ErrorRecovery;
 use either::Either;
-use crate::ast::*;
-use crate::sp;
-use crate::error;
-use crate::lexer::Token;
-use crate::errors::Diagnostic;
-use crate::sources::{FileId, span::EtaSpan};
+use etac_ast::*;
+use etac_ast::sp;
+use etac_errors::{error, Diagnostic};
+use etac_lexer::Token;
+use etac_span::{FileId, EtaSpan};
 
 grammar(
     f: &FileId,
@@ -198,10 +197,7 @@ GlobDeclType: Type = {
     <BaseType>,
     <TypeUnsized>,
     <base:BaseType> "[" <l:@L> <size:Expr> <r:@R> "]" =>? 
-        Err(error!(
-		f,
-		l..r,
-		"Global arrays can't be initialized at the point of declaration")
+        Err(error!(f, l..r; "Global arrays can't be initialized at the point of declaration")
 	    .with_primary_label("initialization happens here")
 	)?
 };

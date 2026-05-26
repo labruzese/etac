@@ -1,74 +1,79 @@
-use crate::ast;
-use crate::context::Context;
-use crate::error;
-use crate::errors::Diagnostic;
-use crate::lexer::Token;
-use logos::Logos;
-use crate::sources::{InterfaceId, SourceId};
+use etac_errors::{error, Diagnostic};
+use etac_lexer::{Token};
+use etac_span::{FileId}; 
 use lalrpop_util::{lalrpop_mod, ParseError};
 
 lalrpop_mod!(grammar);
 
-macro_rules! parse {
-    ($ctx:expr, $file_id:expr, $parser:ty) => {
-        { 
-            let source = $ctx
-                .files
-                .text($file_id)
-                .map_err(|e| vec![e])?;
+pub trait IParser<ParseOut> {
+    fn new() -> Self;
 
-            let mut line_col = |offset: usize| $ctx.files.lc_index(&$file_id, offset).unwrap();
+    fn parse<__TOKEN, __TOKENS>(
+        &self,
+        f: &etac_span::FileId,
+        errors: &mut Vec<lalrpop_util::ErrorRecovery<usize, Token, Diagnostic>>,
+        __tokens0: __TOKENS,
+    ) -> Result<ParseOut, lalrpop_util::ParseError<usize, Token, Diagnostic>>
+    where
+        __TOKEN: grammar::__ToTriple,
+        __TOKENS: IntoIterator<Item = __TOKEN>;
+}
 
-            let lexer = Token::lexer_with_extras(&source, $file_id.clone()).spanned();
-            let tokens: Vec<Result<(usize, Token, usize), Diagnostic>> = lexer
-                .map(|(tok, span)| match tok {
-                    Ok(t) => {
-                        $ctx.logger
-                            .log_token(&$file_id, line_col(span.start), &t);
-                        Ok((span.start, t, span.end))
-                    }
-                    Err(d) => {
-                        $ctx.logger
-                            .log_lexical_error(&$file_id, line_col(span.start), &d.message);
-                        Err(d)
-                    }
-                })
-                .collect();
+macro_rules! impl_iparser {
+    ($parser:ty, $out:ty) => {
+        impl IParser<$out> for $parser {
+            fn new() -> Self { <$parser>::new() }
 
-            let mut recovered = Vec::new();
-            let result = <$parser>::new().parse($file_id, &mut recovered, tokens);
-
-            if result.is_err() || !recovered.is_empty() {
-                let mut errors: Vec<Diagnostic> = recovered
-                    .into_iter()
-                    .map(|r| to_diag($file_id, r.error))
-                    .collect();
-                if let Err(e) = result {
-                    errors.push(to_diag($file_id, e));
-                }
-                for err in &errors {
-                    $ctx.logger
-                        .log_syntactic_error(&$file_id, line_col(err.loc.range.start), &err.message);
-                }
-                return Err(errors);
+            fn parse<__TOKEN, __TOKENS>(
+                &self,
+                f: &etac_span::FileId,
+                errors: &mut Vec<lalrpop_util::ErrorRecovery<usize, Token, Diagnostic>>,
+                __tokens0: __TOKENS,
+            ) -> Result<$out, lalrpop_util::ParseError<usize, Token, Diagnostic>>
+            where
+                __TOKEN: grammar::__ToTriple,
+                __TOKENS: IntoIterator<Item = __TOKEN> {
+                <$parser>::parse(self, f, errors, __tokens0)
             }
-
-            let ast_node = result.unwrap();
-            $ctx.logger.log_parse($file_id, &ast_node);
-            Ok(ast_node) 
         }
+    };
+}
+
+pub use grammar::ProgramParser;
+pub use grammar::InterfaceParser;
+impl_iparser!{ProgramParser, etac_ast::Program}
+impl_iparser!{InterfaceParser, etac_ast::Interface}
+
+pub fn parse<
+    Out,
+    Lexer,
+    Parser,
+    ParseCallback,
+>(
+    file_id: &FileId, // to generate diagnostics
+    lexer: Lexer,
+    parse_cb: &mut ParseCallback,
+) -> Result<Out, Vec<Diagnostic>>
+where
+    Lexer: Iterator<Item = Result<(usize, Token, usize), Diagnostic>>,
+    Parser: IParser<Out>,
+    ParseCallback: FnMut(&Result<Out, Diagnostic>),
+{
+    let mut recovered = Vec::new();
+    let result = Parser::new()
+                    .parse(file_id, &mut recovered, lexer)
+                    .map_err(|e| to_diag(file_id, e));
+
+    parse_cb(&result);
+
+    match result {
+        Ok(out) if recovered.is_empty() => return Ok(out),
+        Ok(_)                           => Err(recovered.into_iter().map(|r| to_diag(file_id, r.error)).collect()),
+        Err(e)                          => Err(recovered.into_iter().map(|r| to_diag(file_id, r.error)).chain(std::iter::once(e)).collect()),
     }
 }
 
-pub fn parse_source(ctx: &mut Context, file_id: &SourceId) -> Result<ast::Program, Vec<Diagnostic>> {
-    parse!(ctx, file_id, grammar::ProgramParser)
-}
-
-pub fn parse_interface(ctx: &mut Context, file_id: &InterfaceId) -> Result<ast::Interface, Vec<Diagnostic>> {
-    parse!(ctx, file_id, grammar::InterfaceParser)    
-}
-
-fn to_diag(file: &SourceId, err: ParseError<usize, Token, Diagnostic>) -> Diagnostic {
+fn to_diag(file: &FileId, err: ParseError<usize, Token, Diagnostic>) -> Diagnostic {
     use ParseError::*;
     match err {
         User { error } => error,
@@ -76,15 +81,16 @@ fn to_diag(file: &SourceId, err: ParseError<usize, Token, Diagnostic>) -> Diagno
         UnrecognizedToken {
             token: (s, t, e),
             expected,
-        } => error!(file, s..e, "Unexpected token {t}").with_primary_label(format_expected(&expected)),
+        } => error!(file, s..e; "Unexpected token {t}")
+            .with_primary_label(format_expected(&expected)),
 
         UnrecognizedEof { location, expected } => {
-            error!(file, location..location, "Unexpected end of file")
+            error!(file, location..location; "Unexpected end of file")
                 .with_primary_label(format_expected(&expected))
         }
 
         ExtraToken { token: (s, t, e) } => {
-            error!(file, s..e, "Extra token {} after program", t).with_primary_label("unexpected")
+            error!(file, s..e; "Extra token {} after program", t).with_primary_label("unexpected")
         }
 
         InvalidToken { location: _ } => {
@@ -103,4 +109,3 @@ fn format_expected(expected: &[String]) -> String {
         }
     }
 }
-

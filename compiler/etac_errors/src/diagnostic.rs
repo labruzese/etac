@@ -6,40 +6,44 @@ pub struct Diagnostic {
     pub code: Option<String>,
     pub message: String,
     pub labels: Vec<(EtaSpan, String, Color)>,
-    pub loc: EtaSpan,
+    pub file: Option<FileId>,
+    pub loc: Option<EtaSpan>,
     pub note: Option<String>,
 }
 
 impl Diagnostic {
-    pub fn error(span: EtaSpan, message: impl Into<String>) -> Self {
+    pub fn new(level: Level, span: EtaSpan, message: impl Into<String>) -> Self {
         Self {
             level: Level::Error,
             code: None,
             message: message.into(),
             labels: Vec::new(),
-            loc: span,
+            file: Some(span.file_id.clone()),
+            loc: Some(span),
             note: None,
         }
     }
 
-    pub fn warning(span: EtaSpan, message: impl Into<String>) -> Self {
+    pub fn new_no_loc(level: Level, file: FileId, message: impl Into<String>) -> Self {
         Self {
-            level: Level::Warning,
+            level: Level::Error,
             code: None,
             message: message.into(),
             labels: Vec::new(),
-            loc: span,
+            file: Some(file),
+            loc: None,
             note: None,
         }
     }
 
-    pub fn note(span: EtaSpan, message: impl Into<String>) -> Self {
+    pub fn new_generic(level: Level, message: impl Into<String>) -> Self {
         Self {
-            level: Level::Note,
+            level: Level::Error,
             code: None,
             message: message.into(),
             labels: Vec::new(),
-            loc: span,
+            file: None,
+            loc: None,
             note: None,
         }
     }
@@ -50,7 +54,11 @@ impl Diagnostic {
     }
 
     pub fn with_primary_label(mut self, message: impl Into<String>) -> Self {
-        self.labels.push((self.loc.clone(), message.into(), Color::Red));
+        self.labels.push((
+            self.loc.clone().unwrap_or_else(||panic!("can not add primary label to a diagnostic without a location")),
+            message.into(),
+            Color::Red
+        ));
         self
     }
 
@@ -69,8 +77,8 @@ impl Diagnostic {
 /// because we always provide an explicit error callback.
 impl Default for Diagnostic {
     fn default() -> Self {
-        Self::error(
-            EtaSpan { file_id: SourceId::new("<unknown>"), range: 0..0 },
+        Self::new_generic(
+            Level::Error,
             "unknown error",
         )
     }

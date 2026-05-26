@@ -8,24 +8,43 @@ use etac_span::{EtaSpan, FileId, SourceId, Sources};
 
 #[macro_export]
 macro_rules! error {
-    ($name:expr, $span:expr, $($arg:tt)*) => {
-        $crate::Diagnostic::error(($name, $span).into(), format!($($arg)*))
+    ($name:expr, $span:expr; $($arg:tt)*) => {
+        $crate::Diagnostic::new($crate::Level::Error, ($name, $span).into(), format!($($arg)*))
+    };
+    ($name:expr; $($arg:tt)*) => {
+        $crate::Diagnostic::new_no_loc($crate::Level::Error, $name, format!($($arg)*))
+    };
+    ($($arg:tt)*) => {
+        $crate::Diagnostic::new_generic($crate::Level::Error, format!($($arg)*))
     };
 }
 
-#[macro_export]
-macro_rules! warn {
-    ($name:expr, $span:expr, $($arg:tt)*) => {
-        $crate::Diagnostic::warning(($name, $span).into(), format!($($arg)*))
-    };
-}
-
-#[macro_export]
-macro_rules! note {
-    ($name:expr, $span:expr, $($arg:tt)*) => {
-        $crate::Diagnostic::note(($name, $span).into(), format!($($arg)*))
-    };
-}
+// these need to be fixed before they can be uncommented
+// #[macro_export]
+// macro_rules! warn {
+//     ($name:ident, $span:expr, $($arg:tt)*) => {
+//         $crate::Diagnostic::new($crate::Level::Warning, ($name, $span).into(), format!($($arg)*))
+//     };
+//     ($name:ident, $($arg:tt)*) => {
+//         $crate::Diagnostic::new_no_loc($crate::Level::Warning, $name, format!($($arg)*))
+//     };
+//     ($($arg:tt)*) => {
+//         $crate::Diagnostic::new_generic($crate::Level::Warning, format!($($arg)*))
+//     };
+// }
+//
+// #[macro_export]
+// macro_rules! note {
+//     ($name:expr, $span:expr, $($arg:tt)*) => {
+//         $crate::Diagnostic::new($crate::Level::Note, ($name, $span).into(), format!($($arg)*))
+//     };
+//     ($name:expr, $($arg:tt)*) => {
+//         $crate::Diagnostic::new_no_loc($crate::Level::Note, $name, format!($($arg)*))
+//     };
+//     ($($arg:tt)*) => {
+//         $crate::Diagnostic::new_generic($crate::Level::Note, format!($($arg)*))
+//     };
+// }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Level {
@@ -37,14 +56,6 @@ pub enum Level {
 mod diagnostic;
 pub use diagnostic::*;
 
-/// So that ariadne can report errors given EtaSpans
-impl ariadne::Span for EtaSpan {
-    type SourceId = SourceId;
-    fn source(&self) -> &SourceId { &self.file_id }
-    fn start(&self) -> usize   { self.range.start }
-    fn end(&self)   -> usize   { self.range.end }
-}
-
 /// write the diagnostic to stderr (pretty)
 pub fn emit(sources: &mut Sources, diag: Diagnostic) {
     let kind = match diag.level {
@@ -52,28 +63,31 @@ pub fn emit(sources: &mut Sources, diag: Diagnostic) {
         Level::Warning => ReportKind::Warning,
         Level::Note    => ReportKind::Advice,
     };
-    let mut b = Report::build(kind, diag.loc).with_message(diag.message);
-    if let Some(c) = diag.code { b = b.with_code(c); }
-    if let Some(n) = diag.note { b = b.with_note(n); }
-    for (span, msg, color) in diag.labels {
-        b = b.with_label(Label::new(span).with_message(msg).with_color(color));
-    }
-    let _ = b.finish().eprint(sources);
-}
-
-/// write a diagnostic that doesn't have any locatoin information
-pub fn emit_raw(level: Level, msg: impl ToString) {
-    let kind = match level {
-        Level::Error   => ReportKind::Error,
-        Level::Warning => ReportKind::Warning,
-        Level::Note    => ReportKind::Advice,
-    };
     static NO_SPAN: NoSpan = NoSpan {};
     static NO_CACHE: NoCache = NoCache {};
-    Report::build(kind, NO_SPAN)
-        .with_message(msg.to_string())
-        .finish()
-        .eprint(NO_CACHE);
+
+    match diag.loc {
+        Some(loc) => {
+            let mut b = Report::build(kind, loc)
+                .with_message(diag.message);
+            if let Some(c) = diag.code { b = b.with_code(c); }
+            if let Some(n) = diag.note { b = b.with_code(n); }
+            for (span, msg, color) in diag.labels {
+                b = b.with_label(Label::new(span).with_message(msg).with_color(color));
+            }
+            let _ = b.finish().eprint(sources);
+        },
+        None      => {
+            let mut b = Report::build(kind, NO_SPAN)
+                .with_message(diag.message);
+            if let Some(c) = diag.code { b = b.with_code(c); }
+            if let Some(n) = diag.note { b = b.with_code(n); }
+            for (span, msg, color) in diag.labels {
+                b = b.with_label(Label::new(NO_SPAN).with_message(msg).with_color(color));
+            }
+            let _ = b.finish().eprint(NO_CACHE);
+        },
+    };
 }
 
 #[derive(Clone, Copy)]
@@ -99,4 +113,3 @@ impl ariadne::Cache<()> for NoCache {
         Some("")
     }
 }
-

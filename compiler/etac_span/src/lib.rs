@@ -176,3 +176,10 @@ impl Cache<FileId> for Sources {
         Some(id.as_str())
     }
 }
+
+// for Logos
+impl Default for FileId {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}

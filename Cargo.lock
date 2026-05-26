@@ -300,6 +300,7 @@ version = "0.1.0"
 dependencies = [
  "etac_ast",
  "etac_errors",
+ "etac_lexer",
  "etac_parse",
  "etac_session",
  "etac_span",
