@@ -44,6 +44,16 @@ pub use grammar::InterfaceParser;
 impl_iparser!{ProgramParser, etac_ast::Program}
 impl_iparser!{InterfaceParser, etac_ast::Interface}
 
+pub struct ParseResult<Out> {
+    pub output: Option<Out>,
+    pub errors: Vec<Diagnostic>,
+}
+impl<Out> ParseResult<Out> {
+    pub fn has_recovered(&self) -> bool { self.output.is_some() && !self.errors.is_empty() }
+    pub fn is_successful(&self) -> bool { self.output.is_some() && self.errors.is_empty() }
+    pub fn has_failed(&self) -> bool { self.output.is_none()}
+}
+
 pub fn parse<
     Out,
     Lexer,
@@ -53,7 +63,7 @@ pub fn parse<
     file_id: &FileId, // to generate diagnostics
     lexer: &mut Lexer,
     parse_cb: &mut ParseCallback,
-) -> Result<Out, Vec<Diagnostic>>
+) -> ParseResult<Out> 
 where
     Lexer: Iterator<Item = Result<(usize, Token, usize), Diagnostic>>,
     Parser: IParser<Out>,
@@ -63,11 +73,11 @@ where
     let result = parse_cb(Parser::new()
                     .parse(file_id, &mut recovered, lexer)
                     .map_err(|e| to_diag(file_id, e)));
-                    
+
+    let recovered_iter = recovered.into_iter().map(|r| to_diag(file_id, r.error));
     match result {
-        Ok(out) if recovered.is_empty() => return Ok(out),
-        Ok(_)                           => Err(recovered.into_iter().map(|r| to_diag(file_id, r.error)).collect()),
-        Err(e)                          => Err(recovered.into_iter().map(|r| to_diag(file_id, r.error)).chain(std::iter::once(e)).collect()),
+        Ok(out) => ParseResult { output: Some(out), errors: recovered_iter.collect() },
+        Err(e)  => ParseResult { output: None, errors: recovered_iter.chain(std::iter::once(e)).collect() },
     }
 }
 
