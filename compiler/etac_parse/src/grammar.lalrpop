@@ -103,6 +103,7 @@ extern {
 pub Program: Program = {
     <uses:UseList> <definitions:Definition+> => 
 	Program { uses, definitions },
+    <l:@L> ! <r:@R> =>? Err(error!(f, l..r; "Program must contain at least one definition").into())
 };
 
 pub Interface: Interface = {

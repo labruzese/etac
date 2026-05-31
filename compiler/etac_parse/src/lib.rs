@@ -5,6 +5,8 @@ use lalrpop_util::{lalrpop_mod, ParseError};
 
 lalrpop_mod!(grammar);
 
+mod tests;
+
 pub trait IParser<ParseOut> {
     fn new() -> Self;
 
