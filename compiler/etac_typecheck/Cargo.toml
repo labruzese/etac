@@ -1,0 +1,7 @@
+[package]
+name = "etac_typecheck"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
