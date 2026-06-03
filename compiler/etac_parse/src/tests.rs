@@ -11,6 +11,7 @@ mod tests {
     pub struct Parsed<Out> {
         result: ParseResult<Out>,
         _file: NamedTempFile,
+        cache: SourceCache,
     }
 
     impl<Out> std::ops::Deref for Parsed<Out> {
@@ -35,8 +36,7 @@ mod tests {
         pub fn first_error_pos(&self) -> Option<(usize, usize)> {
             let d = self.error_diags().into_iter().find(|d| d.loc.is_some())?;
             let loc = d.loc.as_ref().unwrap();
-            let cache = SourceCache::new();
-            cache.lc_index(loc.lo).ok()
+            self.cache.lc_index(loc.lo).ok()
         }
         pub fn messages(&self) -> Vec<&str> {
             self.error_diags().iter().map(|d| d.message.as_str()).collect()
@@ -66,7 +66,7 @@ mod tests {
         let (base, source) = cache.load(&file_id).unwrap();
         let mut lexer = Lexer::new(base, &source);
         let result = parse::<_, _, P>(&mut lexer);
-        Parsed { result, _file: tmp }
+        Parsed { result, _file: tmp, cache }
     }
 
     #[track_caller]
