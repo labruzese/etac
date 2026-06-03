@@ -126,12 +126,22 @@ impl SourceCache {
     }
 
     /// 1-based `(line, col)` for a *local* byte offset within `id`.
-    pub fn lc_index(&self, id: &FileId, offset: usize) -> io::Result<(usize, usize)> {
+    pub fn file_lc_index(&self, id: &FileId, offset: usize) -> io::Result<(usize, usize)> {
         self.ensure_loaded(id)?;
         let map = self.files.borrow();
         let source = &map.get(id).expect("just loaded").source;
         let (_line, linen, coln) = source
             .get_byte_line(offset)
+            .expect("requested line/col is out of bounds");
+        Ok((linen + 1, coln + 1))
+    }
+
+    pub fn lc_index(&self, global_offset: usize) -> io::Result<(usize, usize)> {
+        let (fileid, local_range) = self.resolve(Span::new(global_offset, global_offset));
+        let map = self.files.borrow();
+        let source = &map.get(&fileid).unwrap().source;
+        let (_line, linen, coln) = source
+            .get_byte_line(local_range.start)
             .expect("requested line/col is out of bounds");
         Ok((linen + 1, coln + 1))
     }
