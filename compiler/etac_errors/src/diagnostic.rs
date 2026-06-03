@@ -1,6 +1,10 @@
 use super::*;
 
 #[derive(Debug, Clone, PartialEq)]
+/// Represents an emittable compiler diagnostic, usually these diagnostics have a location but
+/// diagnostics such as io errors may not have a location to report.
+/// In order to report any location information the diagnostic must have a primary label; see
+/// [`with_primary_label`]
 pub struct Diagnostic {
     pub level: Level,
     pub message: String,
@@ -11,6 +15,7 @@ pub struct Diagnostic {
 }
 
 impl Diagnostic {
+    /// Create a new diagnostic at a location with a message.
     pub fn new(level: Level, span: Span, message: impl Into<String>) -> Self {
         Self {
             level,
@@ -22,9 +27,10 @@ impl Diagnostic {
         }
     }
 
+    /// Create a new diagnostic that doesn't have a location
     pub fn new_no_loc(level: Level, message: impl Into<String>) -> Self {
         Self {
-            level: Level::Error,
+            level,
             code: None,
             message: message.into(),
             labels: Vec::new(),
@@ -33,25 +39,33 @@ impl Diagnostic {
         }
     }
 
+    /// Attach code to this diagnostic
     pub fn with_code(mut self, code: impl Into<String>) -> Self {
         self.code = Some(code.into());
         self
     }
 
+    /// Attach a primary label to this diagnostic. This attaches the message as context pointing to 
+    /// the span of the diagnostics location. This function *panics* if it is attached to a 
+    /// diagnostic without a location.
     pub fn with_primary_label(mut self, message: impl Into<String>) -> Self {
         self.labels.push((
-            self.loc.clone().unwrap_or_else(||panic!("can not add primary label to a diagnostic without a location")),
+            self.loc
+                .clone()
+                .unwrap_or_else(|| panic!("can not add primary label to a diagnostic without a location")),
             message.into(),
-            Color::Red
+            Color::Red,
         ));
         self
     }
 
+    /// Attach a label at a different location to this diagnostic.
     pub fn with_secondary_label(mut self, span: Span, message: impl Into<String>) -> Self {
         self.labels.push((span, message.into(), Color::Yellow));
         self
     }
 
+    /// Attach a note about this diagnostic or about the problem to this diagnostic.
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
         self.note = Some(note.into());
         self
@@ -62,10 +76,7 @@ impl Diagnostic {
 /// because we always provide an explicit error callback.
 impl Default for Diagnostic {
     fn default() -> Self {
-        Self::new_no_loc(
-            Level::Error,
-            "unknown error",
-        )
+        Self::new_no_loc(Level::Error, "unknown error")
     }
 }
 

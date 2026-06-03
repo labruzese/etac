@@ -1,12 +1,12 @@
 #[cfg(test)]
-#[allow(dead_code)]
 mod tests {
-    use crate::{parse, IParser, InterfaceParser, ParseResult, ProgramParser};
+    use crate::{IParser, InterfaceParser, ParseResult, ProgramParser, parse};
     use etac_errors::{Diagnostic, Level};
     use etac_lexer::Lexer;
     use etac_span::{FileId, SourceCache};
     use std::io::Write;
     use tempfile::NamedTempFile;
+    use std::assert_matches;
 
     pub struct Parsed<Out> {
         result: ParseResult<Out>,
@@ -22,7 +22,12 @@ mod tests {
 
     impl<Out: std::fmt::Display> Parsed<Out> {
         pub fn error_diags(&self) -> Vec<&Diagnostic> {
-            self.result.errors.iter().filter(|d| d.level == Level::Error).collect()
+            match &self.result {
+                ParseResult::Clean(_) => vec![],
+                ParseResult::WithDiags { out: _, diags } | ParseResult::FatalError(diags) => {
+                    diags.iter().filter(|d| d.level == Level::Error).collect()
+                }
+            }
         }
         pub fn error_count(&self) -> usize {
             self.error_diags().len()
@@ -31,13 +36,17 @@ mod tests {
             let d = self.error_diags().into_iter().find(|d| d.loc.is_some())?;
             let loc = d.loc.as_ref().unwrap();
             let cache = SourceCache::new();
-            cache.lc_index(&loc.file_id, loc.range.start).ok()
+            cache.lc_index(loc.lo).ok()
         }
         pub fn messages(&self) -> Vec<&str> {
-            self.result.errors.iter().map(|d| d.message.as_str()).collect()
+            self.error_diags().iter().map(|d| d.message.as_str()).collect()
         }
         pub fn output_sexpr(&self) -> Option<String> {
-            self.result.output.as_ref().map(|o| format!("{o}"))
+            match self.result {
+                ParseResult::Clean(ref out) |
+                ParseResult::WithDiags { ref out, diags: _ } => Some(out),
+                ParseResult::FatalError(_) => None,
+            }.as_ref().map(|o| format!("{o}"))
         }
         pub fn error_node_count(&self) -> usize {
             self.output_sexpr().map(|s| s.split("Error").count() - 1).unwrap_or(0)
@@ -54,39 +63,40 @@ mod tests {
 
         let file_id = FileId::new(tmp.path().to_str().expect("non-utf8 temp path"));
         let cache = SourceCache::new();
-        let source = cache.text(&file_id).expect("temp file should be readable");
-        let mut lexer = Lexer::new(&cache, file_id.clone(), &source);
-        let result = parse::<_, _, P, _>(&file_id, &mut lexer, &mut |x| x);
+        let (base, source) = cache.load(&file_id).unwrap();
+        let mut lexer = Lexer::new(base, &source);
+        let result = parse::<_, _, P>(&mut lexer);
         Parsed { result, _file: tmp }
     }
 
     #[track_caller]
-    pub fn expect_ok<Out: std::fmt::Display, P: IParser<Out>>(src: &str, ext: &str) -> String {
+    #[allow(dead_code)]
+    pub fn expect_ok<Out: std::fmt::Display + std::fmt::Debug, P: IParser<Out>>(src: &str, ext: &str) -> String {
         let p = run_parse::<_, P>(src, ext);
-        assert!(
-            p.is_successful(),
+        assert_matches!(
+            p.result, ParseResult::Clean(..),
             "expected clean parse, got {} error(s): {:?}",
-            p.errors.len(),
+            p.error_count(),
             p.messages()
         );
-        format!("{}", p.output.as_ref().unwrap())
+        format!("{}", p.output_sexpr().as_ref().unwrap())
     }
     #[track_caller]
-    pub fn expect_recovered<Out: std::fmt::Display, P: IParser<Out>>(src: &str, ext: &str) -> Parsed<Out> {
+    pub fn expect_recovered<Out: std::fmt::Display + std::fmt::Debug, P: IParser<Out>>(src: &str, ext: &str) -> Parsed<Out> {
         let p = run_parse::<_, P>(src, ext);
-        assert!(
-            p.has_recovered(),
+        assert_matches!(
+            p.result, ParseResult::WithDiags{..},
             "expected recovery (output + errors); got output={}, errors={:?}",
-            p.output.is_some(),
+            p.output_sexpr().is_some(),
             p.messages()
         );
         p
     }
     #[track_caller]
-    pub fn expect_failed<Out: std::fmt::Display, P: IParser<Out>>(src: &str, ext: &str) -> Parsed<Out> {
+    pub fn expect_failed<Out: std::fmt::Display + std::fmt::Debug, P: IParser<Out>>(src: &str, ext: &str) -> Parsed<Out> {
         let p = run_parse::<_, P>(src, ext);
-        assert!(
-            p.has_failed(),
+        assert_matches!(
+            p.result, ParseResult::FatalError(..),
             "expected hard failure (no output); but parse produced an AST"
         );
         p
@@ -103,10 +113,11 @@ mod tests {
     fn no_method_decls_interface() {
         let p = expect_failed::<_, InterfaceParser>("", "eti");
         assert!(p.error_count() >= 1);
-        assert!(p
-            .messages()
-            .iter()
-            .any(|m| m.contains("at least one method declaration")));
+        assert!(
+            p.messages()
+                .iter()
+                .any(|m| m.contains("at least one method declaration"))
+        );
     }
 
     // Definition-level recovery (! => Definition::Error)
@@ -126,7 +137,10 @@ mod tests {
         let sexpr = p.output_sexpr().unwrap();
         // The valid use survived and the lone definition is the error node.
         assert!(sexpr.contains("(use io)"), "use should be preserved: {sexpr}");
-        assert!(sexpr.contains("(Error)"), "definitions list should hold the error: {sexpr}");
+        assert!(
+            sexpr.contains("(Error)"),
+            "definitions list should hold the error: {sexpr}"
+        );
         assert!(
             p.messages().iter().any(|m| m.contains("Unexpected token")),
             "diagnostic should report the unexpected token: {:?}",
@@ -239,7 +253,10 @@ mod tests {
     fn broken_body_does_not_eat_following_method() {
         let p = expect_recovered::<_, ProgramParser>("f() { ) ) ) }\ng() { return }", "eta");
         let sexpr = p.output_sexpr().unwrap();
-        assert!(sexpr.contains("(f () () (Error))"), "f recovers with its signature: {sexpr}");
+        assert!(
+            sexpr.contains("(f () () (Error))"),
+            "f recovers with its signature: {sexpr}"
+        );
         assert!(sexpr.contains("(g () () ((return)))"), "g is untouched: {sexpr}");
     }
 
@@ -257,9 +274,10 @@ mod tests {
     fn interface_empty_still_hard_fails() {
         // Recovery must NOT mask the "needs at least one declaration" rule.
         let p = expect_failed::<_, InterfaceParser>("", "eti");
-        assert!(p
-            .messages()
-            .iter()
-            .any(|m| m.contains("at least one method declaration")));
+        assert!(
+            p.messages()
+                .iter()
+                .any(|m| m.contains("at least one method declaration"))
+        );
     }
 }

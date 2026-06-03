@@ -1,3 +1,7 @@
+//! Lexer
+//!
+//! Under the hood uses Logos but but exports a compatability layer more friendly to lalrpop.
+//! Reports the a Span which is a span within the global source cache.
 use std::{fmt::{self, Display}, num::ParseIntError};
 
 use etac_errors::{error, Diagnostic};

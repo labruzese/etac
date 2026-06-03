@@ -45,39 +45,39 @@ impl_iparser!{ProgramParser, etac_ast::Program}
 impl_iparser!{InterfaceParser, etac_ast::Interface}
 
 #[derive(Debug)]
-pub struct ParseResult<Out> {
-    pub output: Option<Out>,
-    pub errors: Vec<Diagnostic>,
-}
-impl<Out> ParseResult<Out> {
-    pub fn has_recovered(&self) -> bool { self.output.is_some() && !self.errors.is_empty() }
-    pub fn is_successful(&self) -> bool { self.output.is_some() && self.errors.is_empty() }
-    pub fn has_failed(&self) -> bool { self.output.is_none()}
+pub enum ParseResult<Out> {
+    Clean(Out),
+    WithDiags { out: Out, diags: Vec<Diagnostic>},
+    FatalError(Vec<Diagnostic>),
 }
 
 pub fn parse<
     Out,
     Lexer,
     Parser,
-    ParseCallback,
 >(
     lexer: &mut Lexer,
-    parse_cb: &mut ParseCallback,
 ) -> ParseResult<Out> 
 where
     Lexer: Iterator<Item = Result<(usize, Token, usize), Diagnostic>>,
     Parser: IParser<Out>,
-    ParseCallback: FnMut(Result<Out, Diagnostic>) -> Result<Out, Diagnostic>,
 {
     let mut recovered = Vec::new();
-    let result = parse_cb(Parser::new()
+    let result = Parser::new()
                     .parse(&mut recovered, lexer)
-                    .map_err(|e| to_diag(e)));
+                    .map_err(|e| to_diag(e));
 
     let recovered_iter = recovered.into_iter().map(|r| to_diag(r.error));
     match result {
-        Ok(out) => ParseResult { output: Some(out), errors: recovered_iter.collect() },
-        Err(e)  => ParseResult { output: None, errors: recovered_iter.chain(std::iter::once(e)).collect() },
+        Ok(out) => {
+            let errors: Vec<_> = recovered_iter.collect();
+            if errors.is_empty() {
+                ParseResult::Clean(out)
+            } else {
+                ParseResult::WithDiags { out, diags: errors }
+            }
+        }
+        Err(e)  => ParseResult::FatalError(recovered_iter.chain(std::iter::once(e)).collect())
     }
 }
 
