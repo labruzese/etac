@@ -36,7 +36,7 @@ pub fn run(flags: Flags) -> Result<(), ()> {
         .iter()
         .map(|program| {
             drive_parser::<_, etac_parse::ProgramParser>(&flags, &mut cache, &logger, program).inspect(
-                |etac_ast::Program { uses, definitions: _ }| {
+                |etac_ast::Program { uses, definitions: _, .. }| {
                     for u in uses {
                         interfaces.push(InterfaceId::new(u.id.sym.as_str()))
                     }

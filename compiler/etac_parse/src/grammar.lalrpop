@@ -92,7 +92,7 @@ extern {
 
 // ---- Identifiers ----
 
-Ident: Ident = <l:@L> <s:"ident"> <r:@R> => Ident { span: Span::new(l, r), sym: s };
+Ident: Ident = <l:@L> <s:"ident"> <r:@R> => Ident::new(Span::new(l, r), s);
 
 // ---- Top Level ----
 
@@ -116,14 +116,14 @@ pub Interface: Interface = {
 
 InterfaceItem: InterfaceItem = {
     <md:MethodDecl> => InterfaceItem::new( 
-	md.span,
+	md.span(),
 	InterfaceItemKind::Decl(md) 
     ),
     <l:@L> <e:!> <r:@R> => { 
 	errors.push(e); 
 	InterfaceItem::new( 
-	    span: Span::new(l, r),
-	    kind: InterfaceItemKind::Error
+	    Span::new(l, r),
+	    InterfaceItemKind::Error
 	) 
     }
 }
@@ -137,53 +137,48 @@ UseList: Vec<Use> = {
 }
 
 Use: Use = {
-    <l:@L> "use" <id:Ident> ";"? <r:@R> => Use { span: Span::new(l, r), id },
+    <l:@L> "use" <id:Ident> ";"? <r:@R> => Use::new(Span::new(l, r), id),
 }
 
 Definition: Definition = {
-    <m:Method>    => Definition { span: m.span, kind: DefinitionKind::Method(m) },
-    <gd:GlobDecl> => Definition { span: gd.span, kind: DefinitionKind::GlobDecl(gd) },
+    <m:Method>    => Definition::new(m.span(), DefinitionKind::Method(m)),
+    <gd:GlobDecl> => Definition::new(gd.span(), DefinitionKind::GlobDecl(gd)),
     <l:@L> <e:!> <r:@R> => { 
 	errors.push(e); 
-	Definition { span: Span::new(l, r), kind: DefinitionKind::Error } 
+	Definition::new(Span::new(l, r), DefinitionKind::Error)
     }
 }
 
 MethodDecl: MethodDecl = {
     <l:@L> <id:Ident> "(" <params:Comma<Decl>> ")" <ret:(":" <CommaPlus<Type>>)?> <r:@R> =>
-        MethodDecl {
-            span: Span::new(l, r),
-            id,
-            params,
-            ret_types: ret.unwrap_or_default(),
-        },
+        MethodDecl::new(Span::new(l, r), id, params, ret.unwrap_or_default()),
 }
 
 Method: Method = {
     <l:@L> <decl:MethodDecl> <body:FuncBlock> <r:@R> => {
-	let MethodDecl { span: _, id, params, ret_types } = decl;
-	Method { span: Span::new(l, r), id, params, ret_types, body }
+	let MethodDecl { id, params, ret_types, .. } = decl;
+	Method::new(Span::new(l, r), id, params, ret_types, body)
     },
     // Recover a broken body while preserving the (already-valid) signature, so
     // downstream passes can still resolve calls to this method.
     <l:@L> <decl:MethodDecl> <bl:@L> <e:!> <r:@R> => {
 	errors.push(e);
-	let MethodDecl { span: _, id, params, ret_types } = decl;
+	let MethodDecl { id, params, ret_types, .. } = decl;
 	let bspan = Span::new(bl, r);
-	let body = Block { span: bspan, stmts: vec![Stmt { span: bspan, kind: StmtKind::Error }] };
-	Method { span: Span::new(l, r), id, params, ret_types, body }
+	let body = Block::new(bspan, vec![Stmt::new(bspan, StmtKind::Error)]);
+	Method::new(Span::new(l, r), id, params, ret_types, body)
     },
 }
 
 GlobDecl: GlobDecl = {
     <l:@L> <id:Ident> ":" <typ:GlobDeclType> <val:("=" <GlobalValue>)?> ";"? <r:@R> =>
-	GlobDecl { span: Span::new(l, r), id, typ, val },
+	GlobDecl::new(Span::new(l, r), id, typ, val),
 }
 
 GlobalValue: Value = {
-    <l:@L> "-" <n:"intlit"> <r:@R> 	=> Value { span: Span::new(l, r), kind: ValueKind::Int(-(n as i128)) },
-    <l:@L> <n:"intlit"> <r:@R>    	=> Value { span: Span::new(l, r), kind: ValueKind::Int(n as i128) },
-    <l:@L> <b:"boollit"> <r:@R>		=> Value { span: Span::new(l, r), kind: ValueKind::Bool(b) },
+    <l:@L> "-" <n:"intlit"> <r:@R> 	=> Value::new(Span::new(l, r), ValueKind::Int(-(n as i128))),
+    <l:@L> <n:"intlit"> <r:@R>    	=> Value::new(Span::new(l, r), ValueKind::Int(n as i128)),
+    <l:@L> <b:"boollit"> <r:@R>		=> Value::new(Span::new(l, r), ValueKind::Bool(b)),
 }
 
 
@@ -209,14 +204,14 @@ TypeUnsized: Type = {
             .collect();
         all.into_iter().rev().fold(base, |inner, dim| match dim {
             Either::Left((l, size, r)) =>
-                Type { span: Span::new(l, r), kind: TypeKind::SizedArray { 
+                Type::new(Span::new(l, r), TypeKind::SizedArray {
 		    of: Box::new(inner),
 		    size: Box::new(size) 
-		} },
+		}),
             Either::Right((l, r)) =>
-                Type { span: Span::new(l, r), kind: TypeKind::UnsizedArray { 
+                Type::new(Span::new(l, r), TypeKind::UnsizedArray {
 		    of: Box::new(inner) 
-		} },
+		}),
         })
     }
 }
@@ -225,10 +220,10 @@ TypeSized: Type = {
     <BaseType>,
     <base:BaseType> <dims:SizedDim+> => {
         dims.into_iter().rev().fold(base, |inner, (l, size, r)| {
-            Type { span: Span::new(l, r), kind: TypeKind::SizedArray { 
+            Type::new(Span::new(l, r), TypeKind::SizedArray {
 		of: Box::new(inner),
 		size: Box::new(size) 
-	    } }
+	    })
         })
     }
 }
@@ -243,21 +238,21 @@ GlobDeclType: Type = {
 }
 
 BaseType: Type = {
-    <l:@L> "int" <r:@R> 	=> Type { span: Span::new(l, r), kind: TypeKind::Int },
-    <l:@L> "bool" <r:@R>	=> Type { span: Span::new(l, r), kind: TypeKind::Bool },
+    <l:@L> "int" <r:@R> 	=> Type::new(Span::new(l, r), TypeKind::Int),
+    <l:@L> "bool" <r:@R>	=> Type::new(Span::new(l, r), TypeKind::Bool),
 }
 
 // ----- Blocks -----
 
 Block: Block = {
-    <l:@L> "{" <stmts:(<Stmt> ";"?)*> "}" <r:@R> => Block { span: Span::new(l, r), stmts },
+    <l:@L> "{" <stmts:(<Stmt> ";"?)*> "}" <r:@R> => Block::new(Span::new(l, r), stmts),
 }
 
 // can end with return
 FuncBlock: Block = {
     <l:@L> "{" <mut stmts:(<Stmt> ";"?)*> <ret:ReturnStmtNode?> "}" <r:@R> => {
 	if let Some(ret) = ret { stmts.push(ret); }
-	Block { span: Span::new(l, r), stmts }
+	Block::new(Span::new(l, r), stmts)
     },
 }
 
@@ -270,13 +265,13 @@ Stmt: Stmt = {
     StmtClosed,
     <l:@L> <e:!> <r:@R> => { 
 	errors.push(e);
-	Stmt { span: Span::new(l, r), kind: StmtKind::Error } 
+	Stmt::new(Span::new(l, r), StmtKind::Error)
     }
 }
 
 ReturnStmtNode: Stmt = {
     <l:@L> "return" <values:Comma<Expr>> ";"? <r:@R> =>
-	Stmt { span: Span::new(l, r), kind: StmtKind::Return { values } },
+	Stmt::new(Span::new(l, r), StmtKind::Return { values }),
 }
 
 // elses can be matched
@@ -287,65 +282,65 @@ StmtOpen: Stmt = {
 
 IfStmtOpen: Stmt = {
     <l:@L> "if" <cond:Expr> <t:Stmt> <r:@R> =>
-	Stmt { span: Span::new(l, r), kind: StmtKind::If { 
+	Stmt::new(Span::new(l, r), StmtKind::If {
 	    cond,
 	    then_branch: Box::new(t),
 	    else_branch: None 
-	} },
+	}),
     <l:@L> "if" <cond:Expr> <t:StmtClosed> "else" <e:StmtOpen> <r:@R> =>
-	Stmt { span: Span::new(l, r), kind: StmtKind::If { 
+	Stmt::new(Span::new(l, r), StmtKind::If {
 	    cond,
 	    then_branch: Box::new(t),
 	    else_branch: Some(Box::new(e))  
-	} },
+	}),
 }
 WhileStmtOpen: Stmt = {
     <l:@L> "while" <cond:Expr> <body:StmtOpen> <r:@R> =>
-	Stmt { span: Span::new(l, r), kind: StmtKind::While { 
+	Stmt::new(Span::new(l, r), StmtKind::While {
 	    cond,
 	    body: Box::new(body)
-	} },
+	}),
 }
 
 // nothing for else to match
 StmtClosed: Stmt = {
     IfStmtClosed,
     WhileStmtClosed,
-    <l:@L> <b:Block> <r:@R>          	=> Stmt { span: Span::new(l, r), kind: StmtKind::Block(b) },
-    <l:@L> <pcall:ProcCall> <r:@R>   	=> Stmt { span: Span::new(l, r), kind: StmtKind::Call(pcall) },
-    <l:@L> <decls:DeclTargets> <r:@R> 	=> Stmt { span: Span::new(l, r), kind: StmtKind::Decls(decls) },
+    <l:@L> <b:Block> <r:@R>          	=> Stmt::new(Span::new(l, r), StmtKind::Block(b)),
+    <l:@L> <pcall:ProcCall> <r:@R>   	=> Stmt::new(Span::new(l, r), StmtKind::Call(pcall)),
+    <l:@L> <decls:DeclTargets> <r:@R> 	=> Stmt::new(Span::new(l, r), StmtKind::Decls(decls)),
     <l:@L> <ts:DeclTargets> "=" <values:CommaPlus<Expr>> <r:@R> =>
-	Stmt { span: Span::new(l, r), kind: StmtKind::Assign {
+	Stmt::new(Span::new(l, r), StmtKind::Assign {
 	    targets: ts.into_iter().map(Target::from_decl).collect(),
 	    values,
-	} },
+	}),
     <l:@L> <ts:NonDeclTargets> "=" <values:CommaPlus<Expr>> <r:@R> =>
-	Stmt { span: Span::new(l, r), kind: StmtKind::Assign { 
+	Stmt::new(Span::new(l, r), StmtKind::Assign {
 	    targets: ts,
 	    values 
-	} },
+	}),
 }
 
 IfStmtClosed: Stmt = {
     <l:@L> "if" <cond:Expr> <t:StmtClosed> "else" <e:StmtClosed> <r:@R> =>
-	Stmt { span: Span::new(l, r), kind: StmtKind::If { 
+	Stmt::new(Span::new(l, r), StmtKind::If {
 	    cond,
 	    then_branch: Box::new(t),
 	    else_branch: Some(Box::new(e)) 
-	} },
+	}),
 }
 WhileStmtClosed: Stmt = {
     <l:@L> "while" <cond:Expr> <body:StmtClosed> <r:@R> =>
-	Stmt { span: Span::new(l, r), kind: StmtKind::While { 
+	Stmt::new(Span::new(l, r), StmtKind::While {
 	    cond,
 	    body: Box::new(body) 
-	} },
+	}),
 }
 
 // ---- Non-Control Flow Statements ----
 
 Decl: Decl = {
-    <l:@L> <id:Ident> ":" <typ:Type> <r:@R> => Decl { span: Span::new(l, r), id, typ },
+    <l:@L> <id:Ident> ":" <typ:Type> <r:@R> => Decl::new(Span::new(l, r), id, typ),
 }
 
 // pure decl target also valid as multi-decl
@@ -373,25 +368,25 @@ NonDeclTargets: Vec<Target> = {
 }
 
 NonDeclTarget: Target = {
-    <lv:LValue> 	 => Target { span: lv.span, kind: TargetKind::LValue(lv) },
-    <l:@L> "_" <r:@R>	 => Target { span: Span::new(l, r), kind: TargetKind::Discard },
+    <lv:LValue> 	 => Target::new(lv.span(), TargetKind::LValue(lv)),
+    <l:@L> "_" <r:@R>	 => Target::new(Span::new(l, r), TargetKind::Discard),
 }
 
 LValue: LValue = {
     <base:LValueBase> <indices:ArrayIndex*> => {
         indices.into_iter().fold(base, |lv, (idx, ispan)| {
-            let span = lv.span.to(ispan);
-            LValue { span, kind: LValueKind::Index { of: Box::new(lv), index: Box::new(idx) } }
+            let span = lv.span().to(ispan);
+            LValue::new(span, LValueKind::Index { of: Box::new(lv), index: Box::new(idx) })
         })
     },
 }
 LValueBase: LValue = {
-    <id:Ident>        => LValue { span: id.span, kind: LValueKind::Id(id) },
-    <pc:ProcCall>     => LValue { span: pc.span, kind: LValueKind::ProcCall(pc) },
+    <id:Ident>        => LValue::new(id.span(), LValueKind::Id(id)),
+    <pc:ProcCall>     => LValue::new(pc.span(), LValueKind::ProcCall(pc)),
 }
 
 ProcCall: ProcCall = {
-    <l:@L> <id:Ident> "(" <args:Comma<Expr>> ")" <r:@R> => ProcCall { span: Span::new(l, r), id, args },
+    <l:@L> <id:Ident> "(" <args:Comma<Expr>> ")" <r:@R> => ProcCall::new(Span::new(l, r), id, args),
 }
 
 // index expression plus the span of the `[..]` bracket group
@@ -443,51 +438,51 @@ Expr: Expr = {
 
     #[precedence(level="1")]
     <l:@L> <op:UnaryOp> <or:@R> <e:Expr> <r:@R>
-        => Expr { span: Span::new(l, r), kind: ExprKind::Unary { op, op_span: Span::new(l, or), operand: Box::new(e) } },
+        => Expr::new(Span::new(l, r), ExprKind::Unary { op, op_span: Span::new(l, or), operand: Box::new(e) }),
 
     #[precedence(level="2")] #[assoc(side="left")]
     <l:@L> <lhs:Expr> <ol:@L> <op:MulOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr { span: Span::new(l, r), kind: ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) } },
+        => Expr::new(Span::new(l, r), ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
 
     #[precedence(level="3")] #[assoc(side="left")]
     <l:@L> <lhs:Expr> <ol:@L> <op:AddOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr { span: Span::new(l, r), kind: ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) } },
+        => Expr::new(Span::new(l, r), ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
 
     #[precedence(level="4")] #[assoc(side="left")]
     <l:@L> <lhs:Expr> <ol:@L> <op:RelOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr { span: Span::new(l, r), kind: ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) } },
+        => Expr::new(Span::new(l, r), ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
 
     #[precedence(level="5")] #[assoc(side="left")]
     <l:@L> <lhs:Expr> <ol:@L> <op:EqOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr { span: Span::new(l, r), kind: ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) } },
+        => Expr::new(Span::new(l, r), ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
 
     #[precedence(level="6")] #[assoc(side="left")]
     <l:@L> <lhs:Expr> <ol:@L> <op:AndOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr { span: Span::new(l, r), kind: ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) } },
+        => Expr::new(Span::new(l, r), ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
 
     #[precedence(level="7")] #[assoc(side="left")]
     <l:@L> <lhs:Expr> <ol:@L> <op:OrOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr { span: Span::new(l, r), kind: ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) } },
+        => Expr::new(Span::new(l, r), ExprKind::Binary { op, op_span: Span::new(ol, or), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
 
     #[precedence(level="8")]
-    <l:@L> <e:!> <r:@R> => { errors.push(e); Expr { span: Span::new(l, r), kind: ExprKind::Error } }
+    <l:@L> <e:!> <r:@R> => { errors.push(e); Expr::new(Span::new(l, r), ExprKind::Error) }
 }
 
 // ---- Primary: atoms, postfix indexing, parens. ----
 Primary: Expr = {
     <array:PrimaryBase> <indices:ArrayIndex*> => {
         indices.into_iter().fold(array, |arr, (idx, ispan)| {
-	    let span = arr.span.to(ispan);
-	    Expr { span, kind: ExprKind::Index { array: Box::new(arr), index: Box::new(idx) } }
+	    let span = arr.span().to(ispan);
+	    Expr::new(span, ExprKind::Index { array: Box::new(arr), index: Box::new(idx) })
         })
     },
 }
 
 PrimaryBase: Expr = {
-    <l:@L> <lit:Lit> <r:@R>                          	=> Expr { span: Span::new(l, r), kind: ExprKind::Lit(lit) },
-    <id:Ident>                                       	=> Expr { span: id.span, kind: ExprKind::Id(id) },
-    <l:@L> <id:Ident> "(" <a:Comma<Expr>> ")" <r:@R>	=> Expr { span: Span::new(l, r), kind: ExprKind::Call(ProcCall { span: Span::new(l, r), id, args: a }) },
-    <l:@L> "length" "(" <e:Expr> ")" <r:@R>     	=> Expr { span: Span::new(l, r), kind: ExprKind::Length(Box::new(e)) },
+    <l:@L> <lit:Lit> <r:@R>                          	=> Expr::new(Span::new(l, r), ExprKind::Lit(lit)),
+    <id:Ident>                                       	=> Expr::new(id.span(), ExprKind::Id(id)),
+    <l:@L> <id:Ident> "(" <a:Comma<Expr>> ")" <r:@R>	=> Expr::new(Span::new(l, r), ExprKind::Call(ProcCall::new(Span::new(l, r), id, a))),
+    <l:@L> "length" "(" <e:Expr> ")" <r:@R>     	=> Expr::new(Span::new(l, r), ExprKind::Length(Box::new(e))),
     "(" <Expr> ")",
 }
 
