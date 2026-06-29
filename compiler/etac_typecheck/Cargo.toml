@@ -8,3 +8,7 @@ authors.workspace = true
 etac_ast.workspace 	= true
 etac_errors.workspace 	= true
 comemo.workspace	= true
+
+
+[lints]
+workspace = true

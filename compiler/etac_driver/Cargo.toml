@@ -12,3 +12,7 @@ etac_parse.workspace   = true
 etac_session.workspace = true
 etac_span.workspace    = true
 log.workspace          = true
+
+
+[lints]
+workspace = true

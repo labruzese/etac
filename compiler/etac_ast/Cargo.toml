@@ -11,3 +11,7 @@ etac_derive_spanned.workspace 	= true
 etac_derive_nodeid.workspace 	= true
 etac_span.workspace 		= true
 pretty.workspace    		= true
+
+
+[lints]
+workspace = true

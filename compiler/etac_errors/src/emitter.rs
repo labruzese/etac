@@ -43,7 +43,6 @@ impl Emitter for HumanEmitter {
                     b = b.with_code(c);
                 }
                 if let Some(n) = diag.note {
-                    // (was `with_code` here before — a note was being rendered as a code.)
                     b = b.with_note(n);
                 }
                 for (span, msg, color) in diag.labels {
