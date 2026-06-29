@@ -16,7 +16,6 @@ struct Cursor<'a> {
 #[derive(Debug)]
 enum Escape {
     Simple(char),
-    Unicode(u32),
 }
 
 #[derive(Debug)]
@@ -93,9 +92,9 @@ fn finish_char(cursor: &mut Cursor, start: usize) -> (char, usize) {
 }
 
 fn parse_hex(cursor: &mut Cursor) -> Result<u32, Diagnostic> {
-    let open = cursor.loc();
+    let open = cursor.loc() - 2;
     if cursor.next() != Some(b'{') {
-        return Err(error!(Span::new(open, open); "expected '{{' after '\\x'"));
+        return Err(error!(Span::new(open, open); "expected '{{' after '\\x'").with_primary_label("at this escape sequence"));
     }
 
     let mut value: u32 = 0;
@@ -115,11 +114,11 @@ fn parse_hex(cursor: &mut Cursor) -> Result<u32, Diagnostic> {
 
                 if digit_count == 0 {
                     // No digits between `{` and `}`.
-                    return Err(error!(Span::new(digits_start, close); "empty unicode escape: expected 1 to 6 hex digits between '{{' and '}}', e.g. '\\x{{41}}'"));
+                    return Err(error!(Span::new(digits_start, close); "empty unicode escape expected non-empty hex between '{{' and '}}', e.g. '\\x{{41}}'").with_primary_label("expected non-empty hex here"));
                 }
 
                 if let Some(msg) = pending_error {
-                    return Err(error!(Span::new(digits_start, close); "{}", msg));
+                    return Err(error!(Span::new(digits_start, close); "{}", msg).with_primary_label("inside this unicode escape sequence"));
                 }
 
                 return Ok(value);
@@ -175,7 +174,7 @@ fn parse_hex(cursor: &mut Cursor) -> Result<u32, Diagnostic> {
                     Span::new(start, end);
                     "invalid hex digit '{}' in unicode escape: only the digits 0-9 and \
                      letters a-f/A-F are allowed inside '\\x{{...}}'", ch
-                ));
+                ).with_primary_label("inside this unicode escape"));
             }
             None => {
                 // Ran off the end of the literal before finding a closing
@@ -188,7 +187,7 @@ fn parse_hex(cursor: &mut Cursor) -> Result<u32, Diagnostic> {
                     Span::new(open, end);
                     "unterminated unicode escape: expected a closing '}}' before the end \
                      of the literal, e.g. '\\x{{41}}'"
-                ));
+                ).with_primary_label("unicode escape unclosed here"));
             }
         }
     }
@@ -202,7 +201,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<Spanned<Escape>, Diagnostic> {
 
     let b_pos = cursor.loc();
     let b = cursor.next().ok_or_else(|| {
-        error!(Span::new(esc_start, esc_start); "dangling backslash: expected an escape character after '\\'")
+        error!(Span::new(esc_start, esc_start); "dangling backslash: expected an escape character after '\\'").with_primary_label("closing quote is escaped here")
     })?;
 
     let esc = match b {
@@ -215,12 +214,34 @@ fn decode_escape(cursor: &mut Cursor) -> Result<Spanned<Escape>, Diagnostic> {
         b'0' => Escape::Simple('\0'),
 
         b'x' => {
+            let esc_span = Span::new(esc_start, cursor.loc());
             let cp = parse_hex(cursor)?;
+            let end = cursor.loc();
 
-            match char::from_u32(cp) {
-                Some(c) => Escape::Simple(c),
-                None => Escape::Unicode(cp),
+            // Reject UTF-16 surrogate halves (U+D800–U+DFFF). These are
+            // not valid Unicode scalar values and cannot be represented as
+            // `char`. We catch this here — after parse_hex, before
+            // constructing any `char` — so both char and string literals
+            // get the error from a single place.
+            if (0xD800..=0xDFFF).contains(&cp) {
+                return Err(error!(
+                    Span::new(esc_start, end);
+                    "invalid unicode escape: U+{:04X} is a UTF-16 surrogate half and \
+                     is not a valid Unicode scalar value; surrogate halves (U+D800–U+DFFF) \
+                     cannot be used in escape sequences",
+                    cp
+                )
+                .with_primary_label("this escape produces a surrogate half"));
             }
+
+            // char::from_u32 accepts all non-surrogate codepoints ≤
+            // U+10FFFF, which is exactly what parse_hex already allows
+            // through, so this unwrap cannot fail.
+            let _ = esc_span; // span was only needed for the surrogate error above
+            Escape::Simple(char::from_u32(cp).expect(
+                "decode_escape: parse_hex returned a non-surrogate codepoint that \
+                 char::from_u32 rejected -- this is a bug",
+            ))
         }
 
         _ if b.is_ascii() => {
@@ -229,7 +250,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<Spanned<Escape>, Diagnostic> {
                 Span::new(esc_start, l);
                 "unknown escape: '\\{}' is not a recognized escape sequence \
                  (valid escapes: \\n, \\t, \\r, \\\\, \\', \\\", \\0, \\x{{..}})", b as char
-            ));
+            ).with_primary_label("this isn't a recognized escape sequence"));
         }
 
         _ => {
@@ -242,7 +263,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<Spanned<Escape>, Diagnostic> {
                 Span::new(esc_start, end);
                 "unknown escape: '\\{}' is not a recognized escape sequence \
                  (valid escapes: \\n, \\t, \\r, \\\\, \\', \\\", \\0, \\x{{..}})", ch
-            ));
+            ).with_primary_label("this isn't a recognized escape sequence"));
         }
     };
 
@@ -278,7 +299,7 @@ pub fn parse_char(lex: &mut LogosLexer) -> Result<u32, Diagnostic> {
             Escape::Simple(c)
         }
         None => {
-            return Err(error!(tok_span; "invalid char literal"));
+            return Err(error!(tok_span; "invalid char literal").with_primary_label("this is not a valid char literal"));
         }
     };
 
@@ -297,7 +318,6 @@ pub fn parse_char(lex: &mut LogosLexer) -> Result<u32, Diagnostic> {
 
     Ok(match value {
         Escape::Simple(c) => c as u32,
-        Escape::Unicode(cp) => cp,
     })
 }
 
@@ -314,17 +334,10 @@ pub fn parse_str(lex: &mut LogosLexer) -> Result<String, Diagnostic> {
     while let Some(b) = cursor.next() {
         match b {
             b'\\' => {
-                let Spanned { esc, span } = decode_escape(&mut cursor)?;
+                let Spanned { esc, .. } = decode_escape(&mut cursor)?;
 
                 match esc {
                     Escape::Simple(c) => out.push(c),
-                    Escape::Unicode(cp) => {
-                        let ch = char::from_u32(cp).ok_or_else(|| {
-                            error!(span; "invalid unicode scalar value: U+{:X} is a UTF-16 surrogate half and cannot be used on its own as a character", cp)
-                                .with_primary_label("not a valid char")
-                        })?;
-                        out.push(ch);
-                    }
                 }
             }
 
@@ -841,23 +854,69 @@ mod tests {
     fn decode_hex_escape_in_bmp_is_simple_char() {
         match decode(r"\x{41}").unwrap() {
             Escape::Simple(c) => assert_eq!(c, 'A'),
-            other @ Escape::Unicode(_) => panic!("expected Escape::Simple('A'), got {other:?}"),
         }
     }
 
     #[test]
-    fn decode_hex_escape_returns_unicode_variant_only_when_simple_invalid() {
+    fn decode_hex_escape_returns_simple_for_valid_scalar() {
         match decode(r"\x{41}").unwrap() {
             Escape::Simple(_) => {}
-            Escape::Unicode(_) => panic!("expected Simple for a valid BMP char"),
         }
     }
 
     #[test]
-    fn decode_hex_surrogate_is_unicode_variant() {
-        match decode(r"\x{D800}").unwrap() {
-            Escape::Unicode(cp) => assert_eq!(cp, 0xD800),
-            other @ Escape::Simple(_) => panic!("expected Escape::Unicode(0xD800), got {other:?}"),
+    fn decode_hex_surrogate_is_error() {
+        // Surrogate halves are not valid Unicode scalar values and must
+        // be rejected at the decode_escape level for both char and string
+        // literals.
+        assert!(decode(r"\x{D800}").is_err());
+        assert!(decode(r"\x{DFFF}").is_err());
+        assert!(decode(r"\x{D800}").is_err());
+    }
+
+    #[test]
+    fn decode_hex_surrogate_error_message() {
+        let err = decode(r"\x{D800}").unwrap_err();
+        assert_msg_contains(&err, "surrogate");
+    }
+
+    #[test]
+    fn decode_hex_surrogate_span_covers_full_escape() {
+        // '\x{D800}' starting at base 0: span should run from '\' to
+        // one past the closing '}', covering the entire escape sequence.
+        let spanned = decode_at(r"\x{D800}", 0).unwrap_err();
+        let span = spanned.loc.unwrap();
+        assert_eq!(span.lo as usize, 0); // the backslash
+        assert_eq!(span.hi as usize, 8); // one past '}'
+    }
+
+    #[test]
+    fn decode_hex_surrogate_boundary_low() {
+        // U+D800 is the first surrogate -- must be rejected.
+        assert!(decode(r"\x{D800}").is_err());
+    }
+
+    #[test]
+    fn decode_hex_surrogate_boundary_high() {
+        // U+DFFF is the last surrogate -- must be rejected.
+        assert!(decode(r"\x{DFFF}").is_err());
+    }
+
+    #[test]
+    fn decode_hex_just_below_surrogate_range_is_ok() {
+        // U+D7FF is the codepoint just before the surrogate range and
+        // is a valid scalar value.
+        match decode(r"\x{D7FF}").unwrap() {
+            Escape::Simple(c) => assert_eq!(c as u32, 0xD7FF),
+        }
+    }
+
+    #[test]
+    fn decode_hex_just_above_surrogate_range_is_ok() {
+        // U+E000 is the first codepoint above the surrogate range and
+        // is a valid scalar value.
+        match decode(r"\x{E000}").unwrap() {
+            Escape::Simple(c) => assert_eq!(c as u32, 0xE000),
         }
     }
 
@@ -1024,8 +1083,16 @@ mod tests {
     }
 
     #[test]
-    fn char_surrogate_hex_escape_returns_raw_codepoint() {
-        assert_eq!(lex_char(r"'\x{D800}'").unwrap(), 0xD800);
+    fn char_surrogate_hex_escape_is_error() {
+        // Surrogate halves are not valid Unicode scalar values and must
+        // be rejected for char literals just as they are for string literals.
+        assert!(lex_char(r"'\x{D800}'").is_err());
+    }
+
+    #[test]
+    fn char_surrogate_hex_escape_error_message() {
+        let err = lex_char(r"'\x{D800}'").unwrap_err();
+        assert_msg_contains(&err, "surrogate");
     }
 
     #[test]
