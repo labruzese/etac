@@ -1,6 +1,7 @@
 //! S-expression `Display` for the AST. The exact shape here is relied on by
 //! parser tests, so keep node renderings stable.
 
+#![allow(clippy::wildcard_imports)]
 use super::*;
 use pretty::{Doc, RcDoc};
 use std::fmt;
@@ -18,9 +19,9 @@ trait ToDoc {
 }
 
 /// Build a single doc node:
-///   d!("keyword")   → RcDoc::text("keyword")
+///   d!("keyword")   → `RcDoc::text("keyword`")
 ///   d!(@ expr)      → atom(&expr)       (Display-based leaf)
-///   d!(expr)        → expr.to_doc()     (recursive descent)
+///   d!(expr)        → `expr.to_doc()`     (recursive descent)
 macro_rules! d {
     (@$e:expr) => { atom(&$e) };
     ($s:literal) => { RcDoc::text($s) };

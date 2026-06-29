@@ -1,7 +1,7 @@
 //! Abstract syntax tree for the Eta language.
 //!
-//!  * Carrier / Kind split: `Expr` { node_id, span, kind: ExprKind }, etc.
-//!    The carrier struct owns identity (node_id) and location (span); the
+//!  * Carrier / Kind split: `Expr` { `node_id`, span, kind: `ExprKind` }, etc.
+//!    The carrier struct owns identity (`node_id`) and location (span); the
 //!    `*Kind` enum owns the shape. Carriers get ids; leaf kinds do not.
 //!  * `Spanned<T>` wraps small things that need a location but don't earn a
 //!    full node (operators, etc.) instead of a parallel `_span` field.
@@ -26,6 +26,7 @@ impl NodeId {
     /// Placeholder for synthesized nodes before real ids are assigned.
     pub const DUMMY: NodeId = NodeId(u32::MAX);
 
+    #[must_use]
     pub fn as_u32(self) -> u32 {
         self.0
     }
@@ -39,6 +40,7 @@ pub struct NodeIdGen {
 }
 
 impl NodeIdGen {
+    #[must_use]
     pub fn new() -> Self {
         NodeIdGen { next: 0 }
     }
@@ -246,6 +248,7 @@ opaque! {
 }
 
 impl TypeKind {
+    #[must_use]
     pub fn is_array(&self) -> bool {
         matches!(self, TypeKind::Array { .. })
     }
@@ -344,6 +347,7 @@ pub enum UOp {
 }
 
 impl UOp {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         match self {
             UOp::Neg => "-",
@@ -371,6 +375,7 @@ pub enum BinOp {
 }
 
 impl BinOp {
+    #[must_use]
     pub fn as_str(self) -> &'static str {
         use BinOp::*;
         match self {
@@ -392,6 +397,7 @@ impl BinOp {
     }
 
     /// Higher binds tighter.
+    #[must_use]
     pub fn precedence(self) -> u8 {
         use BinOp::*;
         match self {
@@ -404,12 +410,14 @@ impl BinOp {
         }
     }
 
+    #[must_use]
     pub fn is_comparison(self) -> bool {
         use BinOp::*;
         matches!(self, Eq | Neq | Lt | Gt | Le | Ge)
     }
 
     /// `&` and `|` short-circuit
+    #[must_use]
     pub fn is_short_circuit(self) -> bool {
         matches!(self, BinOp::And | BinOp::Or)
     }

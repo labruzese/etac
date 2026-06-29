@@ -1,6 +1,5 @@
 #[cfg(test)]
 mod test_harness {
-
     use generate_tests::generate_tests;
 
     use std::path::{Path, PathBuf};
