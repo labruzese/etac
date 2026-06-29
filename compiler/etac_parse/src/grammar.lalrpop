@@ -107,7 +107,14 @@ pub Program: Program = {
 	error!(Span::new(r, r); "Program must contain at least one definition")
 	    .with_primary_label("expected definition")
 	    .into()
-    )
+    ),
+    <uses:UseList> <definitions:Definition+> <l:@L> <u:Use> <r:@R> <mul:UseList> =>? Err(
+	error!(Span::new(l, r); "Use statements must go above all defintions")
+	    .with_primary_label("Use not allowed here")
+	    .with_note("Try moving this use to the top of the file")
+	    .into()
+    ),
+    
 }
 
 pub Interface: Interface = {
