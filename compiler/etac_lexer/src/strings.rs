@@ -93,8 +93,7 @@ fn finish_char(cursor: &mut Cursor, start: usize) -> (char, usize) {
     (c, cursor.loc())
 }
 
-fn parse_hex(cursor: &mut Cursor) -> Result<u32, Diagnostic> {
-    let open = cursor.loc() - 2;
+fn parse_hex(cursor: &mut Cursor, open: usize) -> Result<u32, Diagnostic> {
     if cursor.next() != Some(b'{') {
         return Err(
             error!(Span::new(open, open+2); "expected '{{' after '\\x'").with_primary_label("at this escape sequence")
@@ -229,7 +228,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<Spanned<Escape>, Diagnostic> {
 
         b'x' => {
             let esc_span = Span::new(esc_start, cursor.loc());
-            let cp = parse_hex(cursor)?;
+            let cp = parse_hex(cursor, esc_start)?;
             let end = cursor.loc();
 
             // Reject UTF-16 surrogate halves (U+D800–U+DFFF). These are
@@ -587,12 +586,12 @@ mod tests {
     fn hex(s: &str) -> Result<u32, Diagnostic> {
         // `s` should be the bytes *after* the leading `\x`, e.g. "{41}".
         let mut c = cursor(s);
-        parse_hex(&mut c)
+        parse_hex(&mut c, 0)
     }
 
     fn hex_at(s: &str, base: usize) -> Result<u32, Diagnostic> {
         let mut c = cursor_at(s, base);
-        parse_hex(&mut c)
+        parse_hex(&mut c, base)
     }
 
     #[test]
@@ -654,14 +653,14 @@ mod tests {
 
     #[test]
     fn hex_empty_braces_span_covers_braces() {
-        // digits_start == close == position of '}' since there are no
-        // digits at all; span should be the (zero-width) gap between '{'
-        // and '}'.
+        // open=10 is the '{'; close (the '}') is at 11.
+        // The upstream fix changed the span lo from digits_start (11) to
+        // open (10), so the span now covers the full "{}" sequence.
         let mut c = cursor_at("{}", 10);
-        let err = parse_hex(&mut c).unwrap_err();
+        let err = parse_hex(&mut c, 10).unwrap_err();
         let span = err.loc.expect("expected a span on this diagnostic");
-        assert_eq!(span.lo as usize, 11); // just after '{'
-        assert_eq!(span.hi as usize, 11); // at '}'
+        assert_eq!(span.lo as usize, 10); // the '{'
+        assert_eq!(span.hi as usize, 11); // the '}'
     }
 
     #[test]
@@ -812,7 +811,7 @@ mod tests {
         // rest of the digits up to '}', leaving the cursor positioned
         // right after '}' (so callers can continue parsing).
         let mut c = cursor("{00000419}rest");
-        let err = parse_hex(&mut c);
+        let err = parse_hex(&mut c, 0);
         assert!(err.is_err());
         assert_eq!(c.peek(), Some(b'r'));
     }
@@ -820,7 +819,7 @@ mod tests {
     #[test]
     fn hex_out_of_range_keeps_consuming_to_closing_brace() {
         let mut c = cursor("{FFFFFF}rest");
-        let err = parse_hex(&mut c);
+        let err = parse_hex(&mut c, 0);
         assert!(err.is_err());
         assert_eq!(c.peek(), Some(b'r'));
     }
@@ -838,7 +837,7 @@ mod tests {
     #[test]
     fn hex_cursor_left_after_close_brace() {
         let mut c = cursor("{41}rest");
-        let v = parse_hex(&mut c).unwrap();
+        let v = parse_hex(&mut c, 0).unwrap();
         assert_eq!(v, 0x41);
         assert_eq!(c.peek(), Some(b'r'));
     }
