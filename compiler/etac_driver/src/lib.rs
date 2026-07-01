@@ -111,7 +111,7 @@ where
 
     // place the file into our cache (global source file), gets back the offset and the read
     // source from disk, fails if file doesn't exist
-    let (base, source) = match cache.load(&file_id) {
+    let (base, source) = match cache.load(file_id) {
         Ok(s) => s,
         Err(io_err) => {
             dcx.emit(io_err.into());

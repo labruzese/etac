@@ -1,5 +1,3 @@
-use etac_errors::Diagnostic;
-use etac_errors::error;
 
 // mod collect;
 // mod context;

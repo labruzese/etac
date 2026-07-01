@@ -1,27 +1,29 @@
 use etac_ast::{Expr, ExprKind, LValue, LValueKind, NodeIdGen};
-use etac_errors::{error, DiagCtxt, Diagnostic, ErrorGuaranteed};
+use etac_errors::{etac_error, DiagCtxt, Diag, ErrorGuaranteed};
 use etac_lexer::Token;
 use etac_span::Span;
 use lalrpop_util::{lalrpop_mod, ErrorRecovery, ParseError};
 
 lalrpop_mod!(grammar);
 
-mod tests;
-
 /// Mutable state threaded through every grammar action.
 ///
 /// Bundles the [`NodeIdGen`] that hands out node ids with the buffer lalrpop fills
 /// on error recovery, so the grammar carries a single parameter instead of two.
-#[derive(Default)]
-pub struct ParseState {
+pub struct ParseState<'dcx, 'src> {
+    pub diagc: &'dcx DiagCtxt<'src>,
     pub ids: NodeIdGen,
-    pub errors: Vec<ErrorRecovery<usize, Token, Diagnostic>>,
+    pub errors: Vec<ErrorRecovery<u32, Token, Diag<'dcx, 'src>>>,
 }
 
-impl ParseState {
+impl<'dcx, 'src> ParseState<'dcx, 'src> {
     #[must_use]
-    pub fn new() -> Self {
-        ParseState::default()
+    pub fn new(diagnostic_context: &'dcx DiagCtx<'src>) -> Self {
+        ParseState {
+            diagc: diagnostic_context,
+            ids: NodeIdGen::default(),
+            errors: Vec::new(),
+        }
     }
 }
 
@@ -30,11 +32,11 @@ pub trait IParser<ParseOut> {
 
     /// # Errors
     /// Error produced by the lalrpop parser
-    fn parse<__TOKEN, __TOKENS>(
+    fn parse<__TOKEN, __TOKENS, 'dcx, 'src>(
         &self,
         state: &mut ParseState,
         __tokens0: __TOKENS,
-    ) -> Result<ParseOut, lalrpop_util::ParseError<usize, Token, Diagnostic>>
+    ) -> Result<ParseOut, lalrpop_util::ParseError<u32, Token, Diag<'dcx, 'src>>>
     where
         __TOKEN: grammar::__ToTriple,
         __TOKENS: IntoIterator<Item = __TOKEN>;
@@ -45,11 +47,11 @@ macro_rules! impl_iparser {
         impl IParser<$out> for $parser {
             fn new() -> Self { <$parser>::new() }
 
-            fn parse<__TOKEN, __TOKENS>(
+            fn parse<__TOKEN, __TOKENS, 'dcx, 'src>(
                 &self,
                 state: &mut ParseState,
                 __tokens0: __TOKENS,
-            ) -> Result<$out, lalrpop_util::ParseError<usize, Token, Diagnostic>>
+            ) -> Result<$out, lalrpop_util::ParseError<u32, Token, Diag<'dcx, 'src>>>
             where
                 __TOKEN: grammar::__ToTriple,
                 __TOKENS: IntoIterator<Item = __TOKEN> {
@@ -74,16 +76,9 @@ pub enum Parsed<Out> {
     /// Parsed cleanly, no errors.
     Ok(Out),
     /// lalrpop recovered from one or more errors but still produced a full tree.
-    Recovered {
-        out: Out,
-        first_error: Diagnostic,
-        guar: ErrorGuaranteed,
-    },
+    Recovered(Out),
     /// Parsing hit a fatal error and produced no tree.
-    Failed {
-        first_error: Diagnostic,
-        guar: ErrorGuaranteed,
-    },
+    Failed(ErrorGuarenteed),
 }
 
 impl<Out> Parsed<Out> {
@@ -91,26 +86,8 @@ impl<Out> Parsed<Out> {
     /// [`Recovered`](Parsed::Recovered)).
     pub fn output(&self) -> Option<&Out> {
         match self {
-            Parsed::Ok(out) | Parsed::Recovered { out, .. } => Some(out),
+            Parsed::Ok(out) | Parsed::Recovered(out) => Some(out),
             Parsed::Failed { .. } => None,
-        }
-    }
-
-    /// The first error emitted while parsing, if any. Consumed by the `.parsed` logger.
-    pub fn first_error(&self) -> Option<&Diagnostic> {
-        match self {
-            Parsed::Ok(_) => None,
-            Parsed::Recovered { first_error, .. } | Parsed::Failed { first_error, .. } => {
-                Some(first_error)
-            }
-        }
-    }
-
-    /// Proof that an error was reported, if this parse failed or recovered.
-    pub fn error_guaranteed(&self) -> Option<ErrorGuaranteed> {
-        match self {
-            Parsed::Ok(_) => None,
-            Parsed::Recovered { guar, .. } | Parsed::Failed { guar, .. } => Some(*guar),
         }
     }
 }
@@ -120,34 +97,33 @@ impl<Out> Parsed<Out> {
 /// lalrpop's recovered errors are emitted in source order, then any fatal error. The
 /// first error is cloned and retained in the result purely for `.parsed` logging; the
 /// caller inspects the [`Parsed`] variant (not a diagnostic list) to decide what to do.
-pub fn parse<Out, Lexer, Parser>(dcx: &DiagCtxt, lexer: &mut Lexer) -> Parsed<Out>
+pub fn parse<Out, Lexer, Parser, 'dcx, 'src>(dcx: &'dcx DiagCtxt<'src>, lexer: &mut Lexer) -> Parsed<Out>
 where
-    Lexer: Iterator<Item = Result<(usize, Token, usize), Diagnostic>>,
+    Lexer: Iterator<Item = Result<(u32, Token, u32), Diag<'dcx, 'src>>>,
     Parser: IParser<Out>,
 {
-    let mut state = ParseState::new();
-    let result = Parser::new().parse(&mut state, lexer).map_err(to_diag);
+    let mut state = ParseState::new(dcx);
+    let result = Parser::new().parse(&mut state, lexer);
 
-    // Emit each recovered (non-fatal) error immediately, in source order, and remember
-    // the first for logging.
-    let mut first_error: Option<(Diagnostic, ErrorGuaranteed)> = None;
+    let mut recovered = false;
     for r in state.errors {
-        let diag = to_diag(r.error);
-        let recorded = diag.clone();
-        let guar = dcx.emit(diag).expect("syntax errors are always Level::Error");
-        first_error.get_or_insert((recorded, guar));
+        let diag = to_diag(dcx, r.error);
+        if diag.level == etac_errors::Level::Error {
+            recovered = true;
+        }
+        // This guar matches the ones claimed in lalrpop
+        let _guar = dcx.emit(diag);
     }
 
     match result {
-        Ok(out) => match first_error {
-            None => Parsed::Ok(out),
-            Some((first_error, guar)) => Parsed::Recovered { out, first_error, guar },
+        Ok(out) => match recovered {
+            false => Parsed::Ok(out),
+            true  => Parsed::Recovered(out),
         },
         Err(fatal) => {
-            let recorded = fatal.clone();
-            let guar = dcx.emit(fatal).expect("syntax errors are always Level::Error");
-            let (first_error, guar) = first_error.unwrap_or((recorded, guar));
-            Parsed::Failed { first_error, guar }
+            let diag = to_diag(dcx, fatal);
+            let guar = diag.emit();
+            Parsed::Failed(guar)
         }
     }
 }
@@ -165,7 +141,7 @@ pub(crate) fn lvalue_to_expr(lv: LValue, ids: &mut NodeIdGen) -> Expr {
     Expr::new(ids.fresh(), lv.span, kind)
 }
 
-fn to_diag(err: ParseError<usize, Token, Diagnostic>) -> Diagnostic {
+fn to_diag<'dcx, 'src>(diagc: &'dcx DiagCtxt, err: ParseError<u32, Token, Diag<'dcx, 'src>>) -> Diag<'dcx, 'src> {
     use ParseError::*;
     match err {
         User { error } => error,
@@ -173,16 +149,23 @@ fn to_diag(err: ParseError<usize, Token, Diagnostic>) -> Diagnostic {
         UnrecognizedToken {
             token: (s, t, e),
             expected,
-        } => error!(Span::new(s, e); "Unexpected token {t}")
-            .with_primary_label(format_expected(&expected)),
-
-        UnrecognizedEof { location, expected } => {
-            error!(Span::new(location, location); "Unexpected end of file")
-                .with_primary_label(format_expected(&expected))
+        } => {
+            etac_error! {
+                diagc, Span::new(s, e), "Unexpected token {t}";
+                primary: "{}", format_expected(&expected)
+            }
         }
-
+        UnrecognizedEof { location, expected } => {
+            etac_error! {
+                diagc, Span::new(location, location), "Unexpected end of file";
+                primary: "{}", format_expected(&expected)
+            }
+        }
         ExtraToken { token: (s, t, e) } => {
-            error!(Span::new(s, e); "Extra token {} after program", t).with_primary_label("unexpected")
+            etac_error! {
+                diagc, Span::new(s, e), "Extra token {t} after program";
+                primary: "unexpected"
+            }
         }
 
         InvalidToken { location: _ } => {
@@ -193,7 +176,7 @@ fn to_diag(err: ParseError<usize, Token, Diagnostic>) -> Diagnostic {
 
 fn format_expected(expected: &[String]) -> String {
     match expected.len() {
-        0 => "expected nothing".into(),
+        0 => String::from("expected nothing"),
         1 => format!("expected {}", expected[0]),
         _ => {
             let (last, rest) = expected.split_last().unwrap();

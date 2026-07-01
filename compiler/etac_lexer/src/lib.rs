@@ -2,44 +2,67 @@
 //!
 //! Under the hood uses Logos but but exports a compatability layer more friendly to lalrpop.
 //! Reports the a Span which is a span within the global source cache.
+#![allow(clippy::cast_possible_truncation)]
+
 use std::{fmt::{self, Display}, num::ParseIntError};
 
-use etac_errors::{error, Diagnostic};
+use etac_errors::{Diag, DiagCtxt, etac_error};
 use etac_span::{Span};
 use logos::Logos;
 
-fn global_span(lex: &logos::Lexer<'_, Token>) -> Span {
-    Span::new(lex.extras + lex.span().start, lex.extras + lex.span().end)
+mod internal_error;
+use internal_error::{InternalLexerError, lexer_error};
+
+fn global_span<'s>(lex: &logos::Lexer<'s, Token<'s>>) -> Span {
+    Span::new(lex.extras + lex.span().start as u32, lex.extras + lex.span().end as u32)
 }
 
-fn lexer_error(lex: &mut logos::Lexer<'_, Token>) -> Diagnostic {
-    error!(global_span(lex); "unknown token").with_primary_label("this token")
+fn lexer_error<'s>(lex: &mut logos::Lexer<'s, Token<'s>>) -> InternalLexerError {
+    lexer_error! {
+        span = global_span(lex),
+        message = "unknown token",
+        plabel = "this token",
+    }
 }
 
-// api
-type LogosLexer<'input> = logos::Lexer<'input, Token>;
-pub struct Lexer<'input> {
-    inner: logos::SpannedIter<'input, Token>,
+type LogosLexer<'src> = logos::Lexer<'src, Token<'src>>;
+
+pub struct Lexer<'dcx, 'src> {
+    diagc: &'dcx DiagCtxt<'src>,
+    inner: logos::SpannedIter<'src, Token<'src>>,
 }
-impl<'source> Lexer<'source> {
+
+impl<'dcx, 'src> Lexer<'dcx, 'src> {
     #[must_use]
-    pub fn new(base: usize, source: &'source <Token as Logos>::Source) -> Self
+    pub fn new(base: u32, source: &'src <Token<'src> as Logos<'src>>::Source, diag_context: &'src DiagCtxt<'src>) -> Self
     {
-        Self { inner: <Token as Logos>::lexer_with_extras(source, base).spanned() }
+        Self { 
+            diagc: diag_context,
+            inner: <Token as Logos>::lexer_with_extras(source, base).spanned() 
+        }
     }
 }
 
 // transformed for lalrpop
-impl Iterator for Lexer<'_> {
-    type Item = Result<(usize, Token, usize), Diagnostic>;
+impl<'dcx, 'src> Iterator for Lexer<'dcx, 'src> {
+    type Item = Result<(u32, Token<'src>, u32), Diag<'dcx, 'src>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (next, local_span) = self.inner.next()?;
         let base = self.inner.extras;
-        let span = Span::new(base + local_span.start, base + local_span.end);
+        let span = Span::new(base + local_span.start as u32, base + local_span.end as u32);
         match next {
-            Ok(tok) => Some(Ok((span.lo as usize, tok, span.hi as usize))),
-            Err(diag) => Some(Err(diag)),
+            Ok(tok) => Some(Ok((span.lo, tok, span.hi))),
+            Err(diag) => {
+                let mut d = etac_error!(self.diagc, span, "{}", diag.message);
+                if let Some(l) = diag.plabel {
+                    d = d.with_primary_label(l);
+                }
+                if let Some(l) = diag.note {
+                    d = d.with_note(l);
+                }
+                Some(Err(d))
+            }
         }
     }
 }
@@ -48,11 +71,12 @@ mod strings;
 
 // logos
 #[derive(Debug, Clone, PartialEq, Logos)]
+#[logos(lifetime = 's)]
 #[logos(skip r"[ \t\n\f\r]+")]
-#[logos(skip r"//[^\n]*")]
-#[logos(extras = usize)]
-#[logos(error(Diagnostic, lexer_error))]
-pub enum Token {
+#[logos(skip(r"//[^\n]*", allow_greedy = true))]
+#[logos(extras = u32)]
+#[logos(error(InternalLexerError, lexer_error))]
+pub enum Token<'s> {
     // Keywords
     #[token("use")]
     KeywordUse,
@@ -93,8 +117,8 @@ pub enum Token {
     #[regex(r#""([^"\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*""#, strings::parse_str)]
     StrLiteral(String),
 
-    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.slice().to_string())]
-    Identifier(String),
+    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.slice())]
+    Identifier(&'s str),
 
     #[regex(r"[1-9][0-9]*|0", parse_int)]
     Integer(u64),
@@ -152,15 +176,15 @@ pub enum Token {
 
 // Callbacks
 
-fn parse_int(lex: &mut LogosLexer) -> Result<u64, Diagnostic> {
-    lex.slice().parse::<u64>().map_err(|err: ParseIntError| {
-        error!(global_span(lex); "illegal integer literal: {}", err).with_primary_label(
-            err.to_string().replace("number too extreme to fit in target type", "integer out of range"),
-        )
+fn parse_int<'s>(lex: &mut LogosLexer<'s>) -> Result<u64, InternalLexerError> {
+    lex.slice().parse::<u64>().map_err(|err: ParseIntError| lexer_error! {
+        span = global_span(lex),
+        message = format!("illegal integer literal: {}", err),
+        plabel = err.to_string().replace("number too extreme to fit in target type", "integer out of range"),
     })
 }
 
-impl Display for Token {
+impl<'i> Display for Token<'i> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::KeywordUse => write!(f, "use"),

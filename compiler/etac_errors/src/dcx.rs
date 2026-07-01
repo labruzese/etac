@@ -21,7 +21,8 @@ use std::fmt;
 use etac_span::{SourceCache, Span};
 
 use crate::emitter::{Emitter, HumanEmitter};
-use crate::{Diagnostic, Level};
+use crate::{Level};
+use crate::drop_bomb::DropBomb;
 
 /// Zero-sized proof that a compilation error was reported through a [`DiagCtxt`].
 ///
@@ -60,8 +61,8 @@ struct Inner<'a> {
 /// The single diagnostic sink for a compilation. Borrows the [`SourceCache`] so it can
 /// render spans; shares it with the rest of the compiler (the cache is interior-mutable).
 pub struct DiagCtxt<'a> {
-    sources: &'a SourceCache,
-    inner: RefCell<Inner<'a>>,
+    pub(crate) sources: &'a SourceCache,
+    pub(crate) inner: RefCell<Inner<'a>>,
 }
 
 impl<'a> DiagCtxt<'a> {
@@ -84,42 +85,19 @@ impl<'a> DiagCtxt<'a> {
         self.sources
     }
 
-    /// Emit a fully-built [`Diagnostic`]. Returns proof iff it was an error.
-    ///
-    /// This is the funnel for diagnostics produced as plain data — the lexer's logos
-    /// callbacks and lalrpop's recovered errors, which have no `DiagCtxt` on hand when
-    /// they are constructed. Code that *does* have the context should prefer the
-    /// builders ([`err`](Self::err) etc.) for the drop-bomb guarantee.
-    pub fn emit(&self, diag: Diagnostic) -> Option<ErrorGuaranteed> {
-        let level = diag.level;
-        self.inner.borrow_mut().emitter.emit(diag, self.sources);
-        let mut inner = self.inner.borrow_mut();
-        match level {
-            Level::Error => {
-                inner.err_count += 1;
-                Some(ErrorGuaranteed::new())
-            }
-            Level::Warning => {
-                inner.warn_count += 1;
-                None
-            }
-            Level::Note => None,
-        }
-    }
-
     /// Start building an error at `span`. Must be `.emit()`ed or `.cancel()`ed.
     pub fn err(&self, span: Span, msg: impl Into<String>) -> Diag<'_, 'a> {
-        Diag::new(self, Diagnostic::new(Level::Error, span, msg))
+        Diag::new(self, Level::Error, span, msg)
     }
 
     /// Start building a location-less error (I/O failures, bad CLI input, …).
     pub fn err_no_span(&self, msg: impl Into<String>) -> Diag<'_, 'a> {
-        Diag::new(self, Diagnostic::new_no_loc(Level::Error, msg))
+        Diag::new_no_span(self, Level::Error, msg)
     }
 
     /// Start building a warning at `span`.
     pub fn warn(&self, span: Span, msg: impl Into<String>) -> Diag<'_, 'a> {
-        Diag::new(self, Diagnostic::new(Level::Warning, span, msg))
+        Diag::new(self, Level::Warning, span, msg)
     }
 
     pub fn err_count(&self) -> usize {
@@ -148,68 +126,99 @@ impl<'a> DiagCtxt<'a> {
 /// context be an ordinary local (`let dcx = DiagCtxt::new(&cache);`) — a single shared
 /// lifetime here would force the borrow of `dcx` to last as long as the cache borrow.
 #[must_use = "a Diag does nothing until you call `.emit()` (or `.cancel()` it)"]
+#[derive(Debug)]
 pub struct Diag<'dcx, 'src> {
-    dcx: &'dcx DiagCtxt<'src>,
-    /// `None` once consumed by `emit`/`cancel`; `Some` means "still owes an emit".
-    diag: Option<Diagnostic>,
+    pub(crate) dcx: &'dcx DiagCtxt<'src>,
+    pub level: Level,
+    pub message: String,
+    pub loc: Option<Span>,
+    pub labels: Vec<(Span, String, ariadne::Color)>,
+    pub code: Option<String>,
+    pub note: Option<String>,
+    bomb: DropBomb,
 }
 
 impl<'dcx, 'src> Diag<'dcx, 'src> {
-    fn new(dcx: &'dcx DiagCtxt<'src>, diag: Diagnostic) -> Self {
-        Self { dcx, diag: Some(diag) }
+    /// Create a new diagnostic at a location with a message.
+    fn new(dcx: &'dcx DiagCtxt<'src>, level: Level, span: Span, message: impl Into<String>) -> Self {
+        Self {
+            dcx,
+            level,
+            code: None,
+            message: message.into(),
+            labels: Vec::new(),
+            loc: Some(span),
+            note: None,
+            bomb: DropBomb::new()
+        }
     }
 
-    #[inline]
-    fn map(mut self, f: impl FnOnce(Diagnostic) -> Diagnostic) -> Self {
-        let d = self.diag.take().expect("Diag already consumed");
-        self.diag = Some(f(d));
-        self
+    /// Create a new diagnostic that doesn't have a location
+    fn new_no_span(dcx: &'dcx DiagCtxt<'src>, level: Level, message: impl Into<String>) -> Self {
+        Self {
+            dcx,
+            level,
+            code: None,
+            message: message.into(),
+            labels: Vec::new(),
+            loc: None,
+            note: None,
+            bomb: DropBomb::new(),
+        }
     }
 
     /// Point the primary (red) label at the diagnostic's own span.
-    pub fn with_primary_label(self, msg: impl Into<String>) -> Self {
-        self.map(|d| d.with_primary_label(msg))
+    pub fn with_primary_label(mut self, msg: impl Into<String>) -> Self {
+        self.labels.push((
+            self.loc
+                .unwrap_or_else(|| panic!("can not add primary label to a diagnostic without a location")),
+            msg.into(),
+            ariadne::Color::Red,
+        ));
+        self
     }
 
     /// Add a secondary (yellow) label at another span.
-    pub fn with_secondary_label(self, span: Span, msg: impl Into<String>) -> Self {
-        self.map(|d| d.with_secondary_label(span, msg))
+    pub fn with_secondary_label(mut self, span: Span, msg: impl Into<String>) -> Self {
+        self.labels.push((span, msg.into(), ariadne::Color::Yellow));
+        self
     }
 
-    pub fn with_note(self, note: impl Into<String>) -> Self {
-        self.map(|d| d.with_note(note))
+    pub fn with_note(mut self, note: impl Into<String>) -> Self {
+        self.note = Some(note.into());
+        self
     }
 
-    pub fn with_code(self, code: impl Into<String>) -> Self {
-        self.map(|d| d.with_code(code))
+    pub fn with_code(mut self, code: impl Into<String>) -> Self {
+        self.code = Some(code.into());
+        self
     }
 
-    /// Emit through the context. Returns proof iff this was an error.
-    #[must_use]
-    #[allow(clippy::missing_panics_doc)]
-    pub fn emit(mut self) -> Option<ErrorGuaranteed> {
-        let d = self.diag.take().expect("Diag already consumed");
-        self.dcx.emit(d)
+    /// Emit a fully-built [`Diagnostic`]. Returns proof iff it was an error.
+    ///
+    /// This is the funnel for diagnostics produced as plain data — the lexer's logos
+    /// callbacks and lalrpop's recovered errors, which have no `DiagCtxt` on hand when
+    /// they are constructed. Code that *does* have the context should prefer the
+    /// builders ([`err`](Self::err) etc.) for the drop-bomb guarantee.
+    pub fn emit(mut self) -> ErrorGuaranteed {
+        let level = self.level;
+        let mut inner = self.dcx.inner.borrow_mut();
+        match level {
+            Level::Error => {
+                inner.err_count += 1;
+            }
+            Level::Warning => {
+                inner.warn_count += 1;
+            }
+            _ => ()
+        }
+        self.bomb.defuse();
+        inner.emitter.emit(self);
+        ErrorGuaranteed::new()
     }
 
     /// Throw the diagnostic away deliberately, defusing the drop-bomb.
-    pub fn cancel(mut self) {
-        self.diag = None;
-    }
-}
-
-impl Drop for Diag<'_, '_> {
-    /// # Panics
-    ///
-    fn drop(&mut self) {
-        if let Some(diag) = self.diag.take() {
-            // A diagnostic was built and then dropped on the floor. In debug that is a
-            // bug worth surfacing loudly; in release we still emit it so the user is
-            // never silently denied an error they should have seen.
-            debug_assert!(false, "Diag dropped without `.emit()`/`.cancel()`: {diag:?}");
-            self.dcx.emit(diag);
-        }
-    }
+    pub fn cancel(mut self) { self.bomb.defuse() }
 }
 
 impl fmt::Debug for DiagCtxt<'_> {

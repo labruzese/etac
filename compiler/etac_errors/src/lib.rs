@@ -12,24 +12,6 @@
 //! * Code that holds a `&DiagCtxt` should prefer the builders ([`DiagCtxt::err`] etc.),
 //!   which return a must-use [`Diag`] that emits or cancels before it drops.
 
-use ariadne::Color;
-
-use etac_span::Span;
-
-#[macro_export]
-/// Creates a new `Level::Error` Diagnostic with a provided message.
-/// Note the syntax is to have a semicolon (`;`) after the span.
-/// `error!(span; "no identifier called {}", id)` => Diagnostic with span
-/// `error!("file does not exist")` => Diagnostic *without* a span
-macro_rules! error {
-    ($span:expr; $($arg:tt)*) => {
-        $crate::Diagnostic::new($crate::Level::Error, $span, format!($($arg)*))
-    };
-    ($($arg:tt)*) => {
-        $crate::Diagnostic::new_no_loc($crate::Level::Error, format!($($arg)*))
-    };
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// Denotes the severity of the Diagnostic
 pub enum Level {
@@ -39,9 +21,9 @@ pub enum Level {
 }
 
 mod dcx;
-mod diagnostic;
 mod emitter;
+mod drop_bomb;
+mod macros;
 
 pub use dcx::*;
-pub use diagnostic::*;
 pub use emitter::*;

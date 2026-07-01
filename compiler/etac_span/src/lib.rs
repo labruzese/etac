@@ -49,6 +49,7 @@ impl FileNames {
             return id;
         }
         let name: &'static str = String::from(name).leak();
+        #[allow(clippy::cast_possible_truncation)]
         let id = self.by_index.len() as u32;
         self.by_index.push(name);
         self.by_name.insert(name, id);
@@ -61,6 +62,7 @@ impl FileId {
         FileId(FILE_NAMES.with(|t| t.borrow_mut().intern(name.as_ref())))
     }
 
+    #[must_use]
     pub fn as_str(&self) -> &'static str {
         FILE_NAMES.with(|t| t.borrow().by_index[self.0 as usize])
     }
@@ -85,19 +87,30 @@ impl Span {
     /// Placeholder span for synthesized nodes. Should never reach a diagnostic.
     pub const DUMMY: Span = Span { lo: 0, hi: 0 };
 
-    /// Accepts `usize` offsets (the lexer and grammar work in `usize`) and narrows
-    /// them into the `u32` global space.
-    pub fn new(lo: impl Into<usize>, hi: impl Into<usize>) -> Self {
-        Self { lo: lo.into() as u32, hi: hi.into() as u32 }
+    pub fn new(lo: impl Into<u32>, hi: impl Into<u32>) -> Self {
+        Self {
+            lo: lo.into(),
+            hi: hi.into(),
+        }
     }
 
     /// Smallest span covering both `self` and `other`.
+    #[must_use]
     pub fn to(self, other: Span) -> Span {
-        Span { lo: self.lo.min(other.lo), hi: self.hi.max(other.hi) }
+        Span {
+            lo: self.lo.min(other.lo),
+            hi: self.hi.max(other.hi),
+        }
     }
 
-    pub fn len(self) -> usize { (self.hi - self.lo) as usize }
-    pub fn is_empty(self) -> bool { self.lo == self.hi }
+    #[must_use]
+    pub fn len(self) -> u32 {
+        self.hi - self.lo
+    }
+    #[must_use]
+    pub fn is_empty(self) -> bool {
+        self.lo == self.hi
+    }
 }
 
 impl fmt::Debug for Span {
@@ -131,6 +144,7 @@ pub struct SourceCache {
 }
 
 impl SourceCache {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             files: RefCell::new(HashMap::new()),
@@ -142,52 +156,64 @@ impl SourceCache {
     /// Read `id` (if not already loaded), assign it a base, and return
     /// `(base, text)`. The driver calls this before lexing so the lexer can
     /// shift its local positions into the global space.
-    pub fn load(&self, id: &FileId) -> io::Result<(usize, Rc<str>)> {
+    /// # Errors
+    /// An IO error if we can not load the file from disk
+    #[allow(clippy::missing_panics_doc)] // internal invariant: ensure_loaded guarantees the entry exists
+    pub fn load(&self, id: FileId) -> io::Result<(u32, Rc<str>)> {
         self.ensure_loaded(id)?;
         let files = self.files.borrow();
-        let f = files.get(id).expect("just loaded");
-        Ok((f.base as usize, Rc::clone(&f.rc)))
+        let f = files.get(&id).expect("just loaded");
+        Ok((f.base, Rc::clone(&f.rc)))
     }
 
     /// Resolve a global span to its owning file and the local range within it.
-    pub fn resolve(&self, span: Span) -> (FileId, Range<usize>) {
+    pub fn file_for(&self, span: Span) -> (FileId, Range<u32>) {
         let index = self.index.borrow();
         debug_assert!(!index.is_empty(), "resolve() called before any file loaded");
         // the file with the greatest base <= span.lo contains the span
         let i = index.partition_point(|(base, _)| *base <= span.lo).saturating_sub(1);
         let (base, id) = &index[i];
-        (*id, (span.lo - base) as usize..(span.hi - base) as usize)
+        (*id, (span.lo - base)..(span.hi - base))
+    }
+
+    pub fn reportable_span_for(&self, span: Span) -> ReportableSpan<'_> {
+        (self, span).into()
     }
 
     /// Full text of `id`; a pointer bump on a cache hit.
-    pub fn text(&self, id: &FileId) -> io::Result<Rc<str>> {
+    /// # Errors
+    /// An IO error if we can not load the file see [`SourceCache::load`]
+    pub fn text(&self, id: FileId) -> io::Result<Rc<str>> {
         Ok(self.load(id)?.1)
     }
 
-    /// 1-based `(line, col)` for a *local* byte offset within `id`.
-    pub fn file_lc_index(&self, id: &FileId, offset: usize) -> io::Result<(usize, usize)> {
-        self.ensure_loaded(id)?;
-        let map = self.files.borrow();
-        let source = &map.get(id).expect("just loaded").source;
-        let (_line, linen, coln) = source
-            .get_byte_line(offset)
-            .expect("requested line/col is out of bounds");
-        Ok((linen + 1, coln + 1))
-    }
-
     /// 1-based `(line, col)` for a global byte offset.
-    pub fn lc_index(&self, global_offset: u32) -> io::Result<(usize, usize)> {
-        let (fileid, local_range) = self.resolve(Span { lo: global_offset, hi: global_offset });
+    /// # Errors
+    /// An IO error if we can not load the file see [`SourceCache::load`]
+    /// # Panics
+    /// If offset is out of bounds of the virtual mega-file this function panics
+    pub fn lc_index(&self, global_offset: u32) -> io::Result<(u32, u32)> {
+        let (fileid, local_range) = self.file_for(Span {
+            lo: global_offset,
+            hi: global_offset,
+        });
         let map = self.files.borrow();
         let source = &map.get(&fileid).unwrap().source;
         let (_line, linen, coln) = source
-            .get_byte_line(local_range.start)
+            .get_byte_line(local_range.start as usize)
+            .map(|(a, b, c)| {
+                (
+                    a,
+                    u32::try_from(b).expect("requested line/col is out of bounds"),
+                    u32::try_from(c).expect("requested line/col is out of bounds"),
+                )
+            })
             .expect("requested line/col is out of bounds");
         Ok((linen + 1, coln + 1))
     }
 
-    fn ensure_loaded(&self, id: &FileId) -> io::Result<()> {
-        if self.files.borrow().contains_key(id) {
+    fn ensure_loaded(&self, id: FileId) -> io::Result<()> {
+        if self.files.borrow().contains_key(&id) {
             return Ok(());
         }
         let rc: Rc<str> = std::fs::read_to_string(id.as_str()).map(Rc::from)?;
@@ -200,10 +226,14 @@ impl SourceCache {
             .and_then(|end| end.checked_add(1))
             .expect("total loaded source exceeds 4 GiB");
         self.next_base.set(next);
-        self.index.borrow_mut().push((base, *id));
+        self.index.borrow_mut().push((base, id));
         self.files.borrow_mut().insert(
-            *id,
-            CachedSource { rc: Rc::clone(&rc), source: Source::from(rc), base },
+            id,
+            CachedSource {
+                rc: Rc::clone(&rc),
+                source: Source::from(rc),
+                base,
+            },
         );
         Ok(())
     }
@@ -219,7 +249,9 @@ impl SourceCache {
     /// minted by lexing that file. This is what lets a single shared `&SourceCache`
     /// back both the lexer and the diagnostic emitter.
     pub fn cache_view(&self) -> CacheView<'_> {
-        CacheView { files: self.files.borrow_mut() }
+        CacheView {
+            files: self.files.borrow_mut(),
+        }
     }
 }
 
@@ -250,7 +282,7 @@ impl Cache<FileId> for SourceCache {
     type Storage = Rc<str>;
 
     fn fetch(&mut self, id: &FileId) -> Result<&Source<Rc<str>>, impl fmt::Debug> {
-        self.ensure_loaded(id)?;
+        self.ensure_loaded(*id)?;
         Ok::<_, io::Error>(&self.files.get_mut().get(id).expect("just loaded").source)
     }
 
@@ -260,5 +292,38 @@ impl Cache<FileId> for SourceCache {
 }
 
 impl Default for SourceCache {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
+
+pub struct ReportableSpan<'src> {
+    cache: &'src SourceCache, 
+    pub span: Span, 
+    own: std::cell::OnceCell<(FileId, Range<u32>)>
+}
+impl<'src> From<(&'src SourceCache, Span)> for ReportableSpan<'src> {
+    fn from(value: (&'src SourceCache, Span)) -> Self {
+        ReportableSpan {
+            cache: value.0,
+            span: value.1,
+            own: std::cell::OnceCell::new()
+        }
+    }
+}
+impl ariadne::Span for ReportableSpan<'_> {
+    type SourceId = FileId;
+
+    fn source(&self) -> &Self::SourceId {
+        &self.own.get_or_init(|| self.cache.file_for(self.span)).0
+    }
+
+    fn start(&self) -> usize {
+        self.own.get_or_init(|| self.cache.file_for(self.span)).1.start as usize
+    }
+
+    fn end(&self) -> usize {
+        self.own.get_or_init(|| self.cache.file_for(self.span)).1.end as usize
+    }
+}
+

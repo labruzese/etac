@@ -15,12 +15,12 @@ authors = ["Skylar Abruzese"]
 
 [workspace.dependencies]
 # external
+logos 		= { git = "https://github.com/maciejhirsz/logos", branch = "master" }
 ariadne         = "0.6"
 clap            = { version = "4.5", features = ["derive"] }
 either          = "1"
 lalrpop         = "0.23"
 lalrpop-util    = { version = "0.21", features = ["lexer", "unicode"] }
-logos           = "0.16"
 pretty          = "0.12"
 unicode-width   = "0.2"
 tempfile 	= "3.27.0"

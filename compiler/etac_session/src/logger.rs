@@ -1,5 +1,5 @@
 use crate::cli::Flags;
-use etac_errors::{Diagnostic, Level};
+use etac_errors::{CopiedDiagnostic, Level};
 use etac_lexer::Token;
 use etac_span::{FileId, SourceCache};
 use std::cell::RefCell;
@@ -28,8 +28,11 @@ pub struct Logger {
 }
 
 impl Logger {
+    /// # Panics
+    /// If unable to create the diagnostic output directory
+    #[must_use]
     pub fn new(flags: &Flags) -> Self {
-        if (flags.lex || flags.parse) && flags.diag_path != PathBuf::from("-") {
+        if (flags.lex || flags.parse) && flags.diag_path != *"-" {
             std::fs::create_dir_all(&flags.diag_path)
                 .expect("unable to create diagnostic output directory");
         }
@@ -51,7 +54,7 @@ impl Logger {
     /// keep flowing to the parser.
     pub fn tee<'a, I>(&'a self, file: FileId, sources: &'a SourceCache, inner: I) -> Tee<'a, I>
     where
-        I: Iterator<Item = Result<(usize, Token, usize), Diagnostic>>,
+        I: Iterator<Item = Result<(u32, Token, u32), CopiedDiagnostic>>,
     {
         Tee { logger: self, file, sources, inner, stopped: false }
     }
@@ -65,7 +68,7 @@ impl Logger {
 
     /// Write the first syntactic error to the `.parsed` log (no-op unless `--parse`).
     /// Best-effort; a missing location or a log I/O failure is silently skipped.
-    pub fn log_syntax_error(&self, file: FileId, sources: &SourceCache, diag: &Diagnostic) {
+    pub fn log_syntax_error(&self, file: FileId, sources: &SourceCache, diag: &CopiedDiagnostic) {
         if !self.parse {
             return;
         }
@@ -81,7 +84,7 @@ impl Logger {
     fn write_token(
         &self,
         file: FileId,
-        at: (usize, usize),
+        at: (u32, u32),
         token: &impl std::fmt::Display,
     ) -> std::io::Result<()> {
         let mut guard = self.lexer_writers.borrow_mut();
@@ -94,7 +97,7 @@ impl Logger {
     fn write_lexical_error(
         &self,
         file: FileId,
-        at: (usize, usize),
+        at: (u32, u32),
         message: &str,
     ) -> std::io::Result<()> {
         let mut guard = self.lexer_writers.borrow_mut();
@@ -109,13 +112,13 @@ impl Logger {
         let w = guard
             .entry(file)
             .or_insert_with(|| open_log(&self.diag_root, file.as_str(), ".parsed"));
-        writeln!(w, "{}", program)
+        writeln!(w, "{program}")
     }
 
     fn write_syntactic_error(
         &self,
         file: FileId,
-        at: (usize, usize),
+        at: (u32, u32),
         message: &str,
     ) -> std::io::Result<()> {
         let mut guard = self.parser_writers.borrow_mut();
@@ -139,7 +142,7 @@ pub struct Tee<'a, I> {
 
 impl<I> Iterator for Tee<'_, I>
 where
-    I: Iterator<Item = Result<(usize, Token, usize), Diagnostic>>,
+    I: Iterator<Item = Result<(u32, Token, u32), CopiedDiagnostic>>,
 {
     type Item = I::Item;
 
@@ -149,7 +152,7 @@ where
         if self.logger.lex && !self.stopped {
             match &item {
                 Ok((start, tok, _end)) => {
-                    if let Ok(at) = self.sources.lc_index(*start as u32) {
+                    if let Ok(at) = self.sources.lc_index(*start) {
                         // best-effort: a log write failure must not alter the token stream
                         let _ = self.logger.write_token(self.file, at, tok);
                     }

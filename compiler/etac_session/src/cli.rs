@@ -38,6 +38,7 @@ pub struct Flags {
     pub source_files: Vec<PathBuf>,
 }
 
+#[must_use]
 pub fn parse_flags() -> Flags {
     let flags = Flags::parse();
 

@@ -4,15 +4,13 @@
 //! [`DiagCtxt`](crate::DiagCtxt) owns one and routes every diagnostic through it, so
 //! swapping the sink (human-readable stderr, an in-memory buffer for tests, JSON later)
 //! is a one-line change and never touches call sites.
-
-use std::cell::RefCell;
-use std::convert::Infallible;
-use std::rc::Rc;
+//!
+use std::{cell::RefCell, convert::Infallible, rc::Rc};
 
 use ariadne::{Config, IndexType, Label, Report, ReportKind};
-use etac_span::SourceCache;
+use etac_span::Span;
 
-use crate::{Diagnostic, Level};
+use crate::{Diag, Level};
 
 /// The single point at which a diagnostic becomes output.
 ///
@@ -20,7 +18,7 @@ use crate::{Diagnostic, Level};
 /// it needs (the level, for counting) before handing it over, so an emitter is free to
 /// consume the payload without cloning.
 pub trait Emitter {
-    fn emit(&mut self, diag: Diagnostic, sources: &SourceCache);
+    fn emit<'dcx, 'src>(&mut self, diag: Diag<'dcx, 'src>);
 }
 
 /// Renders diagnostics to stderr with source snippets via `ariadne`.
@@ -28,7 +26,7 @@ pub trait Emitter {
 pub struct HumanEmitter;
 
 impl Emitter for HumanEmitter {
-    fn emit(&mut self, diag: Diagnostic, sources: &SourceCache) {
+    fn emit<'dcx, 'src>(&mut self, diag: Diag<'dcx, 'src>) {
         let kind = match diag.level {
             Level::Error => ReportKind::Error,
             Level::Warning => ReportKind::Warning,
@@ -36,7 +34,6 @@ impl Emitter for HumanEmitter {
         };
 
         if let Some(loc) = diag.loc {
-            let floc = sources.resolve(loc);
             // resolve() returns byte ranges; tell ariadne to interpret span
             // offsets as byte offsets so its line:col header matches what
             // lc_index() (used by the logger) reports.  Without this,
@@ -44,32 +41,31 @@ impl Emitter for HumanEmitter {
             // whenever multibyte UTF-8 characters appear before the error
             // in the same file.
             let byte_config = Config::default().with_index_type(IndexType::Byte);
-            let mut b = Report::build(kind, floc)
+            let mut b = Report::build(kind, diag.dcx.sources.reportable_span_for(loc))
                 .with_config(byte_config)
-                .with_message(diag.message);
-            if let Some(c) = diag.code {
+                .with_message(&diag.message);
+            if let Some(c) = &diag.code {
                 b = b.with_code(c);
             }
-            if let Some(n) = diag.note {
+            if let Some(n) = &diag.note {
                 b = b.with_note(n);
             }
-            for (span, msg, color) in diag.labels {
-                let fspan = sources.resolve(span);
-                b = b.with_label(Label::new(fspan).with_message(msg).with_color(color));
+            for (span, msg, color) in &diag.labels {
+                b = b.with_label(Label::new(diag.dcx.sources.reportable_span_for(*span)).with_message(msg).with_color(*color));
             }
             // `cache_view()` borrows `sources` immutably; see SourceCache::cache_view.
-            let _ = b.finish().eprint(sources.cache_view());
+            let _ = b.finish().eprint(diag.dcx.sources.cache_view());
         } else {
             static NO_SPAN: NoSpan = NoSpan;
-            let mut b = Report::build(kind, NO_SPAN).with_message(diag.message);
-            if let Some(c) = diag.code {
+            let mut b = Report::build(kind, NO_SPAN).with_message(&diag.message);
+            if let Some(c) = &diag.code {
                 b = b.with_code(c);
             }
-            if let Some(n) = diag.note {
+            if let Some(n) = &diag.note {
                 b = b.with_note(n);
             }
-            for (_span, msg, color) in diag.labels {
-                b = b.with_label(Label::new(NO_SPAN).with_message(msg).with_color(color));
+            for (_span, msg, color) in &diag.labels {
+                b = b.with_label(Label::new(NO_SPAN).with_message(msg).with_color(*color));
             }
             let _ = b.finish().eprint(NoCache);
         }
@@ -82,7 +78,7 @@ impl Emitter for HumanEmitter {
 /// keep a handle, hand a clone to the [`DiagCtxt`](crate::DiagCtxt), run a phase, and
 /// then read back exactly what was emitted via [`take`](BufferEmitter::take).
 #[derive(Debug, Clone, Default)]
-pub struct BufferEmitter(Rc<RefCell<Vec<Diagnostic>>>);
+pub struct BufferEmitter(Rc<RefCell<Vec<RecordedDiag>>>);
 
 impl BufferEmitter {
     #[must_use]
@@ -92,7 +88,7 @@ impl BufferEmitter {
 
     /// Drain everything emitted so far, leaving the buffer empty.
     #[must_use]
-    pub fn take(&self) -> Vec<Diagnostic> {
+    pub fn take(&self) -> Vec<RecordedDiag> {
         std::mem::take(&mut self.0.borrow_mut())
     }
 
@@ -108,9 +104,29 @@ impl BufferEmitter {
     }
 }
 
+/// Stored Diag for emitters that are claiming ownership of a Diag
+#[non_exhaustive]
+#[derive(Debug)]
+pub struct RecordedDiag {
+    pub level: Level,
+    pub message: String,
+    pub loc: Option<Span>,
+    pub labels: Vec<(Span, String, ariadne::Color)>,
+    pub code: Option<String>,
+    pub note: Option<String>,
+}
+
 impl Emitter for BufferEmitter {
-    fn emit(&mut self, diag: Diagnostic, _sources: &SourceCache) {
-        self.0.borrow_mut().push(diag);
+    fn emit(&mut self, diag: Diag<'_, '_>) {
+        let rd = RecordedDiag {
+            level: diag.level,
+            message: diag.message,
+            loc: diag.loc,
+            labels: diag.labels,
+            code: diag.code,
+            note: diag.note,
+        };
+        self.0.borrow_mut().push(rd);
     }
 }
 
