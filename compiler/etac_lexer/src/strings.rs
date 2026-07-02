@@ -1,6 +1,6 @@
 use crate::internal_error::InternalLexerError;
 
-use super::{global_span, lexer_err, LogosLexer, Span};
+use super::{global_span, lexer_error, LogosLexer, Span};
 
 const VALID_ESCAPES: &str = "valid escapes: '\\n', '\\t', '\\r', '\\\\', '\\'', '\\\"', '\\0', '\\x{..}'";
 
@@ -85,9 +85,9 @@ fn finish_char(cursor: &mut Cursor, start: u32) -> (char, u32) {
     (c, cursor.loc())
 }
 
-fn parse_hex<'s>(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> {
+fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> {
     if cursor.next() != Some(b'{') {
-        return Err(lexer_err! {
+        return Err(lexer_error! {
             span = Span::new(open, open + 2),
             message = "expected '{{' after '\\x'",
             plabel = "at this escape sequence"
@@ -111,7 +111,7 @@ fn parse_hex<'s>(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerErr
 
                 if digit_count == 0 {
                     // No digits between `{` and `}`.
-                    return Err(lexer_err! {
+                    return Err(lexer_error! {
                         span = Span::new(open, close),
                         message = "empty unicode escape expected non-empty hex between '{{' and '}}'",
                         plabel = "expected non-empty hex here",
@@ -119,7 +119,7 @@ fn parse_hex<'s>(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerErr
                 }
 
                 if let Some(msg) = pending_error {
-                    return Err(lexer_err! {
+                    return Err(lexer_error! {
                         span = Span::new(digits_start, close),
                         message = msg.0,
                         plabel = msg.1,
@@ -177,7 +177,7 @@ fn parse_hex<'s>(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerErr
                 let start = cursor.loc();
                 cursor.next();
                 let (ch, end) = finish_char(cursor, start);
-                return Err(lexer_err! {
+                return Err(lexer_error! {
                     span = Span::new(start, end),
                     message = format!("invalid hex digit '{}' in unicode escape: '", ch),
                     plabel = "inside this unicode escape",
@@ -191,7 +191,7 @@ fn parse_hex<'s>(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerErr
                 // (i.e. as far as this Cursor can see), rather than just
                 // pointing at the single byte where we gave up.
                 let end = cursor.loc();
-                return Err(lexer_err! {
+                return Err(lexer_error! {
                     span = Span::new(open, end),
                     message = "unterminated unicode escape",
                     plabel = "unicode escape unclosed here",
@@ -210,7 +210,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
 
     let b_pos = cursor.loc();
     let b = cursor.next().ok_or_else(|| {
-        lexer_err! {
+        lexer_error! {
             span = Span::new(esc_start, esc_start),
             message = "dangling backslash",
             plabel = "closing quote is escaped here",
@@ -238,7 +238,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
             // constructing any `char` — so both char and string literals
             // get the error from a single place.
             if (0xD800..=0xDFFF).contains(&cp) {
-                return Err(lexer_err! {
+                return Err(lexer_error! {
                     span = Span::new(esc_start, end),
                     message = "invalid unicode escape",
                     plabel = "this escape produces a surrogate half",
@@ -260,7 +260,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
 
         _ if b.is_ascii() => {
             let l = cursor.loc();
-            return Err(lexer_err! {
+            return Err(lexer_error! {
                 span = Span::new(esc_start, l),
                 message = format!("unknown escape: '\\{}' is not a recognized escape sequence", b as char),
                 plabel = "this isn't a recognized escape sequence",
@@ -274,7 +274,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
             // reported character and the error span are correct, instead
             // of misinterpreting a lone continuation byte via `as char`.
             let (ch, end) = finish_char(cursor, b_pos);
-            return Err(lexer_err! {
+            return Err(lexer_error! {
                 span = Span::new(esc_start, end),
                 message = format!("unknown escape: '\\{ch}' is not a recognized escape sequence"),
                 plabel = "this isn't a recognized escape sequence",
@@ -291,7 +291,7 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLe
     let tok_span = global_span(lex);
 
     if raw == "''" {
-        return Err(lexer_err!{
+        return Err(lexer_error!{
             span = tok_span,
             message = "empty character literal",
             plabel = "empty here",
@@ -317,7 +317,7 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLe
             c
         }
         None => {
-            return Err(lexer_err! {
+            return Err(lexer_error! {
                 span = tok_span,
                 message = "invalid char literal",
                 plabel = "this is not a valid char literal",
@@ -330,7 +330,7 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLe
         // a single-quoted literal: span the *entire* literal, including
         // both quotes, so the user sees the whole offending token rather
         // than just the tail end of it.
-        return Err(lexer_err! {
+        return Err(lexer_error! {
             span = tok_span,
             message = "too many characters in char literal",
             plabel = "this literal contains more than one character",
@@ -341,7 +341,7 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLe
     Ok(value as u32)
 }
 
-pub fn parse_str<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<String, InternalLexerError> {
+pub fn parse_str(lex: &mut LogosLexer<'_>) -> Result<String, InternalLexerError> {
     let raw = lex.slice();
     let tok_span = global_span(lex);
 

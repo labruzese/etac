@@ -1,70 +1,10 @@
 use etac_ast::{Expr, ExprKind, LValue, LValueKind, NodeIdGen};
-use etac_errors::{etac_error, DiagCtxt, Diag, ErrorGuaranteed};
+use etac_errors::{etac_error, Diag, DiagCtxt};
 use etac_lexer::Token;
 use etac_span::Span;
 use lalrpop_util::{lalrpop_mod, ErrorRecovery, ParseError};
 
 lalrpop_mod!(grammar);
-
-/// Mutable state threaded through every grammar action.
-///
-/// Bundles the [`NodeIdGen`] that hands out node ids with the buffer lalrpop fills
-/// on error recovery, so the grammar carries a single parameter instead of two.
-pub struct ParseState<'dcx, 'src> {
-    pub diagc: &'dcx DiagCtxt<'src>,
-    pub ids: NodeIdGen,
-    pub errors: Vec<ErrorRecovery<u32, Token, Diag<'dcx, 'src>>>,
-}
-
-impl<'dcx, 'src> ParseState<'dcx, 'src> {
-    #[must_use]
-    pub fn new(diagnostic_context: &'dcx DiagCtx<'src>) -> Self {
-        ParseState {
-            diagc: diagnostic_context,
-            ids: NodeIdGen::default(),
-            errors: Vec::new(),
-        }
-    }
-}
-
-pub trait IParser<ParseOut> {
-    fn new() -> Self;
-
-    /// # Errors
-    /// Error produced by the lalrpop parser
-    fn parse<__TOKEN, __TOKENS, 'dcx, 'src>(
-        &self,
-        state: &mut ParseState,
-        __tokens0: __TOKENS,
-    ) -> Result<ParseOut, lalrpop_util::ParseError<u32, Token, Diag<'dcx, 'src>>>
-    where
-        __TOKEN: grammar::__ToTriple,
-        __TOKENS: IntoIterator<Item = __TOKEN>;
-}
-
-macro_rules! impl_iparser {
-    ($parser:ty, $out:ty) => {
-        impl IParser<$out> for $parser {
-            fn new() -> Self { <$parser>::new() }
-
-            fn parse<__TOKEN, __TOKENS, 'dcx, 'src>(
-                &self,
-                state: &mut ParseState,
-                __tokens0: __TOKENS,
-            ) -> Result<$out, lalrpop_util::ParseError<u32, Token, Diag<'dcx, 'src>>>
-            where
-                __TOKEN: grammar::__ToTriple,
-                __TOKENS: IntoIterator<Item = __TOKEN> {
-                <$parser>::parse(self, state, __tokens0)
-            }
-        }
-    };
-}
-
-pub use grammar::ProgramParser;
-pub use grammar::InterfaceParser;
-impl_iparser!{ProgramParser, etac_ast::Program}
-impl_iparser!{InterfaceParser, etac_ast::Interface}
 
 /// Outcome of a parse. Every diagnostic has already been emitted through the
 /// [`DiagCtxt`] by the time this is returned — the caller never receives a `Vec` of
@@ -78,7 +18,7 @@ pub enum Parsed<Out> {
     /// lalrpop recovered from one or more errors but still produced a full tree.
     Recovered(Out),
     /// Parsing hit a fatal error and produced no tree.
-    Failed(ErrorGuarenteed),
+    Failed,
 }
 
 impl<Out> Parsed<Out> {
@@ -87,46 +27,109 @@ impl<Out> Parsed<Out> {
     pub fn output(&self) -> Option<&Out> {
         match self {
             Parsed::Ok(out) | Parsed::Recovered(out) => Some(out),
-            Parsed::Failed { .. } => None,
+            Parsed::Failed => None,
         }
     }
 }
 
-/// Parse `lexer`'s tokens with `Parser`, routing every diagnostic through `dcx`.
+/// Mutable state threaded through every grammar action.
 ///
-/// lalrpop's recovered errors are emitted in source order, then any fatal error. The
-/// first error is cloned and retained in the result purely for `.parsed` logging; the
-/// caller inspects the [`Parsed`] variant (not a diagnostic list) to decide what to do.
-pub fn parse<Out, Lexer, Parser, 'dcx, 'src>(dcx: &'dcx DiagCtxt<'src>, lexer: &mut Lexer) -> Parsed<Out>
-where
-    Lexer: Iterator<Item = Result<(u32, Token, u32), Diag<'dcx, 'src>>>,
-    Parser: IParser<Out>,
-{
-    let mut state = ParseState::new(dcx);
-    let result = Parser::new().parse(&mut state, lexer);
+/// Bundles the [`NodeIdGen`] that hands out node ids with the buffer lalrpop fills
+/// on error recovery, so the grammar carries a single parameter instead of two.
+pub(crate) struct ParseState<'dcx, 'src> {
+    pub diagc: &'dcx DiagCtxt<'src>,
+    pub ids: NodeIdGen,
+    pub lalrpop_errs: Vec<ErrorRecovery<u32, Token<'src>, Diag<'dcx, 'src>>>,
+    pub etac_errs: Vec<Diag<'dcx, 'src>>,
+}
 
-    let mut recovered = false;
-    for r in state.errors {
-        let diag = to_diag(dcx, r.error);
-        if diag.level == etac_errors::Level::Error {
-            recovered = true;
-        }
-        // This guar matches the ones claimed in lalrpop
-        let _guar = dcx.emit(diag);
-    }
-
-    match result {
-        Ok(out) => match recovered {
-            false => Parsed::Ok(out),
-            true  => Parsed::Recovered(out),
-        },
-        Err(fatal) => {
-            let diag = to_diag(dcx, fatal);
-            let guar = diag.emit();
-            Parsed::Failed(guar)
+impl<'dcx, 'src> ParseState<'dcx, 'src> {
+    #[must_use]
+    pub fn new(diagnostic_context: &'dcx DiagCtxt<'src>) -> Self {
+        ParseState {
+            diagc: diagnostic_context,
+            ids: NodeIdGen::default(),
+            lalrpop_errs: Vec::new(),
+            etac_errs: Vec::new(),
         }
     }
 }
+
+pub use grammar::__ToTriple;
+
+pub trait IParser<'dcx, 'src> {
+    type Out: std::fmt::Display;
+
+    fn parse<Lexer>(&mut self, lexer: &mut Lexer) -> Parsed<Self::Out>
+    where
+        Lexer: Iterator<Item = Result<(u32, Token<'src>, u32), Diag<'dcx, 'src>>>,
+        'src: 'dcx; 
+
+    fn errors_mut(&mut self) -> &mut [Diag<'dcx, 'src>];
+
+    fn diagnostic_context(&self) -> &'dcx DiagCtxt<'src>;
+
+}
+
+/// Creates a new struct shadowing the name of the passed on (you must qualify a path ex:
+/// [`grammar::ProgramParser`]) and implements [`IParser`] for it.
+macro_rules! impl_iparser {
+    ($($seg:ident)::+, $out:ty) => {
+        impl_iparser!(@inner ($($seg)::+) ($($seg)::+) $out);
+    };
+    // strip the leading segment and keep going.
+    (@inner ($full:path) ($head:ident :: $($rest:ident)::+) $out:ty) => {
+        impl_iparser!(@inner ($full) ($($rest)::+) $out);
+    };
+    (@inner ($full:path) ($name:ident) $out:ty) => {
+        pub struct $name<'dcx, 'src> {
+            state: ParseState<'dcx, 'src>
+        }
+        impl<'dcx, 'src> $name<'dcx, 'src> {
+            #[must_use]
+            pub fn new(diagc: &'dcx DiagCtxt<'src>) -> Self { $name { state: ParseState::new(diagc) } }
+        }
+        impl<'dcx, 'src> IParser<'dcx, 'src> for $name<'dcx, 'src> {
+            type Out = $out;
+
+           fn parse<Lexer>(&mut self, lexer: &mut Lexer) -> Parsed<Self::Out>
+            where
+                Lexer: Iterator<Item = Result<(u32, Token<'src>, u32), Diag<'dcx, 'src>>>,
+                'src: 'dcx
+            {
+                let parse = <$full>::parse(&<$full>::new(), &mut self.state, lexer);
+                let mut recovered = false;
+                for e in std::mem::take(&mut self.state.lalrpop_errs) {
+                    let diag = to_diag(self.diagnostic_context(), e.error);
+                    if diag.level == etac_errors::Level::Error {
+                        recovered = true
+                    }
+                    self.state.etac_errs.push(diag)
+                }
+                match (parse, recovered) {
+                    (Ok(out), false) => Parsed::Ok(out),
+                    (Ok(out), true) => Parsed::Recovered(out),
+                    (Err(fatal), _) => {
+                        self.state.etac_errs.push(to_diag(self.diagnostic_context(), fatal));
+                        Parsed::Failed
+                    }
+                }
+            }
+
+            fn errors_mut(&mut self) -> &mut [Diag<'dcx, 'src>] {
+                &mut self.state.etac_errs
+            }
+
+            fn diagnostic_context(&self) -> &'dcx DiagCtxt<'src> {
+                &self.state.diagc
+            }
+        }
+    };
+}
+
+impl_iparser! {grammar::ProgramParser, etac_ast::Program}
+impl_iparser! {grammar::InterfaceParser, etac_ast::Interface}
+
 
 /// Reinterpret a parsed [`LValue`] as the equivalent [`Expr`], minting fresh ids for
 /// the rebuilt carrier. The AST models the array operand of an indexed lvalue
@@ -141,7 +144,10 @@ pub(crate) fn lvalue_to_expr(lv: LValue, ids: &mut NodeIdGen) -> Expr {
     Expr::new(ids.fresh(), lv.span, kind)
 }
 
-fn to_diag<'dcx, 'src>(diagc: &'dcx DiagCtxt, err: ParseError<u32, Token, Diag<'dcx, 'src>>) -> Diag<'dcx, 'src> {
+fn to_diag<'dcx, 'src>(
+    diagc: &'dcx DiagCtxt<'src>,
+    err: ParseError<u32, Token<'src>, Diag<'dcx, 'src>>,
+) -> Diag<'dcx, 'src> {
     use ParseError::*;
     match err {
         User { error } => error,
@@ -151,7 +157,7 @@ fn to_diag<'dcx, 'src>(diagc: &'dcx DiagCtxt, err: ParseError<u32, Token, Diag<'
             expected,
         } => {
             etac_error! {
-                diagc, Span::new(s, e), "Unexpected token {t}";
+                diagc, Span::new(s, e), "Unexpected token {}", t;
                 primary: "{}", format_expected(&expected)
             }
         }
@@ -163,7 +169,7 @@ fn to_diag<'dcx, 'src>(diagc: &'dcx DiagCtxt, err: ParseError<u32, Token, Diag<'
         }
         ExtraToken { token: (s, t, e) } => {
             etac_error! {
-                diagc, Span::new(s, e), "Extra token {t} after program";
+                diagc, Span::new(s, e), "Extra token {} after program", t;
                 primary: "unexpected"
             }
         }

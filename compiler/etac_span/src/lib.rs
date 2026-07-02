@@ -4,17 +4,24 @@
 //! `base` and occupies `[base, base + len)`, with a one-byte gap between files.
 //! A [`Span`] is therefore just two offsets into that space — 8 bytes, `Copy`,
 //! and file-agnostic. The owning file is recovered on demand via
-//! [`SourceCache::resolve`], so individual AST nodes never carry a [`FileId`].
+//! [`SourceCache::file_for`], so individual AST nodes never carry a [`FileId`].
 //!
 //! The space is addressed with `u32`, capping total loaded source at 4 GiB.
+//!
+//! The cache is append-only: files are inserted into an [`elsa::FrozenMap`] and
+//! never mutated or removed, so [`SourceCache::load`] can hand out `&str`
+//! borrows tied to `&self` while later loads keep appending. Crucially,
+//! [`SourceCache`] carries **no lifetime parameter** — borrowers (the lexer,
+//! [`DiagCtxt`], ASTs) all borrow *from* the cache with their own ordinary
+//! lifetimes, rather than the cache borrowing from itself.
 
 use ariadne::{Cache, Source};
-use std::cell::{Cell, RefCell, RefMut};
+use elsa::FrozenMap;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::fmt;
 use std::io;
 use std::ops::Range;
-use std::rc::Rc;
 
 /// A `Copy` handle naming a source or interface file.
 ///
@@ -76,7 +83,8 @@ impl fmt::Display for FileId {
 
 /// A half-open byte range `[lo, hi)` in the global source space owned by
 /// [`SourceCache`]. `Copy`, 8 bytes, and meaningless without the [`SourceCache`]
-/// that minted it — use [`SourceCache::resolve`] to recover a `(FileId, local range)`.
+/// that minted it — use [`SourceCache::file_for`] to recover a
+/// `(FileId, local range)`.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Span {
     pub lo: u32,
@@ -126,19 +134,37 @@ const _: () = assert!(size_of::<Span>() == 8);
 /// the Phase 1 migration. Delete once the Phase 2 AST refactor lands.
 pub type EtaSpan = Span;
 
+/// A loaded file: its ariadne [`Source`] (which owns the text and the
+/// precomputed line table) and its base offset in the global space.
+///
+/// Boxed inside the [`FrozenMap`], so its address — and therefore any `&str`
+/// handed out from it — stays stable as more files are loaded.
 struct CachedSource {
-    rc: Rc<str>,
-    source: Source<Rc<str>>,
+    source: Source<String>,
     base: u32,
+}
+
+impl CachedSource {
+    fn text(&self) -> &str {
+        self.source.text()
+    }
 }
 
 /// Owns every loaded file, hands each a disjoint slice of the global byte space,
 /// and resolves global [`Span`]s back to a file + local range. Doubles as
 /// ariadne's [`Cache`].
+///
+/// Deliberately has no lifetime parameter: text borrows returned by
+/// [`SourceCache::load`] / [`SourceCache::text`] are tied to the `&self` borrow
+/// at the call site, which is sound because the map is append-only and every
+/// entry is boxed.
 pub struct SourceCache {
-    files: RefCell<HashMap<FileId, CachedSource>>,
+    /// Append-only. `FrozenMap::get`/`insert` take `&self` and return references
+    /// that remain valid for the life of the cache.
+    files: FrozenMap<FileId, Box<CachedSource>>,
     /// `(base, id)` kept sorted ascending by base (bases are handed out in
-    /// order), so `resolve` can binary-search.
+    /// order), so `file_for` can binary-search. Borrows never escape the
+    /// `RefCell`, values are copied out.
     index: RefCell<Vec<(u32, FileId)>>,
     next_base: Cell<u32>,
 }
@@ -147,7 +173,7 @@ impl SourceCache {
     #[must_use]
     pub fn new() -> Self {
         Self {
-            files: RefCell::new(HashMap::new()),
+            files: FrozenMap::new(),
             index: RefCell::new(Vec::new()),
             next_base: Cell::new(0),
         }
@@ -156,14 +182,14 @@ impl SourceCache {
     /// Read `id` (if not already loaded), assign it a base, and return
     /// `(base, text)`. The driver calls this before lexing so the lexer can
     /// shift its local positions into the global space.
+    ///
+    /// The returned `&str` borrows from the cache (not from a per-call value),
+    /// so it may be held for as long as the cache is alive.
     /// # Errors
     /// An IO error if we can not load the file from disk
-    #[allow(clippy::missing_panics_doc)] // internal invariant: ensure_loaded guarantees the entry exists
-    pub fn load(&self, id: FileId) -> io::Result<(u32, Rc<str>)> {
-        self.ensure_loaded(id)?;
-        let files = self.files.borrow();
-        let f = files.get(&id).expect("just loaded");
-        Ok((f.base, Rc::clone(&f.rc)))
+    pub fn load(&self, id: FileId) -> io::Result<(u32, &str)> {
+        let f = self.ensure_loaded(id)?;
+        Ok((f.base, f.text()))
     }
 
     /// Resolve a global span to its owning file and the local range within it.
@@ -171,7 +197,9 @@ impl SourceCache {
         let index = self.index.borrow();
         debug_assert!(!index.is_empty(), "resolve() called before any file loaded");
         // the file with the greatest base <= span.lo contains the span
-        let i = index.partition_point(|(base, _)| *base <= span.lo).saturating_sub(1);
+        let i = index
+            .partition_point(|(base, _)| *base <= span.lo)
+            .saturating_sub(1);
         let (base, id) = &index[i];
         (*id, (span.lo - base)..(span.hi - base))
     }
@@ -180,10 +208,10 @@ impl SourceCache {
         (self, span).into()
     }
 
-    /// Full text of `id`; a pointer bump on a cache hit.
+    /// Full text of `id`; a map lookup on a cache hit.
     /// # Errors
     /// An IO error if we can not load the file see [`SourceCache::load`]
-    pub fn text(&self, id: FileId) -> io::Result<Rc<str>> {
+    pub fn text(&self, id: FileId) -> io::Result<&str> {
         Ok(self.load(id)?.1)
     }
 
@@ -197,8 +225,11 @@ impl SourceCache {
             lo: global_offset,
             hi: global_offset,
         });
-        let map = self.files.borrow();
-        let source = &map.get(&fileid).unwrap().source;
+        let source = &self
+            .files
+            .get(&fileid)
+            .expect("span resolved to a file that was never loaded")
+            .source;
         let (_line, linen, coln) = source
             .get_byte_line(local_range.start as usize)
             .map(|(a, b, c)| {
@@ -212,13 +243,15 @@ impl SourceCache {
         Ok((linen + 1, coln + 1))
     }
 
-    fn ensure_loaded(&self, id: FileId) -> io::Result<()> {
-        if self.files.borrow().contains_key(&id) {
-            return Ok(());
+    /// Load `id` if needed and return the cached entry. The returned reference
+    /// is tied to `&self`, i.e. it lives as long as the cache does.
+    fn ensure_loaded(&self, id: FileId) -> io::Result<&CachedSource> {
+        if let Some(f) = self.files.get(&id) {
+            return Ok(f);
         }
-        let rc: Rc<str> = std::fs::read_to_string(id.as_str()).map(Rc::from)?;
+        let raw = std::fs::read_to_string(id.as_str())?;
         let base = self.next_base.get();
-        let len: u32 = rc.len().try_into().expect("source file exceeds 4 GiB");
+        let len: u32 = raw.len().try_into().expect("source file exceeds 4 GiB");
         // +1 keeps adjacent files from sharing a boundary offset; the checked adds
         // also enforce the 4 GiB cap on the whole global space.
         let next = base
@@ -227,50 +260,43 @@ impl SourceCache {
             .expect("total loaded source exceeds 4 GiB");
         self.next_base.set(next);
         self.index.borrow_mut().push((base, id));
-        self.files.borrow_mut().insert(
+        // `FrozenMap::insert` takes `&self` and returns a reference to the
+        // (boxed, address-stable) inserted value.
+        Ok(self.files.insert(
             id,
-            CachedSource {
-                rc: Rc::clone(&rc),
-                source: Source::from(rc),
+            Box::new(CachedSource {
+                source: Source::from(raw),
                 base,
-            },
-        );
-        Ok(())
+            }),
+        ))
     }
 }
 
 impl SourceCache {
     /// Borrow this cache as an ariadne [`Cache`] without needing `&mut`.
     ///
-    /// The returned view holds an interior [`RefMut`] for its whole lifetime, so at
-    /// most one may be live at a time (one diagnostic renders at a time). Every file
-    /// referenced by the report must already be loaded — which it always is by the
-    /// time we render a diagnostic, since the span pointing at it could only have been
-    /// minted by lexing that file. This is what lets a single shared `&SourceCache`
-    /// back both the lexer and the diagnostic emitter.
+    /// Unlike the previous `RefMut`-based view, this is just a shared borrow:
+    /// any number of views may be live at once, and fetching a not-yet-loaded
+    /// file loads it on demand. This is what lets a single shared
+    /// `&SourceCache` back both the lexer and the diagnostic emitter.
     pub fn cache_view(&self) -> CacheView<'_> {
-        CacheView {
-            files: self.files.borrow_mut(),
-        }
+        CacheView { cache: self }
     }
 }
 
-/// A borrowed, interior-mutable ariadne [`Cache`] view over a [`SourceCache`].
+/// A borrowed ariadne [`Cache`] view over a [`SourceCache`].
 /// Created by [`SourceCache::cache_view`].
 pub struct CacheView<'a> {
-    files: RefMut<'a, HashMap<FileId, CachedSource>>,
+    cache: &'a SourceCache,
 }
 
 impl Cache<FileId> for CacheView<'_> {
-    type Storage = Rc<str>;
+    type Storage = String;
 
-    fn fetch(&mut self, id: &FileId) -> Result<&Source<Rc<str>>, impl fmt::Debug> {
-        // the returned `&Source` is tied to `&mut self`, so it lives exactly as long
-        // as ariadne needs it within this call
-        self.files
-            .get(id)
-            .map(|cs| &cs.source)
-            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, format!("source not loaded: {id}")))
+    fn fetch(&mut self, id: &FileId) -> Result<&Source<String>, impl fmt::Debug> {
+        // loads on demand; the returned `&Source` is tied to `&mut self`, so it
+        // lives exactly as long as ariadne needs it within this call
+        self.cache.ensure_loaded(*id).map(|cs| &cs.source)
     }
 
     fn display<'a>(&self, id: &'a FileId) -> Option<impl fmt::Display + 'a> {
@@ -279,11 +305,10 @@ impl Cache<FileId> for CacheView<'_> {
 }
 
 impl Cache<FileId> for SourceCache {
-    type Storage = Rc<str>;
+    type Storage = String;
 
-    fn fetch(&mut self, id: &FileId) -> Result<&Source<Rc<str>>, impl fmt::Debug> {
-        self.ensure_loaded(*id)?;
-        Ok::<_, io::Error>(&self.files.get_mut().get(id).expect("just loaded").source)
+    fn fetch(&mut self, id: &FileId) -> Result<&Source<String>, impl fmt::Debug> {
+        self.ensure_loaded(*id).map(|cs| &cs.source)
     }
 
     fn display<'a>(&self, id: &'a FileId) -> Option<impl fmt::Display + 'a> {
@@ -297,20 +322,22 @@ impl Default for SourceCache {
     }
 }
 
-pub struct ReportableSpan<'src> {
-    cache: &'src SourceCache, 
-    pub span: Span, 
-    own: std::cell::OnceCell<(FileId, Range<u32>)>
+pub struct ReportableSpan<'a> {
+    cache: &'a SourceCache,
+    pub span: Span,
+    own: std::cell::OnceCell<(FileId, Range<u32>)>,
 }
-impl<'src> From<(&'src SourceCache, Span)> for ReportableSpan<'src> {
-    fn from(value: (&'src SourceCache, Span)) -> Self {
+
+impl<'a> From<(&'a SourceCache, Span)> for ReportableSpan<'a> {
+    fn from(value: (&'a SourceCache, Span)) -> Self {
         ReportableSpan {
             cache: value.0,
             span: value.1,
-            own: std::cell::OnceCell::new()
+            own: std::cell::OnceCell::new(),
         }
     }
 }
+
 impl ariadne::Span for ReportableSpan<'_> {
     type SourceId = FileId;
 
@@ -326,4 +353,3 @@ impl ariadne::Span for ReportableSpan<'_> {
         self.own.get_or_init(|| self.cache.file_for(self.span)).1.end as usize
     }
 }
-

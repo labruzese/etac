@@ -24,6 +24,7 @@ lalrpop-util    = { version = "0.21", features = ["lexer", "unicode"] }
 pretty          = "0.12"
 unicode-width   = "0.2"
 tempfile 	= "3.27.0"
+elsa 		= "1.11.2"
 
 # internal
 etac	      = { path = "compiler/etac"}

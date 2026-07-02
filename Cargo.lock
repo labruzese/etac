@@ -232,6 +232,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
+name = "elsa"
+version = "1.11.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9abf33c656a7256451ebb7d0082c5a471820c31269e49d807c538c252352186e"
+dependencies = [
+ "stable_deref_trait",
+]
+
+[[package]]
 name = "ena"
 version = "0.14.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -343,7 +352,6 @@ dependencies = [
  "etac_ast",
  "etac_errors",
  "etac_lexer",
- "etac_session",
  "etac_span",
  "lalrpop",
  "lalrpop-util 0.21.0",
@@ -357,7 +365,9 @@ dependencies = [
  "clap",
  "etac_errors",
  "etac_lexer",
+ "etac_parse",
  "etac_span",
+ "lalrpop-util 0.21.0",
 ]
 
 [[package]]
@@ -365,6 +375,7 @@ name = "etac_span"
 version = "0.1.0"
 dependencies = [
  "ariadne",
+ "elsa",
  "unicode-width",
 ]
 
@@ -922,6 +933,12 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+
+[[package]]
+name = "stable_deref_trait"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
 name = "string_cache"

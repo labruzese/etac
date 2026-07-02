@@ -52,7 +52,7 @@ impl ErrorGuaranteed {
     }
 }
 
-struct Inner<'a> {
+pub(crate) struct Inner<'a> {
     emitter: Box<dyn Emitter + 'a>,
     err_count: usize,
     warn_count: usize,
@@ -165,6 +165,10 @@ impl<'dcx, 'src> Diag<'dcx, 'src> {
             note: None,
             bomb: DropBomb::new(),
         }
+    }
+
+    pub fn io(dcx: &'dcx DiagCtxt<'src>, io_err: &std::io::Error) -> Self {
+        Self::new_no_span(dcx, Level::Error, io_err.to_string())
     }
 
     /// Point the primary (red) label at the diagnostic's own span.

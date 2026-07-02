@@ -34,7 +34,7 @@ pub struct Lexer<'dcx, 'src> {
 
 impl<'dcx, 'src> Lexer<'dcx, 'src> {
     #[must_use]
-    pub fn new(base: u32, source: &'src <Token<'src> as Logos<'src>>::Source, diag_context: &'src DiagCtxt<'src>) -> Self
+    pub fn new(base: u32, source: &'src <Token<'src> as Logos<'src>>::Source, diag_context: &'dcx DiagCtxt<'src>) -> Self
     {
         Self { 
             diagc: diag_context,
@@ -176,7 +176,7 @@ pub enum Token<'s> {
 
 // Callbacks
 
-fn parse_int<'s>(lex: &mut LogosLexer<'s>) -> Result<u64, InternalLexerError> {
+fn parse_int(lex: &mut LogosLexer<'_>) -> Result<u64, InternalLexerError> {
     lex.slice().parse::<u64>().map_err(|err: ParseIntError| lexer_error! {
         span = global_span(lex),
         message = format!("illegal integer literal: {}", err),
@@ -184,7 +184,7 @@ fn parse_int<'s>(lex: &mut LogosLexer<'s>) -> Result<u64, InternalLexerError> {
     })
 }
 
-impl<'i> Display for Token<'i> {
+impl Display for Token<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Token::KeywordUse => write!(f, "use"),

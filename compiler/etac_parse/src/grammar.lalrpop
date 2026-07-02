@@ -1,11 +1,11 @@
 use either::Either;
 use etac_ast::*;
-use etac_errors::{error, Diagnostic, ErrorGuaranteed};
+use etac_errors::{etac_error, Diag, ErrorGuaranteed};
 use etac_lexer::Token;
 use etac_span::Span;
 use crate::{ParseState, lvalue_to_expr};
 
-grammar(state: &mut ParseState);
+grammar<'dcx, 'src>(state: &mut ParseState<'dcx, 'src>);
 
 // Error-recovery contract: the `<e:!>` productions below build `*Kind::Error`
 // nodes carrying `ErrorGuaranteed::claim_already_emitted()`. That claim is honest
@@ -45,9 +45,9 @@ CommaTrailingNonEmpty<T>: Vec<T> = {
 // ---- Token bindings ----
 extern {
     type Location = u32;
-    type Error = Diagnostic;
+    type Error = Diag<'dcx, 'src>;
 
-    enum Token {
+    enum Token<'src> {
         "use"     => Token::KeywordUse,
         "length"  => Token::KeywordLength,
         "while"   => Token::KeywordWhile,
@@ -89,39 +89,44 @@ extern {
         "boollit" => Token::BoolLiteral(<bool>),
         "charlit" => Token::CharLiteral(<u32>),
         "strlit"  => Token::StrLiteral(<String>),
-        "ident"   => Token::Identifier(<String>),
+        "ident"   => Token::Identifier(<&'src str>),
         "intlit"  => Token::Integer(<u64>),
     }
 }
 
 // ---- Identifiers ----
 
-Ident: Ident = <l:@L> <s:"ident"> <r:@R> => Ident::new(state.ids.fresh(), Span::new(l, r), s);
+Ident: Ident = <l:@L> <s:"ident"> <r:@R> => Ident::new(state.ids.fresh(), Span::new(l, r), s.to_string());
 
 // ---- Top Level ----
 
 pub Program: Program = {
     <l:@L> <uses:UseList> <definitions:Definition+> <r:@R> =>
 	Program::new(state.ids.fresh(), Span::new(l, r), uses, definitions),
-    <uses:UseList> <r:@R> =>? Err(etac_error! {
-	state.diagc, Span::new(r, r), "Program must contain at least one definition";
-	primary: "expected definition"
-    }),
-    <uses:UseList> <definitions:Definition+> <l:@L> <u:Use> <r:@R> <mul:UseList> =>? Err(etac_error! {
-	state.diagc, Span::new(l, r), "Use statements must go above all defintions";
-	primary: "Use not allowed here";
-	note: "Try moving this use to the top of the file";
-    }),
+    <uses:UseList> <r:@R> =>? Err(
+	etac_error! {
+	    state.diagc, Span::new(r, r), "Program must contain at least one definition";
+	    primary: "expected definition"
+	}.into()
+    ),
+    <uses:UseList> <definitions:Definition+> <l:@L> <u:Use> <r:@R> <mul:UseList> =>? Err(
+	etac_error! {
+	    state.diagc, Span::new(l, r), "Use statements must go above all defintions";
+	    primary: "Use not allowed here";
+	    note: "Try moving this use to the top of the file";
+	}.into()
+    ),
     
 }
 
 pub Interface: Interface = {
     <l:@L> <items:InterfaceItem+> <r:@R> => Interface::new(state.ids.fresh(), Span::new(l, r), items),
     <r:@R> =>? Err(
-	error!(Span::new(r, r); "Interface must contain at least one method declaration")
-	    .with_primary_label("expected declaration")
-	    .into()
-    )
+	etac_error! {
+	    state.diagc, Span::new(r, r), "Interface must contain at least one method declaration";
+	    primary: "expected declaration"
+	}.into()
+    ),
 }
 
 InterfaceItem: InterfaceItem = {
@@ -131,7 +136,7 @@ InterfaceItem: InterfaceItem = {
 	InterfaceItemKind::Decl(md)
     ),
     <l:@L> <e:!> <r:@R> => {
-	state.errors.push(e);
+	state.lalrpop_errs.push(e);
 	InterfaceItem::new(
 	    state.ids.fresh(),
 	    Span::new(l, r),
@@ -156,7 +161,7 @@ Definition: Definition = {
     <m:Method>    => Definition::new(state.ids.fresh(), m.span(), DefinitionKind::Method(m)),
     <gd:GlobDecl> => Definition::new(state.ids.fresh(), gd.span(), DefinitionKind::GlobDecl(gd)),
     <l:@L> <e:!> <r:@R> => {
-	state.errors.push(e);
+	state.lalrpop_errs.push(e);
 	Definition::new(
 	    state.ids.fresh(),
 	    Span::new(l, r),
@@ -178,7 +183,7 @@ Method: Method = {
     // Recover a broken body while preserving the (already-valid) signature, so
     // downstream passes can still resolve calls to this method.
     <l:@L> <decl:MethodDecl> <bl:@L> <e:!> <r:@R> => {
-	state.errors.push(e);
+	state.lalrpop_errs.push(e);
 	let MethodDecl { id, params, ret_types, .. } = decl;
 	let bspan = Span::new(bl, r);
 	let err = Stmt::new(state.ids.fresh(), bspan, StmtKind::Error(ErrorGuaranteed::claim_already_emitted()));
@@ -249,10 +254,12 @@ TypeSized: Type = {
 GlobDeclType: Type = {
     <BaseType>,
     <TypeUnsized>,
-    <base:BaseType> "[" <l:@L> <size:Expr> <r:@R> "]" =>?
-        Err(error!(Span::new(l, r); "Global arrays can't be initialized at the point of declaration")
-	    .with_primary_label("initialization happens here")
-	)?
+    <base:BaseType> "[" <l:@L> <size:Expr> <r:@R> "]" =>? Err(
+	etac_error! {
+	    state.diagc, Span::new(l, r), "Global arrays can't be initialized at the point of declaration";
+	    primary: "initialization happens here"
+	}.into()
+    ),
 }
 
 BaseType: Type = {
@@ -282,7 +289,7 @@ Stmt: Stmt = {
     StmtOpen,
     StmtClosed,
     <l:@L> <e:!> <r:@R> => {
-	state.errors.push(e);
+	state.lalrpop_errs.push(e);
 	Stmt::new(state.ids.fresh(), Span::new(l, r), StmtKind::Error(ErrorGuaranteed::claim_already_emitted()))
     }
 }
@@ -488,7 +495,7 @@ Expr: Expr = {
 
     #[precedence(level="8")]
     <l:@L> <e:!> <r:@R> => {
-	state.errors.push(e);
+	state.lalrpop_errs.push(e);
 	Expr::new(state.ids.fresh(), Span::new(l, r), ExprKind::Error(ErrorGuaranteed::claim_already_emitted()))
     }
 }
