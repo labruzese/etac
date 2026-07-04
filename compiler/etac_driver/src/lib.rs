@@ -9,10 +9,13 @@
 //! [`Logger::log_syntax_error`] for parse output) — the driver pipes data through and
 //! decides control flow, nothing more.
 
-use etac_errors::{Diag, DiagCtxt};
+use std::collections::HashSet;
+use std::path::Path;
+
+use etac_errors::{etac_error, Diag, DiagCtxt};
 use etac_parse::{IParser, Parsed};
 use etac_session::{cli::Flags, logger::Logger};
-use etac_span::{InterfaceId, SourceCache, SourceId};
+use etac_span::{InterfaceId, SourceCache, SourceId, Span};
 
 #[derive(Debug)]
 pub struct CompilationFailure {
@@ -48,12 +51,11 @@ pub fn run(flags: &Flags) -> Result<CompilationSuccess, CompilationFailure> {
     // Captures the --lex/--parse flags; phases attach to it by name below.
     let logger = Logger::new(flags);
 
-    // The one and only diagnostic context. Borrows `cache` (interior-mutable) so it can
-    // render spans; every phase below reports through it.
     let dcx = DiagCtxt::new(&cache);
 
     let mut pids: Vec<SourceId> = vec![];
-    let mut iids: Vec<InterfaceId> = vec![];
+    let mut iids: Vec<(InterfaceId, Option<Span>)> = vec![];
+    let mut queued_interfaces: HashSet<InterfaceId> = HashSet::new();
 
     // decode paths for all the files passed in `flags`
     // exits with `Err` on a failure to parse path but doesn't check existance
@@ -65,7 +67,12 @@ pub fn run(flags: &Flags) -> Result<CompilationSuccess, CompilationFailure> {
         };
         match file.extension().and_then(|x| x.to_str()) {
             Some("eta") => pids.push(SourceId::new(file_str)),
-            Some("eti") => iids.push(InterfaceId::new(file_str)),
+            Some("eti") => {
+                let iid = InterfaceId::new(file_str);
+                if queued_interfaces.insert(iid) {
+                    iids.push((iid, None));
+                }
+            }
             ext => {
                 dcx.err_no_span(format!("unknown file type {}", ext.unwrap_or("")))
                     .emit();
@@ -89,7 +96,14 @@ pub fn run(flags: &Flags) -> Result<CompilationSuccess, CompilationFailure> {
             Parsed::Ok(program) |
             Parsed::Recovered(program) => {
                 for u in &program.uses {
-                    iids.push(InterfaceId::new(u.id.sym.as_str()));
+                    let dir = Path::new(program_id.as_str())
+                        .parent()
+                        .unwrap_or_else(|| Path::new(""));
+                    let path = dir.join(format!("{}.eti", u.id.sym));
+                    let iid = InterfaceId::new(path.to_string_lossy());
+                    if queued_interfaces.insert(iid) {
+                        iids.push((iid, Some(u.span)));
+                    }
                 }
                 programs.push(program);
             },
@@ -104,12 +118,29 @@ pub fn run(flags: &Flags) -> Result<CompilationSuccess, CompilationFailure> {
     }
 
     let mut interfaces = Vec::new();
-    for interface_id in iids {
+    for (interface_id, use_span) in iids {
         // make parser
         let parser = etac_parse::InterfaceParser::new(&dcx);
         let mut parser = logger.tee_parser(interface_id, &cache, parser);
         // load source
-        let (base, source) = cache.load(interface_id).map_err(|ioe| { Diag::io(&dcx, &ioe).emit(); CompilationFailure::from(&dcx)})?;
+        let (base, source) = match cache.load(interface_id) {
+            Ok(loaded) => loaded,
+            Err(ioe) => {
+                match use_span {
+                    Some(span) => {
+                        etac_error! {
+                            dcx, span, "cannot find interface file `{}`: {}", interface_id.as_str(), ioe;
+                            primary: "required by this `use`";
+                        }
+                        .emit();
+                    }
+                    None => {
+                        Diag::io(&dcx, &ioe).emit();
+                    }
+                }
+                return Err((&dcx).into());
+            }
+        };
         // make lexer
         let lexer = etac_lexer::Lexer::new(base, source, &dcx);
         let mut lexer = logger.tee_lexer(interface_id, &cache, lexer);
