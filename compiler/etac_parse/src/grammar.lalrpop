@@ -176,7 +176,7 @@ MethodDecl: MethodDecl = {
 }
 
 Method: Method = {
-    <l:@L> <decl:MethodDecl> <body:FuncBlock> <r:@R> => {
+    <l:@L> <decl:MethodDecl> <body:Block> <r:@R> => {
 	let MethodDecl { id, params, ret_types, .. } = decl;
 	Method::new(state.ids.fresh(), Span::new(l, r), id, params, ret_types, body)
     },
@@ -269,12 +269,10 @@ BaseType: Type = {
 
 // ----- Blocks -----
 
+// Any block may end with a single return statement (which `Stmt` itself
+// excludes, so `return` can only ever be the last statement of its
+// immediately enclosing block).
 Block: Block = {
-    <l:@L> "{" <stmts:(<Stmt> ";"?)*> "}" <r:@R> => Block::new(state.ids.fresh(), Span::new(l, r), stmts),
-}
-
-// can end with return
-FuncBlock: Block = {
     <l:@L> "{" <mut stmts:(<Stmt> ";"?)*> <ret:ReturnStmtNode?> "}" <r:@R> => {
 	if let Some(ret) = ret { stmts.push(ret); }
 	Block::new(state.ids.fresh(), Span::new(l, r), stmts)
