@@ -6,11 +6,7 @@
 //!  * `Spanned<T>` wraps small things that need a location but don't earn a
 //!    full node (operators, etc.) instead of a parallel `_span` field.
 //!  * `Error` variants mark recovered regions. The parser only builds one after
-//!    recording the recovery's diagnostic, but the variant itself carries no
-//!    proof of that -- the drop-bomb on `Diag` is what guards against a lost
-//!    diagnostic. (If a type-level proof pulls its weight anywhere, it is in
-//!    typechecking, where `ErrorGuaranteed` may return.)
-//!  * Plain `pub` fields, not accessors — the AST exists to be taken apart.
+//!    recording the recovery's diagnostic.
 //!  * Node ids are handed out by a `NodeIdGen` threaded through the parser
 //!    (deterministic, resettable), not a process-global atomic.
 
@@ -20,7 +16,7 @@ mod printer;
 
 // ---- Core ids and spans ----
 
-/// Stable identifier for a node. Assigned by `NodeIdGen`, not by construction.
+/// Stable identifier for a node. Assigned by `NodeIdGen`, do not construct.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct NodeId(u32);
 
@@ -209,10 +205,8 @@ concrete! {
     }
 }
 
-// NOTE: `Value` overlaps `Lit::{Int, Bool}`. It exists because a global
-// initializer is a *constant*, not an arbitrary expression. If you'd rather not
-// maintain two literal representations, drop `Value`/`ValueKind`, make this
-// `val: Option<Lit>`, and enforce constness in the type checker.
+// `Value` overlaps `Lit::{Int, Bool}` but is kept separate because a global
+// initializer is a *constant*, not an arbitrary expression.
 concrete! {
     Value {
         kind: ValueKind
@@ -286,8 +280,7 @@ opaque! {
 // ---- Targets & lvalues ----
 
 // `Target` has no node_id/span of its own; its payload carries one (except
-// `Discard`). If you need to point a diagnostic at `_` specifically, promote
-// this to a `concrete!` node or wrap it in `Spanned`.
+// `Discard`, whose span rides in the `Spanned<()>`).
 opaque! {
     Target {
         LValue(LValue),

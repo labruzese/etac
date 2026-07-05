@@ -7,8 +7,8 @@
 //! told why" at the type level.
 //!
 //! * Plain-data producers (the lexer's logos callbacks, lalrpop's recovered errors) keep
-//!   constructing [`Diagnostic`]s directly — often via the [`error!`] macro — because they
-//!   have no context on hand. The layer above funnels them in with [`DiagCtxt::emit`].
+//!   constructing [`Diagnostic`]s directly — often via the [`etac_error!`] macro — because
+//!   they have no context on hand. The layer above funnels them in with [`DiagCtxt::emit`].
 //! * Code that holds a `&DiagCtxt` should prefer the builders ([`DiagCtxt::err`] etc.),
 //!   which return a must-use [`Diag`] that emits or cancels before it drops.
 

@@ -20,8 +20,7 @@
 //!
 //! Interfaces cannot themselves contain `use` declarations (the grammar gives
 //! interfaces no use-list), so resolution is a flat pass rather than a
-//! transitive worklist. If interfaces ever grow uses, this module is where the
-//! worklist goes.
+//! transitive worklist.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};

@@ -89,9 +89,7 @@
 //!
 //! [`etac_warn!`] requires a span, because [`DiagCtxt`](crate::DiagCtxt) exposes only
 //! [`warn`](crate::DiagCtxt::warn) and no `warn_no_span` (a warning is nearly always
-//! about a place in the source). If you ever need location-less warnings, add a
-//! `warn_no_span` to `DiagCtxt` mirroring `err_no_span`, then give `etac_warn!` the same
-//! two no-span arms `etac_error!` has.
+//! about a place in the source).
 
 /// Build an error [`Diag`](crate::Diag). See the [module docs](self) for full syntax.
 ///

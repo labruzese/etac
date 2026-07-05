@@ -24,7 +24,7 @@ where 'src: 'dcx {
 }
 
 
-// A wrapper that holds one of the possible parser that etac can have
+/// A wrapper that holds one of the possible parsers that etac can have
 pub enum UParser<I> {
     Raw(I),
     Tee(TeeParser<I>),

@@ -64,13 +64,13 @@ where
 }
 
 impl Logger {
-    /// Attach `--lex` logging to a token stream.
+    /// Attach `--parse` logging to a parser.
     ///
-    /// Returns an iterator that yields `inner`'s items **unchanged** while logging each
-    /// token (and the first lexical error) as a side effect. When lex logging is off the
-    /// wrapper is a transparent pass-through, so the caller's type doesn't change with the
-    /// flag. Per the Eta spec, logging stops at the first lexical error but the tokens
-    /// keep flowing to the parser.
+    /// Returns a parser that behaves **identically** to `inner` while logging its output as
+    /// a side effect: on a clean/recovered parse it writes the AST S-expression, and on
+    /// failure it writes the first syntax error as `line:col error:<message>`. When parse
+    /// logging is off the wrapper is a transparent pass-through, so the caller's type
+    /// doesn't change with the flag.
     pub fn tee_parser<'dcx, I>(&'dcx self, file: FileId, sources: &'static SourceCache, inner: I) -> TeeParser<I>
     where
         I: IParser<'dcx>,

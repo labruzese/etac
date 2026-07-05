@@ -124,10 +124,8 @@ impl DiagCtxt {
 /// accident. Build, decorate, then finish with [`emit`](Diag::emit) or
 /// [`cancel`](Diag::cancel).
 ///
-/// One lifetime: `'dcx` is how long this builder borrows the context. (There used
-/// to be a second, `'src`, for the context's borrow of the [`SourceCache`]; the
-/// cache is now the process-global [`SOURCES`](etac_span::SOURCES), so that borrow
-/// is `'static` and the parameter is gone.)
+/// The single lifetime `'dcx` is how long this builder borrows the context; the
+/// [`SourceCache`] borrow is `'static` (the process-global [`SOURCES`](etac_span::SOURCES)).
 #[must_use = "a Diag does nothing until you call `.emit()` (or `.cancel()` it)"]
 #[derive(Debug)]
 pub struct Diag<'dcx> {

@@ -29,7 +29,7 @@ fn normalize(s: &str) -> String {
 
 fn is_error_output(s: &str) -> bool {
     let trimmed = s.trim();
-    // Error lines look like "3:5 error:..." — valid sexpr output starts with '('
+    // Error lines look like "3:5 error:..." - valid sexpr output starts with '('
     !trimmed.is_empty() && !trimmed.starts_with('(')
 }
 
@@ -144,8 +144,3 @@ fn lex_test(input: &Path) {
 fn parse_test(input: &Path) {
     check_parse("--parse", input);
 }
-
-// #[generate_tests(path = "tests/pa3", matches = r"\.typedsol$")]
-// fn typecheck_test(input: &Path) {
-//     check_parse("--typecheck", input);
-// }

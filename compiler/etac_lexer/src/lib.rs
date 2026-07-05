@@ -1,7 +1,7 @@
 //! Lexer
 //!
-//! Under the hood uses Logos but but exports a compatability layer more friendly to lalrpop.
-//! Reports the a Span which is a span within the global source cache.
+//! Under the hood uses Logos but exports a compatibility layer more friendly to lalrpop.
+//! Reports a Span within the global source cache.
 #![allow(clippy::cast_possible_truncation)]
 
 use std::{fmt::{self, Display}, num::ParseIntError};
@@ -78,7 +78,6 @@ impl<'dcx> Iterator for Lexer<'dcx> {
 
 mod strings;
 
-// logos
 #[derive(Debug, Clone, PartialEq, Logos)]
 #[logos(lifetime = 's)]
 #[logos(skip r"[ \t\n\f\r]+")]

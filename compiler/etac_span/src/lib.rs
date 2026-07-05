@@ -325,9 +325,8 @@ impl SourceCache {
 impl SourceCache {
     /// Borrow this cache as an ariadne [`Cache`] without needing `&mut`.
     ///
-    /// Unlike the previous `RefMut`-based view, this is just a shared borrow:
-    /// any number of views may be live at once, and fetching a not-yet-loaded
-    /// file loads it on demand. This is what lets a single shared
+    /// A shared borrow: any number of views may be live at once, and fetching a
+    /// not-yet-loaded file loads it on demand. This is what lets a single shared
     /// `&SourceCache` back both the lexer and the diagnostic emitter.
     pub fn cache_view(&self) -> CacheView<'_> {
         CacheView { cache: self }
