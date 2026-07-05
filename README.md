@@ -48,3 +48,10 @@ plus the supporting
 ## Status
 
 Lexing and parsing are complete; type checking is in progress.
+
+## Acknowledgments
+This uses resources (the Eta language specification, example programs, and test
+cases) from Cornell's CS 4120 Introduction to Compilers:
+https://www.cs.cornell.edu/courses/cs4120/2026sp/
+
+This is an independent personal project, I'm not enrolled in the course. 
