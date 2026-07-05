@@ -63,7 +63,7 @@ impl<'dcx> Iterator for Lexer<'dcx> {
         match next {
             Ok(tok) => Some(Ok((span.lo, tok, span.hi))),
             Err(diag) => {
-                let mut d = etac_error!(self.diagc, span, "{}", diag.message);
+                let mut d = etac_error!(self.diagc, diag.span, "{}", diag.message);
                 if let Some(l) = diag.plabel {
                     d = d.with_primary_label(l);
                 }
