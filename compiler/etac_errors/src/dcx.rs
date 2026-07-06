@@ -196,7 +196,10 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Emit a fully-built [`Diagnostic`].
-    pub fn emit(mut self) -> ErrorGuaranteed {
+    pub fn emit(
+        #[cfg_attr(not(debug_assertions), allow(unused_mut))] 
+        mut self
+    ) -> ErrorGuaranteed {
         let level = self.level;
         let mut inner = self.dcx.inner.borrow_mut();
         match level {
@@ -217,7 +220,10 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Throw the diagnostic away deliberately (drop without panic in debug mode)
-    pub fn cancel(mut self) { 
+    pub fn cancel(
+        #[cfg_attr(not(debug_assertions), allow(unused_mut))]
+        mut self
+    ) { 
         #[cfg(debug_assertions)]
         self.bomb.defuse();
     }

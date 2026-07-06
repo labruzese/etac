@@ -10,8 +10,10 @@ pub enum Level {
 
 mod dcx;
 mod emitter;
-mod drop_bomb;
 mod macros;
+
+#[cfg(debug_assertions)]
+mod drop_bomb;
 
 pub use dcx::*;
 pub use emitter::*;

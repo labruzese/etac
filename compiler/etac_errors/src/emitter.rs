@@ -47,8 +47,7 @@ impl Emitter for HumanEmitter {
             for (span, msg, color) in &diag.labels {
                 b = b.with_label(Label::new(diag.dcx.sources.reportable_span_for(*span)).with_message(msg).with_color(*color));
             }
-            // `cache_view()` borrows `sources` immutably; see SourceCache::cache_view.
-            let _ = b.finish().eprint(diag.dcx.sources.cache_view());
+            let _ = b.finish().eprint(diag.dcx.sources);
         } else {
             static NO_SPAN: NoSpan = NoSpan;
             let mut b = Report::build(kind, NO_SPAN).with_message(&diag.message);
