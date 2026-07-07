@@ -71,10 +71,4 @@ impl SpanTable {
     pub fn span_of(&self, node: &impl AstNode) -> Span {
         self.get(node.node_id())
     }
-
-    /// Number of ids allocated so far.
-    #[must_use]
-    pub fn len(&self) -> usize {
-        self.spans.len()
-    }
 }
