@@ -332,6 +332,7 @@ name = "etac_errors"
 version = "0.1.0"
 dependencies = [
  "ariadne",
+ "etac_ast",
  "etac_span",
 ]
 

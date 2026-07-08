@@ -7,6 +7,7 @@ authors.workspace = true
 [dependencies]
 etac_span.workspace = true
 ariadne.workspace   = true
+etac_ast.workspace  = true
 
 
 [lints]
