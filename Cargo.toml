@@ -41,7 +41,7 @@ etac_resolve  = { path = "compiler/etac_resolve" }
 etac_types_derive = { path = "proc_macros/etac_types_derive" }
 
 # TESTING DEPENDENCIES
-similar-asserts = "2"
-env_logger      = "0.11"
-log             = "0.4"
-generate_tests	= { path = "proc_macros/generate_tests" }
+
+[profile.dev.package]
+insta.opt-level = 3
+similar.opt-level = 3
