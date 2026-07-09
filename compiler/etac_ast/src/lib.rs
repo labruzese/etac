@@ -162,9 +162,10 @@ node! {
     }
 }
 
+
 #[derive(Debug, Clone)]
 pub enum ValueKind {
-    Int(i128),
+    Int(i64),
     Bool(bool),
 }
 

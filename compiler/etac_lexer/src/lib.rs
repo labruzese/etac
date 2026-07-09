@@ -4,10 +4,13 @@
 //! Reports a Span within the global source cache.
 #![allow(clippy::cast_possible_truncation)]
 
-use std::{fmt::{self, Display}, num::ParseIntError};
+use std::{
+    fmt::{self, Display},
+    num::ParseIntError,
+};
 
 use etac_errors::{Diag, DiagCtxt, etac_error};
-use etac_span::{Span};
+use etac_span::Span;
 use logos::Logos;
 
 mod internal_error;
@@ -36,11 +39,10 @@ pub struct Lexer<'dcx> {
 
 impl<'dcx> Lexer<'dcx> {
     #[must_use]
-    pub fn new(base: u32, source: &'static str, diag_context: &'dcx DiagCtxt) -> Self
-    {
-        Self { 
+    pub fn new(base: u32, source: &'static str, diag_context: &'dcx DiagCtxt) -> Self {
+        Self {
             diagc: diag_context,
-            inner: <Token as Logos>::lexer_with_extras(source, base).spanned() 
+            inner: <Token as Logos>::lexer_with_extras(source, base).spanned(),
         }
     }
 }
@@ -122,8 +124,8 @@ pub enum Token<'s> {
     #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.slice())]
     Identifier(&'s str),
 
-    #[regex(r"[1-9][0-9]*|0", parse_int)]
-    Integer(u64),
+    #[regex(r"-?[1-9][0-9]*|0", parse_int)]
+    Integer(i64),
 
     // Brackets and braces
     #[token("(")]
@@ -178,11 +180,15 @@ pub enum Token<'s> {
 
 // Callbacks
 
-fn parse_int(lex: &mut LogosLexer<'_>) -> Result<u64, InternalLexerError> {
-    lex.slice().parse::<u64>().map_err(|err: ParseIntError| lexer_error! {
+fn parse_int(lex: &mut LogosLexer<'_>) -> Result<i64, InternalLexerError> {
+    lex.slice().parse::<i64>().map_err(|err: ParseIntError| lexer_error! {
         span = global_span(lex),
         message = format!("illegal integer literal: {}", err),
-        plabel = err.to_string().replace("number too extreme to fit in target type", "integer out of range"),
+        plabel = format!("this number is too {}", 
+            if err.to_string().contains("large") { "large" } 
+            else if err.to_string().contains("small") { "small" } 
+            else { panic!("rust error message is weird") }),
+        note = "eta only supports ints in the range [-2^63, 2^63)"
     })
 }
 
@@ -203,12 +209,20 @@ impl Display for Token<'_> {
             Token::Assign => write!(f, "="),
             Token::Comma => write!(f, ","),
             Token::BoolLiteral(b) => write!(f, "{b}"),
-            Token::CharLiteral(c) => write!(f, "character {}", char::from_u32(*c)
-                                                                        .expect("illegal char somehow lexed")
-                                                                        .escape_default()
-                                                                        .collect::<String>()
-                                                                        .replace("\\u{", "\\x{")),
-            Token::StrLiteral(s) => write!(f, "string {}", s.escape_default().collect::<String>().replace("\\u{", "\\x{")),
+            Token::CharLiteral(c) => write!(
+                f,
+                "character {}",
+                char::from_u32(*c)
+                    .expect("illegal char somehow lexed")
+                    .escape_default()
+                    .collect::<String>()
+                    .replace("\\u{", "\\x{")
+            ),
+            Token::StrLiteral(s) => write!(
+                f,
+                "string {}",
+                s.escape_default().collect::<String>().replace("\\u{", "\\x{")
+            ),
             Token::Identifier(s) => write!(f, "id {s}"),
             Token::Integer(n) => write!(f, "integer {n}"),
             Token::LParen => write!(f, "("),

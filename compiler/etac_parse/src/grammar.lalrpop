@@ -76,7 +76,7 @@ extern {
         "charlit" => Token::CharLiteral(<u32>),
         "strlit"  => Token::StrLiteral(<String>),
         "ident"   => Token::Identifier(<&'static str>),
-        "intlit"  => Token::Integer(<u64>),
+        "intlit"  => Token::Integer(<i64>),
     }
 }
 
@@ -181,8 +181,8 @@ GlobDecl: GlobDecl = {
 }
 
 GlobalValue: Value = {
-    <l:@L> "-" <n:"intlit"> <r:@R> 	=> Value::new(state.spans.alloc(Span::new(l, r)), ValueKind::Int(-(n as i128))),
-    <l:@L> <n:"intlit"> <r:@R>    	=> Value::new(state.spans.alloc(Span::new(l, r)), ValueKind::Int(n as i128)),
+    <l:@L> "-" <n:"intlit"> <r:@R> 	=> panic!("lexer should've parsed this as [i64] not -[i64]"),
+    <l:@L> <n:"intlit"> <r:@R>    	=> Value::new(state.spans.alloc(Span::new(l, r)), ValueKind::Int(n)),
     <l:@L> <b:"boollit"> <r:@R>		=> Value::new(state.spans.alloc(Span::new(l, r)), ValueKind::Bool(b)),
 }
 
