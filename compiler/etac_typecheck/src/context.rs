@@ -4,6 +4,7 @@ use etac_ast::{NodeId, SpanTable};
 use etac_errors::DiagCtxt;
 
 use crate::types::*;
+use std::any::Any;
 use std::collections::HashMap;
 use std::collections::hash_map::Entry;
 
@@ -35,17 +36,20 @@ pub struct Scope {
 #[derive(Debug, Default)]
 struct Scopes(Vec<Scope>);
 
+#[derive(Debug, Default)]
+struct Types(HashMap<NodeId, Box<dyn EtaType>>);
+
 #[derive(Debug)]
 pub struct Env<'dcx> {
     pub dcx: &'dcx DiagCtxt,
     pub span_table: &'dcx SpanTable,
     pub scopes: Scopes,
-    pub types: HashMap<NodeId, Box<dyn EtaType>>
+    pub types: Types,
 }
 
 impl<'dcx> Env<'dcx> {
     pub fn new(dcx: &'dcx DiagCtxt, span_table: &'dcx SpanTable) -> Self {
-        Self { dcx, span_table, scopes: Scopes(vec![Scope::default()]), types: HashMap::default() }
+        Self { dcx, span_table, scopes: Scopes(vec![Scope::default()]), types: Types(HashMap::default()) }
     }
 }
 
@@ -108,4 +112,15 @@ impl Scopes {
     }
 }
 
+impl Types {
+    pub fn assign_type<T: EtaType>(&mut self, node: NodeId, ty: Box<T>) -> &T {
+        let _previous = self.0.insert(node.clone(), ty);
+        debug_assert!(_previous.is_none(), "type should only be assigned once");
+        self.lookup_type(node).unwrap()
+    }
 
+    pub fn lookup_type<T: EtaType>(&self, node: NodeId) -> Option<&T> {
+        let any: &dyn Any = self.0.get(&node).unwrap().as_ref();
+        any.downcast_ref::<T>()
+    }
+}

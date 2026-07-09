@@ -12,7 +12,6 @@ macro_rules! already_declared {
 }
 
 use etac_types_derive::EtaType;
-use std::any::Any;
 
 macro_rules! typecheck_wrapper {
     ($ast_node:tt.$field:ident: $inner_type:ty) => {
@@ -40,9 +39,7 @@ macro_rules! typecheck_kind {
                     $($ast_kind_node::$variant(inner) => {
                         let ty = [<$ast_kind_node Type>]::$variant(inner.typecheck(env)?.clone());
                         let id = inner.node_id();
-                        env.types.insert(id, Box::new(ty));
-                        let any: &dyn Any = env.types.get(&id).unwrap().as_ref();
-                        Ok(any.downcast_ref::<Self::Ty>().unwrap())
+                        Ok(env.types.assign_type(id, Box::new(ty)))
                     })+
                     $ast_kind_node::Error => Err(unsafe { ErrorGuaranteed::claim_already_emitted() })
                 }
@@ -65,9 +62,22 @@ use etac_ast::*;
 use etac_errors::ErrorGuaranteed;
 
 // Program
+impl Typecheck for Program {
+    type Ty = types::UnitTy;
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
+        self.uses.iter().for_each(|u| { u.typecheck(env); });
+        self.definitions.iter().for_each(|d| { d.typecheck(env); });
+        Ok(&types::UnitTy)
+    }
+}
 // Interface
-// Use
-//
+impl Typecheck for Use {
+    type Ty = types::UnitTy;
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
+        todo!()
+    }
+}
+
 typecheck_wrapper!(Definition.kind: DefinitionKind);
 typecheck_kind!(DefinitionKind { Method, GlobDecl });
 typecheck_wrapper!(InterfaceItem.kind: InterfaceItemKind);
@@ -80,7 +90,7 @@ impl Typecheck for MethodDecl {
             from: self.params.iter().map(|decl| (&decl.typ.kind).into()).collect(),
             to: self.ret_types.iter().map(|typ| (&typ.kind).into()).collect(),
         };
-        env.types.insert(self.node_id(), Box::new(ty.clone()));
+        env.types.assign_type(self.node_id(), Box::new(ty.clone()));
         match env.scopes.declare_fn(self.node_id(), self.id.sym.clone(), ty) {
             Ok(context::FnEntry { ty, .. }) => Ok(ty),
             Err(context::FnEntry { declared, .. }) => {
@@ -97,7 +107,7 @@ impl Typecheck for Method {
             from: self.params.iter().map(|decl| (&decl.typ.kind).into()).collect(),
             to: self.ret_types.iter().map(|typ| (&typ.kind).into()).collect(),
         };
-        env.types.insert(self.node_id(), Box::new(ty.clone()));
+        env.types.assign_type(self.node_id(), Box::new(ty.clone()));
         match env.scopes.declare_fn(self.node_id(), self.id.sym.clone(), ty) {
             Ok(context::FnEntry { ty, .. }) => Ok(ty),
             Err(context::FnEntry { declared, .. }) => {
@@ -110,9 +120,11 @@ impl Typecheck for Method {
 impl Typecheck for GlobDecl {
     type Ty = types::UnitTy;
     fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
-        let ty = self.typ.typecheck()?;
-        env.types.insert(self.node_id(), Box::new(ty.clone()));
-        match env.scopes.declare_var(self.node_id(), self.id.sym.clone(), ty) {
+        let ty = self.typ.typecheck(env)?;
+        let ty_t = ty.clone();
+        let ty_s = ty.clone();
+        env.types.assign_type(self.node_id(), Box::new(ty_t));
+        match env.scopes.declare_var(self.node_id(), self.id.sym.clone(), ty_s) {
             Ok(_) => Ok(&types::UnitTy),
             Err(context::VarEntry { declared, .. }) => {
                 Err(already_declared!(env, "variable", self.id.sym, *declared).emit())
@@ -124,18 +136,23 @@ impl Typecheck for GlobDecl {
 // Value
 // ValueKind
 // Decl
-typecheck_wrapper!(Type.kind: TypeKind);
-impl Typecheck for TypeKind {
+impl Typecheck for Type {
     type Ty = types::VarTy;
     fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
-        match self {
-            TypeKind::Array { of, size } => types::VarTy::Array(of.typecheck(env).or(types::VarTy::Err(types::ErrTy))),
+        let ty = match &self.kind {
+            TypeKind::Array { of, .. } => {
+                let inner = of.typecheck(env);
+                let recovered = match inner {
+                    Ok(inner_ty) => inner_ty.clone(),
+                    Err(_errg) => types::VarTy::Err(types::ErrTy),
+                };
+                types::VarTy::Array(types::ArrayTy{ of: Box::new(recovered) })
+            }
             TypeKind::Int => types::VarTy::Int(types::IntTy),
             TypeKind::Bool => types::VarTy::Bool(types::BoolTy),
-            // Recovered at parse time (diagnostic already emitted); propagate
-            // the error rather than re-reporting.
             TypeKind::Error => return Err(unsafe { ErrorGuaranteed::claim_already_emitted() }),
-        }
+        };
+        Ok(env.types.assign_type(self.node_id(), Box::new(ty)))
     }
 }
 // Block

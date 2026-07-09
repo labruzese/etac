@@ -23,7 +23,7 @@ pub struct BoolTy;
 
 #[derive(Debug, Clone)]
 pub struct ArrayTy {
-    of: Box<VarTy>
+    pub of: Box<VarTy>
 }
 
 #[derive(Debug, Clone, Copy)]
