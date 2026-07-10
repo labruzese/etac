@@ -13,7 +13,7 @@
 use std::cell::RefCell;
 use std::fmt;
 
-use etac_span::{SourceCache, Span};
+use etac_span::{FileId, SourceCache, Span};
 
 use crate::Level;
 use crate::emitter::{Emitter, IoEmitter};
@@ -46,29 +46,29 @@ impl ErrorGuaranteed {
     }
 }
 
-pub(crate) struct Inner {
-    emitter: Box<dyn Emitter>,
+pub(crate) struct Inner<Cache: ariadne::Cache<FileId>> {
+    emitter: Box<dyn Emitter<Cache>>,
     err_count: usize,
     warn_count: usize,
 }
 
 /// The single diagnostic sink for a compilation. Renders spans against the
 /// process-global [`SOURCES`](etac_span::SOURCES) cache which carries the static lifetime.
-pub struct DiagCtxt {
-    pub(crate) sources: &'static SourceCache,
-    pub(crate) inner: RefCell<Inner>,
+pub struct DiagCtxt<Cache: ariadne::Cache<FileId>> {
+    pub(crate) sources: Cache,
+    pub(crate) inner: RefCell<Inner<Cache>>,
 }
 
-impl DiagCtxt {
+impl<Cache: ariadne::Cache<FileId>> DiagCtxt<Cache> {
     /// A context that renders to stderr.
     #[must_use]
-    pub fn new(cache: &'static SourceCache) -> Self {
+    pub fn new(cache: Cache) -> Self {
         Self::with_emitter(cache, Box::new(IoEmitter::new(std::io::stderr())))
     }
 
     /// A context with a custom sink (example: [`BufferEmitter`](crate::BufferEmitter)).
     #[must_use]
-    pub fn with_emitter(cache: &'static SourceCache, emitter: Box<dyn Emitter>) -> Self {
+    pub fn with_emitter(cache: Cache, emitter: Box<dyn Emitter<Cache>>) -> Self {
         Self {
             sources: cache,
             inner: RefCell::new(Inner {
@@ -81,22 +81,22 @@ impl DiagCtxt {
 
     /// The source cache this context renders against.
     #[inline]
-    pub fn sources(&self) -> &'static SourceCache {
-        self.sources
+    pub fn sources(&self) -> &Cache {
+        &self.sources
     }
 
     /// Start building an error at `span`. Must be `.emit()`ed or `.cancel()`ed.
-    pub fn err(&self, span: Span, msg: impl Into<String>) -> Diag<'_> {
+    pub fn err(&self, span: Span, msg: impl Into<String>) -> Diag<'_, Cache> {
         Diag::new(self, Level::Error, span, msg)
     }
 
     /// Start building a location-less error (I/O failures, bad CLI input, ...).
-    pub fn err_no_span(&self, msg: impl Into<String>) -> Diag<'_> {
+    pub fn err_no_span(&self, msg: impl Into<String>) -> Diag<'_, Cache> {
         Diag::new_no_span(self, Level::Error, msg)
     }
 
     /// Start building a warning at `span`.
-    pub fn warn(&self, span: Span, msg: impl Into<String>) -> Diag<'_> {
+    pub fn warn(&self, span: Span, msg: impl Into<String>) -> Diag<'_, Cache> {
         Diag::new(self, Level::Warning, span, msg)
     }
 
@@ -123,8 +123,8 @@ impl DiagCtxt {
 /// A Diag borrows the diagnostic context [`'dcx`]; the [`SourceCache`] borrow is `'static`.
 #[must_use = "a Diag does nothing until you call `.emit()` (or `.cancel()` it)"]
 #[derive(Debug)]
-pub struct Diag<'dcx> {
-    pub(crate) dcx: &'dcx DiagCtxt,
+pub struct Diag<'dcx, Cache: ariadne::Cache<FileId>> {
+    pub(crate) dcx: &'dcx DiagCtxt<Cache>,
     pub level: Level,
     pub message: String,
     pub loc: Option<Span>,
@@ -136,9 +136,9 @@ pub struct Diag<'dcx> {
     bomb: DropBomb,
 }
 
-impl<'dcx> Diag<'dcx> {
+impl<'dcx, Cache: ariadne::Cache<FileId>> Diag<'dcx, Cache> {
     /// Create a new diagnostic at a location with a message.
-    fn new(dcx: &'dcx DiagCtxt, level: Level, span: Span, message: impl Into<String>) -> Self {
+    fn new(dcx: &'dcx DiagCtxt<Cache>, level: Level, span: Span, message: impl Into<String>) -> Self {
         Self {
             dcx,
             level,
@@ -153,7 +153,7 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Create a new diagnostic that doesn't have a location
-    fn new_no_span(dcx: &'dcx DiagCtxt, level: Level, message: impl Into<String>) -> Self {
+    fn new_no_span(dcx: &'dcx DiagCtxt<Cache>, level: Level, message: impl Into<String>) -> Self {
         Self {
             dcx,
             level,
@@ -168,7 +168,7 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Create an error given some IO error.
-    pub fn io(dcx: &'dcx DiagCtxt, io_err: &std::io::Error) -> Self {
+    pub fn io(dcx: &'dcx DiagCtxt<Cache>, io_err: &std::io::Error) -> Self {
         Self::new_no_span(dcx, Level::Error, io_err.to_string())
     }
 
@@ -227,13 +227,13 @@ impl<'dcx> Diag<'dcx> {
     }
 }
 
-impl Default for DiagCtxt {
+impl Default for DiagCtxt<&SourceCache> {
     fn default() -> Self {
         Self::new(etac_span::sources())
     }
 }
 
-impl fmt::Debug for DiagCtxt {
+impl<Cache: ariadne::Cache<FileId>> fmt::Debug for DiagCtxt<Cache> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let inner = self.inner.borrow();
         f.debug_struct("DiagCtxt")

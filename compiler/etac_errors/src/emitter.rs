@@ -6,13 +6,13 @@
 use std::{cell::RefCell, convert::Infallible, io::Write, rc::Rc};
 
 use ariadne::{Config, IndexType, Label, Report, ReportKind};
-use etac_span::Span;
+use etac_span::{FileId, Span};
 
 use crate::{Diag, Level};
 
 /// Can take ownership of a diagnostic to emit it
-pub trait Emitter {
-    fn emit(&mut self, diag: Diag<'_>);
+pub trait Emitter<Cache> {
+    fn emit(&mut self, diag: Diag<'_, Cache>);
 }
 
 /// Renders diagnostics to stderr with source snippets via `ariadne`.
@@ -27,8 +27,8 @@ impl<W: Write> IoEmitter<W> {
     }
 }
 
-impl<W: Write> Emitter for IoEmitter<W> {
-    fn emit(&mut self, diag: Diag<'_>) {
+impl<Cache, W: Write> Emitter<Cache> for IoEmitter<W> {
+    fn emit(&mut self, diag: Diag<'_, Cache>) {
         let kind = match diag.level {
             Level::Error => ReportKind::Error,
             Level::Warning => ReportKind::Warning,

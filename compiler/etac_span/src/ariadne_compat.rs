@@ -6,14 +6,14 @@ use crate::{FileId, SourceCache, Span};
 ///
 /// This is really only for aridane error reporting since we're incabable of 
 /// passing the global space context to it from outside the library.
-pub struct ReportableSpan<'a> {
-    cache: &'a SourceCache,
+pub struct ReportableSpan<'a, Cache: SourceCache> {
+    cache: &'a Cache,
     pub span: Span,
-    own: std::cell::OnceCell<(FileId, Range<u32>)>,
+    own: std::cell::OnceCell<(Range<u32>, FileId)>,
 }
 
-impl<'a> From<(&'a SourceCache, Span)> for ReportableSpan<'a> {
-    fn from(value: (&'a SourceCache, Span)) -> Self {
+impl<'a, Cache: SourceCache> From<(&'a Cache, Span)> for ReportableSpan<'a, Cache> {
+    fn from(value: (&'a Cache, Span)) -> Self {
         ReportableSpan {
             cache: value.0,
             span: value.1,
@@ -22,18 +22,18 @@ impl<'a> From<(&'a SourceCache, Span)> for ReportableSpan<'a> {
     }
 }
 
-impl ariadne::Span for ReportableSpan<'_> {
+impl<Cache: SourceCache> ariadne::Span for ReportableSpan<'_, Cache> {
     type SourceId = FileId;
 
     fn source(&self) -> &Self::SourceId {
-        &self.own.get_or_init(|| self.cache.file_for(self.span)).0
+        &self.own.get_or_init(|| self.cache.resolve_span(self.span)).1
     }
 
     fn start(&self) -> usize {
-        self.own.get_or_init(|| self.cache.file_for(self.span)).1.start as usize
+        self.own.get_or_init(|| self.cache.resolve_span(self.span)).0.start as usize
     }
 
     fn end(&self) -> usize {
-        self.own.get_or_init(|| self.cache.file_for(self.span)).1.end as usize
+        self.own.get_or_init(|| self.cache.resolve_span(self.span)).0.end as usize
     }
 }

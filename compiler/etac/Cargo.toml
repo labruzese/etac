@@ -5,6 +5,7 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+dashmap = "6.2.1"
 etac_driver.workspace  = true
 etac_session.workspace = true
 

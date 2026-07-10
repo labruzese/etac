@@ -8,6 +8,8 @@ authors.workspace = true
 ariadne.workspace       = true
 unicode-width.workspace = true
 elsa.workspace		= true
+dashmap.workspace	= true
+crossbeam-skiplist.workspace = true
 
 
 [lints]
