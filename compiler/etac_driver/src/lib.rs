@@ -3,11 +3,11 @@
 //! Passes input between each phase and attches loggers.
 //! Currently also does file resolution / lookup.
 
-use etac_errors::{Diag, DiagCtxt, ErrorGuaranteed, etac_error};
+use etac_errors::{Diag, DiagCtxt, ErrorGuaranteed};
 use etac_ast::SpanTable;
 use etac_parse::{IParser, Parsed};
 use etac_session::{cli::Flags, logger::Logger};
-use etac_span::{FileId, Span};
+use etac_span::{FileId, SourceCache, Span};
 use etac_resolve::{Resolver, File};
 
 pub use crate::status::{CompilationFailure, CompilationSuccess};
@@ -24,46 +24,32 @@ enum LoadBlame {
     Use(Span),
 }
 
-fn load_file(dcx: &DiagCtxt, file: FileId, blame: LoadBlame) -> Result<(u32, &'static str)> {
-    match etac_span::sources().load(file) {
-        Ok(loaded) => Ok(loaded),
-        Err(ioe) => {
-            let guar = match blame {
-                LoadBlame::CommandLine => Diag::io(dcx, &ioe).emit(),
-                LoadBlame::Use(span) => etac_error! {
-                    dcx, span, "cannot load interface file `{}`: {}", file.as_str(), ioe;
-                    primary: "required by this `use`";
-                }.emit(),
-            };
-            Err(guar)
-        }
-    }
-}
-
-
-
-fn parse_one<'dcx, P>(
+/// Parse one already-[`Resolver`]-loaded file (its text is guaranteed to already be in
+/// `dcx`'s [`SourceCache`]; resolution is where I/O failures are caught and reported).
+fn parse_one<'dcx, C, P>(
     logger: &'dcx Logger,
-    dcx: &'dcx DiagCtxt,
+    dcx: &'dcx DiagCtxt<C>,
     file: FileId,
     blame: LoadBlame,
     parser: P,
 ) -> Result<P::Out>
 where
-    P: IParser<'dcx, 'static>,
+    C: SourceCache + 'dcx,
+    P: IParser<'dcx, 'dcx, C>,
     P::Out: std::fmt::Display,
 {
-    let (base, source) = load_file(dcx, file, blame)?;
+    let (base, source) = dcx.sources().load(file);
+    let text = source.text();
 
-    let lexer = etac_lexer::Lexer::new(base, source, dcx);
+    let lexer = etac_lexer::Lexer::new(base, text, dcx);
 
     let mut lexer = match (logger.lex, blame) {
-        (true, LoadBlame::CommandLine) => compat::ULexer::Tee(logger.tee_lexer(file, etac_span::sources(), lexer)),
+        (true, LoadBlame::CommandLine) => compat::ULexer::Tee(logger.tee_lexer(file, dcx.sources(), lexer)),
         _ => compat::ULexer::Raw(lexer),
     };
 
     let mut parser = match (logger.parse, blame) {
-        (true, LoadBlame::CommandLine) => compat::UParser::Tee(logger.tee_parser(file, etac_span::sources(), parser)),
+        (true, LoadBlame::CommandLine) => compat::UParser::Tee(logger.tee_parser(file, dcx.sources(), parser)),
         _ => compat::UParser::Raw(parser),
     };
 
@@ -96,7 +82,6 @@ pub fn run(flags: &Flags) -> CompilationResult {
     let logger = Logger::new(flags);
     let mut spans = SpanTable::new();
     let dcx = DiagCtxt::new(etac_span::sources());
-
 
     let mut resolver = Resolver::new(&flags.source_path, &flags.lib_path);
 

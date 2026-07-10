@@ -295,6 +295,7 @@ dependencies = [
  "dashmap",
  "etac_driver",
  "etac_session",
+ "generate_tests",
 ]
 
 [[package]]

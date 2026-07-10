@@ -9,5 +9,8 @@ dashmap = "6.2.1"
 etac_driver.workspace  = true
 etac_session.workspace = true
 
+[dev-dependencies]
+generate_tests = { path = "../../proc_macros/generate_tests" }
+
 [lints]
 workspace = true

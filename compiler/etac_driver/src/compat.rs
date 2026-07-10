@@ -2,16 +2,17 @@ use etac_errors::Diag;
 use etac_lexer::ILexer;
 use etac_parse::IParser;
 use etac_session::logger::{lex::TeeLexer, parse::TeeParser};
+use etac_span::SourceCache;
 
 /// A wrapper that holds one of the possible lexers that etac can have
-pub enum ULexer<I> {
+pub enum ULexer<'src, C: SourceCache, I> {
     Raw(I),
-    Tee(TeeLexer<I>),
+    Tee(TeeLexer<'src, C, I>),
 }
 
-impl<'dcx, 'src, I: ILexer<'dcx, 'src>> ILexer<'dcx, 'src> for ULexer<I> {}
+impl<'dcx, 'src, C: SourceCache + 'dcx, I: ILexer<'dcx, 'src, C>> ILexer<'dcx, 'src, C> for ULexer<'src, C, I> {}
 
-impl<'dcx, 'src, I: ILexer<'dcx, 'src>> Iterator for ULexer<I> {
+impl<'dcx, 'src, C: SourceCache + 'dcx, I: ILexer<'dcx, 'src, C>> Iterator for ULexer<'src, C, I> {
     type Item = I::Item;
     fn next(&mut self) -> Option<Self::Item> {
         match self {
@@ -23,40 +24,40 @@ impl<'dcx, 'src, I: ILexer<'dcx, 'src>> Iterator for ULexer<I> {
 
 
 /// A wrapper that holds one of the possible parsers that etac can have
-pub enum UParser<I> {
+pub enum UParser<'src, C: SourceCache, I> {
     Raw(I),
-    Tee(TeeParser<I>),
+    Tee(TeeParser<'src, C, I>),
 }
 
-impl<'dcx, 'src, I> IParser<'dcx, 'src> for UParser<I>
+impl<'dcx, 'src, C: SourceCache + 'dcx, I> IParser<'dcx, 'src, C> for UParser<'src, C, I>
 where
-    I: IParser<'dcx, 'src> ,
+    I: IParser<'dcx, 'src, C>,
     I::Out: std::fmt::Display,
 {
     type Out = I::Out;
 
-    fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src>) -> etac_parse::Parsed<Self::Out> {
+    fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src, C>) -> etac_parse::Parsed<Self::Out> {
         match self {
             UParser::Raw(parser) => parser.parse(lexer),
             UParser::Tee(parser) => parser.parse(lexer),
         }
     }
 
-    fn errors_mut(&mut self) -> &mut [Diag<'dcx>] {
+    fn errors_mut(&mut self) -> &mut [Diag<'dcx, C>] {
         match self {
             UParser::Raw(parser) => parser.errors_mut(),
             UParser::Tee(parser) => parser.errors_mut(),
         }
     }
 
-    fn into_errors(self) -> Vec<Diag<'dcx>> {
+    fn into_errors(self) -> Vec<Diag<'dcx, C>> {
         match self {
             UParser::Raw(parser) => parser.into_errors(),
             UParser::Tee(parser) => parser.into_errors(),
         }
     }
 
-    fn diagnostic_context(&self) -> &'dcx etac_errors::DiagCtxt {
+    fn diagnostic_context(&self) -> &'dcx etac_errors::DiagCtxt<C> {
         match self {
             UParser::Raw(parser) => parser.diagnostic_context(),
             UParser::Tee(parser) => parser.diagnostic_context(),

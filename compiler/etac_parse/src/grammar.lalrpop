@@ -2,10 +2,10 @@ use either::Either;
 use etac_ast::*;
 use etac_errors::{etac_error, Diag};
 use etac_lexer::Token;
-use etac_span::Span;
+use etac_span::{SourceCache, Span};
 use crate::{ParseState, lvalue_to_expr};
 
-grammar<'dcx, 'src, 'st>(state: &mut ParseState<'dcx, 'src, 'st>);
+grammar<'dcx, 'src, 'st, C>(state: &mut ParseState<'dcx, 'src, 'st, C>) where C: SourceCache;
 
 // ---- macros ----
 
@@ -31,7 +31,7 @@ CommaTrailingNonEmpty<T>: Vec<T> = {
 // ---- Token bindings ----
 extern {
     type Location = u32;
-    type Error = Diag<'dcx>;
+    type Error = Diag<'dcx, C>;
 
     enum Token<'src> {
         "use"     => Token::KeywordUse,

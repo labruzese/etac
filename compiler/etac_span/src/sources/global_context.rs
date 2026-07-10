@@ -28,7 +28,7 @@ impl SourceCache for GlobalCache {
         self.by_name.get(display_name).map(|e| *e.value())
     }
 
-    fn store(&mut self, display_name: String, value: String) -> (FileId, &ariadne::Source<String>) {
+    fn store(&self, display_name: String, value: String) -> (FileId, &ariadne::Source<String>) {
         let value_bytes = value.len() as u32;
         let fileid = FileId(self.alloc.fetch_add(value_bytes, Ordering::SeqCst));
         let name: &'static str = display_name.leak();
@@ -54,5 +54,9 @@ impl SourceCache for GlobalCache {
             .expect("span.lo below the first file start");
         let base = entry.key();
         ((span.lo - base)..(span.hi - base), FileId(*base))
+    }
+
+    fn load(&self, id: FileId) -> (u32, &ariadne::Source<String>) {
+        (id.0, self.load_source(id))
     }
 }
