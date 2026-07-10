@@ -24,8 +24,8 @@ enum LoadBlame {
     Use(Span),
 }
 
-fn load_file(dcx: &DiagCtxt, file: FileId, blame: LoadBlame) -> Result<(u32, &'static str)> {
-    match etac_span::sources().load(file) {
+fn load_file(dcx: &DiagCtxt, name: &str, blame: LoadBlame) -> Result<(FileId, &'static str)> {
+    match etac_span::sources().store(name) {
         Ok(loaded) => Ok(loaded),
         Err(ioe) => {
             let guar = match blame {

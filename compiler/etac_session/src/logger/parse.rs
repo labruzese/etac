@@ -21,7 +21,7 @@ where
 {
     type Out = InnerParser::Out;
 
-    fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src>) -> etac_parse::Parsed<Self::Out> {
+    fn parse(&mut self, lexer: &mut impl ILexer<'static, 'src, 'dcx>) -> etac_parse::Parsed<Self::Out> {
         let result = self.inner.parse(lexer);
         if self.stopped || self.writer.is_none() {
             return result;

@@ -14,7 +14,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use etac_errors::{Diag, DiagCtxt, etac_error, ErrorGuaranteed};
-use etac_span::{FileId, InterfaceId, SCache, SourceId, Span};
+use etac_span::{FileId, InterfaceId, SourceId, Span};
 
 /// A classified command-line input.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

@@ -55,7 +55,7 @@ pub use grammar::__ToTriple;
 pub trait IParser<'dcx, 'src> {
     type Out;
 
-    fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src>) -> Parsed<Self::Out>;
+    fn parse(&mut self, lexer: &mut impl ILexer<'static, 'src, 'dcx>) -> Parsed<Self::Out>;
 
     fn errors_mut(&mut self) -> &mut [Diag<'dcx>];
 
@@ -88,7 +88,7 @@ macro_rules! impl_iparser {
         impl<'dcx, 'src, 'st> IParser<'dcx, 'src> for $name<'dcx, 'src, 'st> {
             type Out = $out;
 
-            fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src>) -> Parsed<Self::Out> {
+            fn parse(&mut self, lexer: &mut impl ILexer<'static, 'src, 'dcx>) -> Parsed<Self::Out> {
                 let parse = <$full>::parse(&<$full>::new(), &mut self.state, lexer);
                 let mut recovered = false;
                 for e in std::mem::take(&mut self.state.lalrpop_errs) {
