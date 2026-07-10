@@ -2,7 +2,6 @@
 
 use etac_ast::{NodeId, SpanTable};
 use etac_errors::DiagCtxt;
-use etac_span::SourceCache;
 
 use crate::types::*;
 use std::any::Any;
@@ -35,21 +34,21 @@ pub struct Scope {
 }
 
 #[derive(Debug, Default)]
-pub(crate) struct Scopes(Vec<Scope>);
+struct Scopes(Vec<Scope>);
 
 #[derive(Debug, Default)]
-pub(crate) struct Types(HashMap<NodeId, Box<dyn EtaType>>);
+struct Types(HashMap<NodeId, Box<dyn EtaType>>);
 
 #[derive(Debug)]
-pub struct Env<'dcx, C: SourceCache> {
-    pub dcx: &'dcx DiagCtxt<C>,
+pub struct Env<'dcx> {
+    pub dcx: &'dcx DiagCtxt,
     pub span_table: &'dcx SpanTable,
     pub scopes: Scopes,
     pub types: Types,
 }
 
-impl<'dcx, C: SourceCache> Env<'dcx, C> {
-    pub fn new(dcx: &'dcx DiagCtxt<C>, span_table: &'dcx SpanTable) -> Self {
+impl<'dcx> Env<'dcx> {
+    pub fn new(dcx: &'dcx DiagCtxt, span_table: &'dcx SpanTable) -> Self {
         Self { dcx, span_table, scopes: Scopes(vec![Scope::default()]), types: Types(HashMap::default()) }
     }
 }

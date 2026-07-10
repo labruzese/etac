@@ -3,7 +3,7 @@
 use etac_errors::{BufferEmitter, DiagCtxt, Level, RecordedDiag};
 use etac_lexer::Lexer;
 use etac_parse::{IParser, Parsed};
-use etac_span::SourceCache;
+use etac_span::FileId;
 use std::io::Write;
 use tempfile::NamedTempFile;
 
@@ -28,7 +28,7 @@ impl<Out: std::fmt::Display> Harness<Out> {
     pub fn first_error_pos(&self) -> Option<(u32, u32)> {
         let d = self.error_diags().into_iter().find(|d| d.loc.is_some())?;
         let loc = d.loc.as_ref().unwrap();
-        Some(etac_span::sources().line_column(loc.lo))
+        etac_span::sources().lc_index(loc.lo).ok()
     }
     pub fn messages(&self) -> Vec<&str> {
         self.error_diags().iter().map(|d| d.message.as_str()).collect()
@@ -58,7 +58,7 @@ fn write_temp_source(src: &str, ext: &str) -> NamedTempFile {
 macro_rules! run_parse {
     ($src:expr, $ext:expr, $parser:ident) => {{
         let tmp = write_temp_source($src, $ext);
-        let path_str = tmp.path().to_str().expect("non-utf8 temp path").to_string();
+        let file_id = FileId::new(tmp.path().to_str().expect("non-utf8 temp path"));
 
         // Buffer the diagnostics instead of printing them. The buffer is shared
         // with the context (it is an `Rc` inside). Source text lives in the
@@ -69,10 +69,10 @@ macro_rules! run_parse {
             let dcx = DiagCtxt::with_emitter(etac_span::sources(), Box::new(buf.clone()));
             let mut spans = etac_ast::SpanTable::new();
             let mut parser = etac_parse::$parser::new(&dcx, &mut spans);
-            let (file_id, _) = dcx.sources().store(path_str.clone(), $src.to_string());
-            let (base, source) = dcx.sources().load(file_id);
-            let text = source.text();
-            let mut lexer = Lexer::new(base, text, &dcx);
+            let (base, source) = etac_span::sources()
+                .load(file_id)
+                .expect("temp source should load");
+            let mut lexer = Lexer::new(base, source, &dcx);
             let parsed = parser.parse(&mut lexer);
             // The parser retains recovered/fatal diagnostics; emit them the way the
             // driver does so they land in the buffer (and no drop-bomb fires).

@@ -292,10 +292,8 @@ dependencies = [
 name = "etac"
 version = "0.1.0"
 dependencies = [
- "dashmap",
  "etac_driver",
  "etac_session",
- "generate_tests",
 ]
 
 [[package]]
@@ -383,14 +381,6 @@ dependencies = [
  "dashmap",
  "elsa",
  "unicode-width",
-]
-
-[[package]]
-name = "etac_tests"
-version = "0.1.0"
-dependencies = [
- "ariadne",
- "etac_span",
 ]
 
 [[package]]

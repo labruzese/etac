@@ -22,7 +22,7 @@ macro_rules! delegate_typecheck {
             }
             impl Typecheck for $ast_node {
                 type Ty = [<$ast_node Type>];
-                fn typecheck<'e, C: SourceCache>(&self, env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty> {
+                fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
                     match &self.$field {
                         $([<$ast_node Kind>]::$variant(inner) => {
                             let ty = [<$ast_node Type>]::$variant(inner.typecheck(env)?.clone());
@@ -44,17 +44,16 @@ trait Typecheck: etac_ast::AstNode {
     type Ty: types::EtaType;
     /// Updates enviornment by typechecking itself.
     /// Returns the deduced type of itself
-    fn typecheck<'e, C: SourceCache>(&self, env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty>;
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty>;
 }
 
 use etac_ast::*;
 use etac_errors::ErrorGuaranteed;
-use etac_span::SourceCache;
 
 // Program
 impl Typecheck for Program {
     type Ty = types::UnitTy;
-    fn typecheck<'e, C: SourceCache>(&self, env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty> {
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
         self.uses.iter().for_each(|u| { u.typecheck(env); });
         self.definitions.iter().for_each(|d| { d.typecheck(env); });
         Ok(&types::UnitTy)
@@ -63,7 +62,7 @@ impl Typecheck for Program {
 // Interface
 impl Typecheck for Use {
     type Ty = types::UnitTy;
-    fn typecheck<'e, C: SourceCache>(&self, env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty> {
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
         todo!()
     }
 }
@@ -73,7 +72,7 @@ delegate_typecheck!(InterfaceItem.kind { MethodDecl });
 
 impl Typecheck for MethodDecl {
     type Ty = types::FnTy;
-    fn typecheck<'e, C: SourceCache>(&self, env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty> {
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
         let ty = types::FnTy {
             from: self.params.iter().map(|decl| (&decl.typ.kind).into()).collect(),
             to: self.ret_types.iter().map(|typ| (&typ.kind).into()).collect(),
@@ -90,7 +89,7 @@ impl Typecheck for MethodDecl {
 
 impl Typecheck for Method {
     type Ty = types::FnTy;
-    fn typecheck<'e, C: SourceCache>(&self, env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty> {
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
         let ty = types::FnTy {
             from: self.params.iter().map(|decl| (&decl.typ.kind).into()).collect(),
             to: self.ret_types.iter().map(|typ| (&typ.kind).into()).collect(),
@@ -107,7 +106,7 @@ impl Typecheck for Method {
 
 impl Typecheck for GlobDecl {
     type Ty = types::UnitTy;
-    fn typecheck<'e, C: SourceCache>(&self, env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty> {
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
         let ty = self.typ.typecheck(env)?;
         let ty_t = ty.clone();
         let ty_s = ty.clone();
@@ -128,7 +127,7 @@ pub enum ValueType {
 }
 impl Typecheck for Value {
     type Ty = ValueType;
-    fn typecheck<'e, C: SourceCache>(&self,env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty>{
+    fn typecheck<'e>(&self,env: &'e mut context::Env) -> Result<&'e Self::Ty>{
         match &self.kind {
             ValueKind::Int(_value) => {
                 // todo: validation on the int
@@ -146,7 +145,7 @@ impl Typecheck for Value {
 // Decl
 impl Typecheck for Type {
     type Ty = types::VarTy;
-    fn typecheck<'e, C: SourceCache>(&self, env: &'e mut context::Env<'_, C>) -> Result<&'e Self::Ty> {
+    fn typecheck<'e>(&self, env: &'e mut context::Env) -> Result<&'e Self::Ty> {
         let ty = match &self.kind {
             TypeKind::Array { of, .. } => {
                 let inner = of.typecheck(env);

@@ -2,23 +2,23 @@ use std::{fs::File, io::BufWriter, io::Write};
 
 use etac_errors::{Diag, Level};
 use etac_lexer::{ILexer, Token};
-use etac_span::{FileId, SourceCache};
+use etac_span::{FileId, SCache};
 
 use crate::logger::Logger;
 
 /// Token-stream wrapper returned by [`Logger::tee`]. Forwards every item untouched and
 /// logs as a side effect; see that method for the contract.
-pub struct TeeLexer<'src, C: SourceCache, I> {
+pub struct TeeLexer<I> {
     /// `None` when `--lex` is off: nothing is opened or written.
     writer: Option<BufWriter<File>>,
-    source: &'src C,
+    source: &'static SCache,
     inner: I,
     stopped: bool,
 }
 
-impl<'dcx, 'src, C: SourceCache + 'dcx, I: ILexer<'dcx, 'src, C>> ILexer<'dcx, 'src, C> for TeeLexer<'src, C, I> {}
+impl<'dcx, 'src, I: ILexer<'dcx, 'src>> ILexer<'dcx, 'src> for TeeLexer<I> {}
 
-impl<'dcx, 'src, C: SourceCache + 'dcx, I: ILexer<'dcx, 'src, C>> Iterator for TeeLexer<'src, C, I> {
+impl<'dcx, 'src, I: ILexer<'dcx, 'src>> Iterator for TeeLexer<I> {
     type Item = I::Item;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -58,10 +58,9 @@ impl Logger {
     /// wrapper is a transparent pass-through, so the caller's type doesn't change with the
     /// flag. Per the Eta spec, logging stops at the first lexical error but the tokens
     /// keep flowing to the parser.
-    pub fn tee_lexer<'dcx, 'src, C, I>(&'dcx self, file: FileId, sources: &'src C, inner: I) -> TeeLexer<'src, C, I>
+    pub fn tee_lexer<'dcx, I>(&'dcx self, file: FileId, sources: &'static SCache, inner: I) -> TeeLexer<I>
     where
-        C: SourceCache + 'dcx,
-        I: Iterator<Item = Result<(u32, Token<'src>, u32), Diag<'dcx, C>>>,
+        I: Iterator<Item = Result<(u32, Token<'static>, u32), Diag<'dcx>>>,
     {
         TeeLexer {
             source: sources,

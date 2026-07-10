@@ -6,37 +6,34 @@
 use std::{cell::RefCell, convert::Infallible, io::Write, rc::Rc};
 
 use ariadne::{Config, IndexType, Label, Report, ReportKind};
-use etac_span::{AriadneAdapter, SourceCache, Span};
+use etac_span::Span;
 
-use crate::{Diag, Level};
+use crate::{DiagGeneric, Level};
 
 /// Can take ownership of a diagnostic to emit it
-pub trait Emitter<C: SourceCache> {
-    fn emit(&mut self, diag: Diag<'_, C>);
+pub trait Emitter {
+    fn emit(&mut self, diag: DiagGeneric<'_, '_>);
 }
 
 /// Renders diagnostics to stderr with source snippets via `ariadne`.
 #[derive(Debug, Default, Clone, Copy)]
 pub struct IoEmitter<W: Write> {
-    writer: W,
-    color: bool
+    writer: W
 }
 
 impl<W: Write> IoEmitter<W> {
-    pub fn new(writer: W, use_color: bool) -> Self {
-        Self { writer, color: use_color }
+    pub fn new(writer: W) -> Self {
+        Self { writer }
     }
 }
 
-impl<C: SourceCache, W: Write> Emitter<C> for IoEmitter<W> {
-    fn emit(&mut self, diag: Diag<'_, C>) {
+impl<W: Write> Emitter for IoEmitter<W> {
+    fn emit(&mut self, diag: DiagGeneric<'_, '_>) {
         let kind = match diag.level {
             Level::Error => ReportKind::Error,
             Level::Warning => ReportKind::Warning,
             Level::Note => ReportKind::Advice,
         };
-        
-        let with_color = self.color;
 
         if let Some(loc) = diag.loc {
             // resolve() returns byte ranges; tell ariadne to interpret span
@@ -45,11 +42,9 @@ impl<C: SourceCache, W: Write> Emitter<C> for IoEmitter<W> {
             // ariadne defaults to IndexType::Char and misreports columns
             // whenever multibyte UTF-8 characters appear before the error
             // in the same file.
-            let config = Config::default()
-                .with_index_type(IndexType::Byte)
-                .with_color(with_color);
+            let byte_config = Config::default().with_index_type(IndexType::Byte);
             let mut b = Report::build(kind, diag.dcx.sources.reportable_span(loc))
-                .with_config(config)
+                .with_config(byte_config)
                 .with_message(&diag.message);
             if let Some(c) = &diag.code {
                 b = b.with_code(c);
@@ -60,14 +55,10 @@ impl<C: SourceCache, W: Write> Emitter<C> for IoEmitter<W> {
             for (span, msg, color) in &diag.labels {
                 b = b.with_label(Label::new(diag.dcx.sources.reportable_span(*span)).with_message(msg).with_color(*color));
             }
-            let _ = b.finish().write(AriadneAdapter(&diag.dcx.sources), &mut self.writer);
+            let _ = b.finish().eprint(diag.dcx.sources);
         } else {
             static NO_SPAN: NoSpan = NoSpan;
-            let config = Config::default()
-                .with_color(with_color);
-            let mut b = Report::build(kind, NO_SPAN)
-                .with_config(config)
-                .with_message(&diag.message);
+            let mut b = Report::build(kind, NO_SPAN).with_message(&diag.message);
             if let Some(c) = &diag.code {
                 b = b.with_code(c);
             }
@@ -77,7 +68,7 @@ impl<C: SourceCache, W: Write> Emitter<C> for IoEmitter<W> {
             for (_span, msg, color) in &diag.labels {
                 b = b.with_label(Label::new(NO_SPAN).with_message(msg).with_color(*color));
             }
-            let _ = b.finish().write(NoCache, &mut self.writer);
+            let _ = b.finish().eprint(NoCache);
         }
     }
 }
@@ -126,8 +117,8 @@ pub struct RecordedDiag {
     pub note: Option<String>,
 }
 
-impl<C: SourceCache> Emitter<C> for BufferEmitter {
-    fn emit(&mut self, diag: Diag<'_, C>) {
+impl Emitter for BufferEmitter {
+    fn emit(&mut self, diag: DiagGeneric<'_, '_>) {
         let rd = RecordedDiag {
             level: diag.level,
             message: diag.message,

@@ -74,14 +74,14 @@ impl SCache {
     }
 }
 
-impl<'a> ariadne::Cache<FileId> for &'a SCache {
+impl ariadne::Cache<FileId> for &SCache {
     type Storage = String;
 
     fn fetch(&mut self, id: &FileId) -> Result<&Source<Self::Storage>, impl fmt::Debug> {
-        Ok::<_, std::convert::Infallible>(self.0.load_source(*id))
+        Ok::<_, std::convert::Infallible>(self.load_source(*id))
     }
 
-    fn display<'b>(&self, id: &'b FileId) -> Option<impl fmt::Display + 'b> {
-        Some(self.0.load_name(*id).to_owned())
+    fn display<'a>(&self, id: &'a FileId) -> Option<impl fmt::Display + 'a> {
+        Some(self.load_name(*id).to_owned())
     }
 }

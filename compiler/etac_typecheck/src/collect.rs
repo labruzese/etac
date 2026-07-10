@@ -1,17 +1,16 @@
 use super::types;
-use crate::context::Env;
-use crate::Typecheck;
+use crate::context::{Env, FnEntry};
 use etac_ast::*;
-use etac_span::SourceCache;
+use etac_errors::etac_error;
 
 // collects the global scope of a program
-pub fn add_interface<C: SourceCache>(env: &mut Env<'_, C>, interface: &Interface) {
-    for _item in &interface.items {
+pub fn add_interface(env: &mut Env, interface: &Interface) {
+    for item in &interface.items {
 
     }
 }
 
-pub fn collect_global<C: SourceCache>(env: &mut Env<'_, C>, prog: &Program) {
+pub fn collect_global(env: &mut Env, prog: &Program) {
     let definitions = &prog.definitions;
     for def in definitions {
         match &def.kind {
@@ -25,7 +24,7 @@ pub fn collect_global<C: SourceCache>(env: &mut Env<'_, C>, prog: &Program) {
                     },
                 );
             }
-            DefinitionKind::GlobDecl(gd) => { let _ = gd.typecheck(env); }
+            DefinitionKind::GlobDecl(gd) => { gd.typecheck(); }
             DefinitionKind::Error => (), // Error already recorded
         }
     }

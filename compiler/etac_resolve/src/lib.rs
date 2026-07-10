@@ -14,7 +14,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use etac_errors::{Diag, DiagCtxt, etac_error, ErrorGuaranteed};
-use etac_span::{FileId, InterfaceId, SourceCache, SourceId, Span};
+use etac_span::{FileId, InterfaceId, SCache, SourceId, Span};
 
 /// A classified command-line input.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -50,7 +50,7 @@ impl Resolver {
     /// `None` means skip: the path was unusable (non-UTF8 name, unknown
     /// extension, or an I/O error — all reported) or names a file that is
     /// already queued (silent).
-    pub fn classify_cli<C: SourceCache>(&mut self, dcx: &DiagCtxt<C>, path: &Path) -> Option<File> {
+    pub fn classify_cli(&mut self, dcx: &DiagCtxt, path: &Path) -> Option<File> {
         let path = resolve_against(&self.source_path, path);
         let Some(path_str) = path.to_str() else {
             dcx.err_no_span(format!("non-UTF8 file name {}", path.to_string_lossy()))
@@ -88,9 +88,9 @@ impl Resolver {
     /// `Err` means skip: no candidate exists on the search path (reported at
     /// `at`, naming every location searched) 
     /// `None` means the interface is already queued. 
-    pub fn resolve_use<C: SourceCache>(
+    pub fn resolve_use(
         &mut self,
-        dcx: &DiagCtxt<C>,
+        dcx: &DiagCtxt,
         from: SourceId,
         name: &str,
         at: Span,
@@ -137,7 +137,7 @@ impl Resolver {
     /// Read `path_str` from disk and store it in `dcx`'s cache, reusing the existing
     /// [`FileId`] if this path has already been loaded. `None` means an I/O error was
     /// hit and already reported.
-    fn load<C: SourceCache>(&self, dcx: &DiagCtxt<C>, path_str: &str) -> Option<FileId> {
+    fn load(&self, dcx: &DiagCtxt, path_str: &str) -> Option<FileId> {
         if let Some(id) = dcx.sources().contains(path_str) {
             return Some(id);
         }
@@ -165,17 +165,17 @@ fn resolve_against(root: &Path, path: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use etac_errors::{BufferEmitter, Level, RecordedDiag};
+    use etac_errors::{BufferEmitter, DiagCtxtGeneric, Level, RecordedDiag};
     use etac_span::SCache;
 
     /// Run `f` with a context whose diagnostics are captured instead of
     /// printed, returning whatever it produced plus the recorded diagnostics.
     /// Each call gets a fresh, isolated [`GlobalCache`] rather than the
     /// process-wide singleton, so tests can't see each other's files.
-    fn with_dcx<T>(f: impl FnOnce(&DiagCtxt<SCache>) -> T) -> (T, Vec<RecordedDiag>) {
+    fn with_dcx<T>(f: impl FnOnce(&DiagCtxt) -> T) -> (T, Vec<RecordedDiag>) {
         let buf = BufferEmitter::new();
         let out = {
-            let dcx = DiagCtxt::with_emitter(SCache::default(), Box::new(buf.clone()));
+            let dcx = DiagCtxtGeneric::with_emitter(SCache::default(), Box::new(buf.clone()));
             f(&dcx)
         };
         (out, buf.take())

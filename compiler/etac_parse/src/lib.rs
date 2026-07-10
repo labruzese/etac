@@ -1,7 +1,7 @@
 use etac_ast::{Expr, ExprKind, LValue, LValueKind, SpanTable};
 use etac_errors::{etac_error, Diag, DiagCtxt};
 use etac_lexer::{ILexer, Token};
-use etac_span::{SourceCache, Span};
+use etac_span::Span;
 use lalrpop_util::{lalrpop_mod, ErrorRecovery, ParseError};
 
 lalrpop_mod!(grammar);
@@ -31,16 +31,16 @@ impl<Out> Parsed<Out> {
 }
 
 /// Mutable state threaded through every grammar action.
-pub(crate) struct ParseState<'dcx, 'src, 'st, C: SourceCache> {
-    pub diagc: &'dcx DiagCtxt<C>,
+pub(crate) struct ParseState<'dcx, 'src, 'st> {
+    pub diagc: &'dcx DiagCtxt,
     pub spans: &'st mut SpanTable,
-    pub lalrpop_errs: Vec<ErrorRecovery<u32, Token<'src>, Diag<'dcx, C>>>,
-    pub etac_errs: Vec<Diag<'dcx, C>>,
+    pub lalrpop_errs: Vec<ErrorRecovery<u32, Token<'src>, Diag<'dcx>>>,
+    pub etac_errs: Vec<Diag<'dcx>>,
 }
 
-impl<'dcx, 'src, 'st, C: SourceCache> ParseState<'dcx, 'src, 'st, C> {
+impl<'dcx, 'src, 'st> ParseState<'dcx, 'src, 'st> {
     #[must_use]
-    pub fn new(diagnostic_context: &'dcx DiagCtxt<C>, spans: &'st mut SpanTable) -> Self {
+    pub fn new(diagnostic_context: &'dcx DiagCtxt, spans: &'st mut SpanTable) -> Self {
         ParseState {
             diagc: diagnostic_context,
             spans,
@@ -52,16 +52,16 @@ impl<'dcx, 'src, 'st, C: SourceCache> ParseState<'dcx, 'src, 'st, C> {
 
 pub use grammar::__ToTriple;
 
-pub trait IParser<'dcx, 'src, C: SourceCache + 'dcx> {
+pub trait IParser<'dcx, 'src> {
     type Out;
 
-    fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src, C>) -> Parsed<Self::Out>;
+    fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src>) -> Parsed<Self::Out>;
 
-    fn errors_mut(&mut self) -> &mut [Diag<'dcx, C>];
+    fn errors_mut(&mut self) -> &mut [Diag<'dcx>];
 
-    fn into_errors(self) -> Vec<Diag<'dcx, C>>;
+    fn into_errors(self) -> Vec<Diag<'dcx>>;
 
-    fn diagnostic_context(&self) -> &'dcx DiagCtxt<C>;
+    fn diagnostic_context(&self) -> &'dcx DiagCtxt;
 
 }
 
@@ -76,19 +76,19 @@ macro_rules! impl_iparser {
         impl_iparser!(@inner ($full) ($($rest)::+) $out);
     };
     (@inner ($full:path) ($name:ident) $out:ty) => {
-        pub struct $name<'dcx, 'src, 'st, C: SourceCache> {
-            state: ParseState<'dcx, 'src, 'st, C>
+        pub struct $name<'dcx, 'src, 'st> {
+            state: ParseState<'dcx, 'src, 'st>
         }
-        impl<'dcx, 'src, 'st, C: SourceCache> $name<'dcx, 'src, 'st, C> {
+        impl<'dcx, 'src, 'st> $name<'dcx, 'src, 'st> {
             #[must_use]
-            pub fn new(diagc: &'dcx DiagCtxt<C>, spans: &'st mut SpanTable) -> Self {
+            pub fn new(diagc: &'dcx DiagCtxt, spans: &'st mut SpanTable) -> Self {
                 $name { state: ParseState::new(diagc, spans) }
             }
         }
-        impl<'dcx, 'src, 'st, C: SourceCache> IParser<'dcx, 'src, C> for $name<'dcx, 'src, 'st, C> {
+        impl<'dcx, 'src, 'st> IParser<'dcx, 'src> for $name<'dcx, 'src, 'st> {
             type Out = $out;
 
-            fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src, C>) -> Parsed<Self::Out> {
+            fn parse(&mut self, lexer: &mut impl ILexer<'dcx, 'src>) -> Parsed<Self::Out> {
                 let parse = <$full>::parse(&<$full>::new(), &mut self.state, lexer);
                 let mut recovered = false;
                 for e in std::mem::take(&mut self.state.lalrpop_errs) {
@@ -108,15 +108,15 @@ macro_rules! impl_iparser {
                 }
             }
 
-            fn errors_mut(&mut self) -> &mut [Diag<'dcx, C>] {
+            fn errors_mut(&mut self) -> &mut [Diag<'dcx>] {
                 &mut self.state.etac_errs
             }
 
-            fn into_errors(self) -> Vec<Diag<'dcx, C>> {
+            fn into_errors(self) -> Vec<Diag<'dcx>> {
                 self.state.etac_errs
             }
 
-            fn diagnostic_context(&self) -> &'dcx DiagCtxt<C> {
+            fn diagnostic_context(&self) -> &'dcx DiagCtxt {
                 &self.state.diagc
             }
         }
@@ -140,10 +140,10 @@ pub(crate) fn lvalue_to_expr(lv: LValue, spans: &mut SpanTable) -> Expr {
 }
 
 /// LALRPOP error to [`Diag`]
-fn to_diag<'dcx, 'src, C: SourceCache>(
-    diagc: &'dcx DiagCtxt<C>,
-    err: ParseError<u32, Token<'src>, Diag<'dcx, C>>,
-) -> Diag<'dcx, C> {
+fn to_diag<'dcx, 'src>(
+    diagc: &'dcx DiagCtxt,
+    err: ParseError<u32, Token<'src>, Diag<'dcx>>,
+) -> Diag<'dcx> {
     use ParseError::*;
     match err {
         User { error } => error,

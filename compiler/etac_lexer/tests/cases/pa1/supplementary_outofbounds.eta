@@ -1,0 +1,3 @@
+main(args: int[][]) {
+    ok: int[] = "\x{110000}"; // error: largest Unicode char is 10FFFF
+}
