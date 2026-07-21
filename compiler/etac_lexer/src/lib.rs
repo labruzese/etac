@@ -1,7 +1,4 @@
 //! Lexer
-//!
-//! Under the hood uses Logos but exports a compatibility layer more friendly to lalrpop.
-//! Reports a Span within the compilation's global offset space.
 #![allow(clippy::cast_possible_truncation)]
 
 use std::{
@@ -9,63 +6,51 @@ use std::{
     num::ParseIntError,
 };
 
-use etac_errors::{DiagCtxt, Diag, etac_error};
-use etac_cache::Span;
+use etac_errors::dcx::{DiagCtx, Diag};
+use etac_cache::sources::Span;
 use logos::Logos;
 
 mod internal_error;
 use internal_error::{InternalLexerError, lexer_error};
 
-pub trait ILexer<'src, 'dcx>: Iterator<Item = Result<(u32, Token<'src>, u32), Diag<'dcx>>> {}
-
-fn global_span<'s>(lex: &logos::Lexer<'s, Token<'s>>) -> Span {
-    Span::new(lex.extras + lex.span().start as u32, lex.extras + lex.span().end as u32)
+pub struct SourceToken<'src> {
+    pub tok: RawToken<'src>,
+    pub span: Span,
 }
 
-fn lexer_error<'s>(lex: &mut logos::Lexer<'s, Token<'s>>) -> InternalLexerError {
-    lexer_error! {
-        span = global_span(lex),
-        message = "unknown token",
-        plabel = "this token",
-    }
+pub trait ILexer<'src, 'dcx>: Iterator<Item = Result<SourceToken<'src>, Diag<'dcx>>> {}
+
+type LogosLexer<'src> = logos::Lexer<'src, RawToken<'src>>;
+
+pub struct EtaLexer<'src, 'dcx> {
+    inner: logos::SpannedIter<'src, RawToken<'src>>,
+    dcx: &'dcx DiagCtx,
 }
 
-type LogosLexer<'src> = logos::Lexer<'src, Token<'src>>;
-
-pub struct Lexer<'src, 'dcx> {
-    diagc: &'dcx DiagCtxt<'dcx>,
-    inner: logos::SpannedIter<'src, Token<'src>>,
-}
-
-impl<'src, 'dcx> Lexer<'src, 'dcx> {
-    #[must_use]
-    pub fn new(base: u32, source: &'src str, diag_context: &'dcx DiagCtxt<'dcx>) -> Self {
+impl<'src, 'dcx> EtaLexer<'src, 'dcx> {
+    pub fn new(base: u32, source: &'src str, diag_context: &'dcx DiagCtx) -> Self {
         Self {
-            diagc: diag_context,
-            inner: <Token as Logos>::lexer_with_extras(source, base).spanned(),
+            dcx: diag_context,
+            inner: <RawToken as Logos>::lexer_with_extras(source, base).spanned(),
         }
     }
 }
 
-impl<'src, 'dcx> ILexer<'src, 'dcx> for Lexer<'src, 'dcx> {}
+impl<'src, 'dcx> ILexer<'src, 'dcx> for EtaLexer<'src, 'dcx> {}
 // transformed for lalrpop
-impl<'src, 'dcx> Iterator for Lexer<'src, 'dcx> {
-    type Item = Result<(u32, Token<'src>, u32), Diag<'dcx>>;
+impl<'src, 'dcx> Iterator for EtaLexer<'src, 'dcx> {
+    type Item = Result<SourceToken<'src>, Diag<'dcx>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (next, local_span) = self.inner.next()?;
         let base = self.inner.extras;
         let span = Span::new(base + local_span.start as u32, base + local_span.end as u32);
         match next {
-            Ok(tok) => Some(Ok((span.lo, tok, span.hi))),
-            Err(diag) => {
-                let mut d: Diag<'dcx> = etac_error!(self.diagc, diag.span, "{}", diag.message);
-                if let Some(l) = diag.plabel {
-                    d = d.with_primary_label(l);
-                }
-                if let Some(l) = diag.note {
-                    d = d.with_note(l);
-                }
+            Ok(tok) => Some(Ok(SourceToken { tok, span })),
+            Err(ie) => {
+                let mut d = self.dcx.err(ie.span, ie.message);
+                if let Some(l) = ie.plabel { d = d.with_primary_label(l); }
+                if let Some(l) = ie.note { d = d.with_note(l); }
                 Some(Err(d))
             }
         }
@@ -79,8 +64,8 @@ mod strings;
 #[logos(skip r"[ \t\n\f\r]+")]
 #[logos(skip(r"//[^\n]*", allow_greedy = true))]
 #[logos(extras = u32)]
-#[logos(error(InternalLexerError, lexer_error))]
-pub enum Token<'s> {
+#[logos(error(InternalLexerError, internal_error_unknown_token))]
+pub enum RawToken<'s> {
     // Keywords
     #[token("use")]
     KeywordUse,
@@ -182,7 +167,7 @@ pub enum Token<'s> {
 
 fn parse_int(lex: &mut LogosLexer<'_>) -> Result<i64, InternalLexerError> {
     lex.slice().parse::<i64>().map_err(|err: ParseIntError| lexer_error! {
-        span = global_span(lex),
+        span = current_span(lex),
         message = format!("illegal integer literal: {}", err),
         plabel = format!("this number is too {}", 
             if err.to_string().contains("large") { "large" } 
@@ -192,24 +177,24 @@ fn parse_int(lex: &mut LogosLexer<'_>) -> Result<i64, InternalLexerError> {
     })
 }
 
-impl Display for Token<'_> {
+impl Display for RawToken<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Token::KeywordUse => write!(f, "use"),
-            Token::KeywordLength => write!(f, "length"),
-            Token::KeywordWhile => write!(f, "while"),
-            Token::KeywordIf => write!(f, "if"),
-            Token::KeywordElse => write!(f, "else"),
-            Token::KeywordReturn => write!(f, "return"),
-            Token::KeywordInt => write!(f, "int"),
-            Token::KeywordBool => write!(f, "bool"),
-            Token::SemiColon => write!(f, ";"),
-            Token::Discard => write!(f, "_"),
-            Token::OfType => write!(f, ":"),
-            Token::Assign => write!(f, "="),
-            Token::Comma => write!(f, ","),
-            Token::BoolLiteral(b) => write!(f, "{b}"),
-            Token::CharLiteral(c) => write!(
+            RawToken::KeywordUse => write!(f, "use"),
+            RawToken::KeywordLength => write!(f, "length"),
+            RawToken::KeywordWhile => write!(f, "while"),
+            RawToken::KeywordIf => write!(f, "if"),
+            RawToken::KeywordElse => write!(f, "else"),
+            RawToken::KeywordReturn => write!(f, "return"),
+            RawToken::KeywordInt => write!(f, "int"),
+            RawToken::KeywordBool => write!(f, "bool"),
+            RawToken::SemiColon => write!(f, ";"),
+            RawToken::Discard => write!(f, "_"),
+            RawToken::OfType => write!(f, ":"),
+            RawToken::Assign => write!(f, "="),
+            RawToken::Comma => write!(f, ","),
+            RawToken::BoolLiteral(b) => write!(f, "{b}"),
+            RawToken::CharLiteral(c) => write!(
                 f,
                 "character {}",
                 char::from_u32(*c)
@@ -218,34 +203,51 @@ impl Display for Token<'_> {
                     .collect::<String>()
                     .replace("\\u{", "\\x{")
             ),
-            Token::StrLiteral(s) => write!(
+            RawToken::StrLiteral(s) => write!(
                 f,
                 "string {}",
                 s.escape_default().collect::<String>().replace("\\u{", "\\x{")
             ),
-            Token::Identifier(s) => write!(f, "id {s}"),
-            Token::Integer(n) => write!(f, "integer {n}"),
-            Token::LParen => write!(f, "("),
-            Token::RParen => write!(f, ")"),
-            Token::LBracket => write!(f, "["),
-            Token::RBracket => write!(f, "]"),
-            Token::BlockOpen => write!(f, "{{"),
-            Token::BlockClose => write!(f, "}}"),
-            Token::OperatorMul => write!(f, "*"),
-            Token::OperatorHighMul => write!(f, "*>>"),
-            Token::OperatorDiv => write!(f, "/"),
-            Token::OperatorMod => write!(f, "%"),
-            Token::OperatorNot => write!(f, "!"),
-            Token::Minus => write!(f, "-"),
-            Token::OperatorAdd => write!(f, "+"),
-            Token::RelOpEq => write!(f, "=="),
-            Token::RelOpNeq => write!(f, "!="),
-            Token::RelOpGr => write!(f, ">"),
-            Token::RelOpGe => write!(f, ">="),
-            Token::RelOpLt => write!(f, "<"),
-            Token::RelOpLe => write!(f, "<="),
-            Token::Land => write!(f, "&"),
-            Token::Lor => write!(f, "|"),
+            RawToken::Identifier(s) => write!(f, "id {s}"),
+            RawToken::Integer(n) => write!(f, "integer {n}"),
+            RawToken::LParen => write!(f, "("),
+            RawToken::RParen => write!(f, ")"),
+            RawToken::LBracket => write!(f, "["),
+            RawToken::RBracket => write!(f, "]"),
+            RawToken::BlockOpen => write!(f, "{{"),
+            RawToken::BlockClose => write!(f, "}}"),
+            RawToken::OperatorMul => write!(f, "*"),
+            RawToken::OperatorHighMul => write!(f, "*>>"),
+            RawToken::OperatorDiv => write!(f, "/"),
+            RawToken::OperatorMod => write!(f, "%"),
+            RawToken::OperatorNot => write!(f, "!"),
+            RawToken::Minus => write!(f, "-"),
+            RawToken::OperatorAdd => write!(f, "+"),
+            RawToken::RelOpEq => write!(f, "=="),
+            RawToken::RelOpNeq => write!(f, "!="),
+            RawToken::RelOpGr => write!(f, ">"),
+            RawToken::RelOpGe => write!(f, ">="),
+            RawToken::RelOpLt => write!(f, "<"),
+            RawToken::RelOpLe => write!(f, "<="),
+            RawToken::Land => write!(f, "&"),
+            RawToken::Lor => write!(f, "|"),
         }
+    }
+}
+
+// helpers
+
+fn current_span<'s>(lex: &logos::Lexer<'s, RawToken<'s>>) -> Span {
+    Span::new(
+        lex.extras + lex.span().start as u32,
+        lex.extras + lex.span().end as u32
+    )
+}
+
+fn internal_error_unknown_token<'s>(lex: &mut logos::Lexer<'s, RawToken<'s>>) -> InternalLexerError {
+    lexer_error! {
+        span = current_span(lex),
+        message = "unknown token",
+        plabel = "this token",
     }
 }

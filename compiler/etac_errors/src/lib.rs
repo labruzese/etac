@@ -8,10 +8,10 @@ pub enum Level {
     Note,
 }
 
-mod dcx;
-mod emitter;
+pub mod dcx;
+pub mod emitter;
 mod macros;
-mod guarentee;
+pub mod guarentee;
 
 #[cfg(debug_assertions)]
 mod drop_bomb;

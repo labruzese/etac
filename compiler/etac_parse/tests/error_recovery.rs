@@ -2,7 +2,7 @@
 
 use etac_cache::EtaCache;
 use etac_errors::{BufferEmitter, DiagCtxt, Level, RecordedDiag};
-use etac_lexer::Lexer;
+use etac_lexer::EtaLexer;
 use etac_parse::{IParser, Parsed};
 
 /// Test harness around a single parse: the [`Parsed`] outcome plus the full list of

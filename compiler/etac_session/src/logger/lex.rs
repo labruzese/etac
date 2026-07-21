@@ -2,7 +2,7 @@ use std::{fs::File, io::BufWriter, io::Write};
 
 use etac_cache::{EtaCache, FileId};
 use etac_errors::{Diag, Level};
-use etac_lexer::{ILexer, Token};
+use etac_lexer::{ILexer, RawToken};
 
 use crate::logger::Logger;
 
@@ -60,7 +60,7 @@ impl Logger {
     /// keep flowing to the parser.
     pub fn tee_lexer<'ec, 'src, 'dcx, I>(&self, file: FileId<'ec>, cache: &'ec EtaCache, inner: I) -> TeeLexer<'ec, I>
     where
-        I: Iterator<Item = Result<(u32, Token<'src>, u32), Diag<'dcx>>>,
+        I: Iterator<Item = Result<(u32, RawToken<'src>, u32), Diag<'dcx>>>,
     {
         TeeLexer {
             cache,

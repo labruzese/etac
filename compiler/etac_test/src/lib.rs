@@ -2,7 +2,7 @@ use std::fmt::Write as _;
 
 use etac_cache::{EtaCache, FileId, Span};
 use etac_errors::Diag;
-use etac_lexer::Token;
+use etac_lexer::RawToken;
 
 pub fn write_diag(buffer: &mut String, diag: Diag<'_>, cache: &EtaCache) {
     let loc = diag.loc;
@@ -31,9 +31,9 @@ pub fn write_diag(buffer: &mut String, diag: Diag<'_>, cache: &EtaCache) {
     diag.cancel();
 }
 
-pub fn write_token(buffer: &mut String, token: (u32, Token, u32), cache: &EtaCache) {
-    let (start, tok, end) = token;
-    let file = cache.source_name(cache.resolve_span(Span::new(start, end)).1);
+pub fn write_token(buffer: &mut String, token: SourceToken, cache: &EtaCache) {
+    let SourceToken { tok, span } = token;
+    let file = cache.source_name(cache.resolve_span(span));
     let (line_start, column_start) = cache.line_column(start);
     let (line_end, column_end) = cache.line_column(end);
     let _ = writeln!(buffer, "{file}:{line_start}:{column_start}..{line_end}:{column_end} {tok:?}");

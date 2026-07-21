@@ -1,25 +1,16 @@
-use crate::internal_error::InternalLexerError;
+use crate::internal_error::{InternalLexerError, lexer_error};
 
-use super::{global_span, lexer_error, LogosLexer, Span};
+use super::{current_span, LogosLexer, Span};
 
 const VALID_ESCAPES: &str = "valid escapes: '\\n', '\\t', '\\r', '\\\\', '\\'', '\\\"', '\\0', '\\x{..}'";
 
-/// A cursor over the *inner* contents of a char/string literal (i.e. with the
-/// surrounding quotes already stripped). `pos` is tracked as an absolute byte
-/// offset into the *global* source so that spans produced here line up with
-/// `global_span` / the rest of the diagnostics machinery, without needing the
-/// caller to do any offset translation.
 struct Cursor<'a> {
     input: &'a [u8],
-    /// Absolute offset (into the global source) of `input[0]`.
-    base: u32,
-    /// Absolute offset (into the global source) of the next byte to read.
-    pos: u32,
+    base: u32, // in global space
+    pos: u32, // in global space
 }
 
 impl<'a> Cursor<'a> {
-    /// `s` is the inner slice of the literal (quotes stripped). `base` is the
-    /// absolute offset of `s`'s first byte in the global source.
     fn new(s: &'a str, base: u32) -> Self {
         Self {
             input: s.as_bytes(),
@@ -27,11 +18,9 @@ impl<'a> Cursor<'a> {
             pos: base,
         }
     }
-
     fn peek(&self) -> Option<u8> {
         self.input.get((self.pos - self.base) as usize).copied()
     }
-
     fn next(&mut self) -> Option<u8> {
         let b = self.input.get((self.pos - self.base) as usize).copied();
         if b.is_some() {
@@ -39,40 +28,20 @@ impl<'a> Cursor<'a> {
         }
         b
     }
-
-    /// The `&str` spanning `[start, self.pos)`, where `start` is an absolute
-    /// offset previously obtained from `self.loc()`.
+    /// `[start, self.pos)`.
     fn slice_from(&self, start: u32) -> &'a str {
         std::str::from_utf8(&self.input[(start - self.base) as usize..(self.pos - self.base) as usize]).unwrap()
     }
-
     /// Current absolute position (the offset of the next unread byte).
     fn loc(&self) -> u32 {
         self.pos
     }
-
     #[allow(clippy::cast_possible_truncation)]
     fn is_empty(&self) -> bool {
         self.pos - self.base >= self.input.len() as u32
     }
 }
-
-/// Advance the cursor past one full UTF-8 character, starting from a byte
-/// that has *already been consumed* via `cursor.next()` (i.e. `start` is the
-/// absolute offset of that already-consumed first byte). Consumes any
-/// trailing UTF-8 continuation bytes (`0b10xxxxxx`) that follow, then returns
-/// the decoded `char` together with the absolute end offset (one past the
-/// last byte of the character) -- i.e. `cursor.loc()` after the walk.
-///
-/// This is used anywhere we need to report a diagnostic "about" a character
-/// in the source and want the span to cover the *whole* character rather
-/// than just its first byte -- which matters for any non-ASCII input, since
-/// a byte-oriented `Cursor` would otherwise slice into the middle of a
-/// multi-byte sequence.
-///
-/// Precondition: the byte at `start` has already been consumed (this just
-/// walks any *remaining* continuation bytes); the caller is responsible for
-/// having consumed at least the first byte before calling this.
+// move cursor to the end of the curent char
 fn finish_char(cursor: &mut Cursor, start: u32) -> (char, u32) {
     while cursor.peek().is_some_and(|b| b & 0b1100_0000 == 0b1000_0000) {
         cursor.next();
@@ -101,7 +70,7 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
     // range) but want to keep consuming hex digits so the eventual error
     // span covers the *entire* run of digits the user typed, not just the
     // prefix up to the first offending digit.
-    let mut pending_error: Option<(&'static str, &'static str, &'static str)> = None;
+    let mut pending_error: Option<InternalLexerError> = None;
 
     loop {
         match cursor.peek() {
@@ -118,13 +87,9 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                     });
                 }
 
-                if let Some(msg) = pending_error {
-                    return Err(lexer_error! {
-                        span = Span::new(digits_start, close),
-                        message = msg.0,
-                        plabel = msg.1,
-                        note = msg.2,
-                    });
+                if let Some(mut pending_error) = pending_error {
+                    pending_error.span.hi = close; // extend to '}'
+                    return Err(pending_error);
                 }
 
                 return Ok(value);
@@ -134,16 +99,13 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                 digit_count += 1;
 
                 if digit_count > 6 {
-                    // Already over the limit: keep scanning (without
-                    // touching `value`, to avoid u32 overflow on
-                    // pathologically long digit runs) until we find the
-                    // closing `}` so the reported span covers everything
-                    // the user wrote.
-                    pending_error.get_or_insert(
-                        ("too many hex digits in unicode escape",
-                        "too many hex digits here",
-                        "at most 6 hex digits are allowed between '{' and '}' (codepoints only go up to 10FFFF), e.g. '\\x{10FFFF}'"),
-                    );
+                    // keep scanning (without overflowing `value`, until `}` for better span.
+                    pending_error.get_or_insert(lexer_error! {
+                        span = Span::new(digits_start, cursor.pos),
+                        message = "too many hex digits in unicode escape",
+                        plabel = "too many hex digits here",
+                        note = "at most 6 hex digits are allowed between '{' and '}' (codepoints only go up to 10FFFF), e.g. '\\x{10FFFF}'"
+                    });
                     continue;
                 }
 
@@ -156,24 +118,17 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                 value = (value << 4) | u32::from(digit);
 
                 if value > 0x0010_FFFF {
-                    // In range for *digit count* but the numeric value
-                    // exceeds the maximum valid Unicode codepoint. Keep
-                    // scanning (same reasoning as above) rather than
-                    // bailing immediately, so the span covers the whole
-                    // digit run instead of stopping at the first digit
-                    // that tipped it over.
-                    pending_error.get_or_insert((
-                        "unicode escape out of range",
-                        "this isn't a valid codepoint",
-                        "the maximum valid codepoint is U+10FFFF ('\\x{10FFFF}')",
-                    ));
+                    // keep scanning (without overflowing `value`, until `}` for better span.
+                    pending_error.get_or_insert(lexer_error! {
+                        span = Span::new(digits_start, cursor.pos),
+                        message = "unicode escape out of range",
+                        plabel = "this isn't a valid codepoint",
+                        note = "the maximum valid codepoint is U+10FFFF ('\\x{10FFFF}')"
+                    });
                 }
             }
             Some(_) => {
-                // Not a hex digit and not '}': report the diagnostic over
-                // the *entire* character at this position, not just its
-                // first byte, so multi-byte UTF-8 input doesn't produce a
-                // span that lands mid-character.
+                // Not a hex digit and not '}'
                 let start = cursor.loc();
                 cursor.next();
                 let (ch, end) = finish_char(cursor, start);
@@ -185,11 +140,7 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                 });
             }
             None => {
-                // Ran off the end of the literal before finding a closing
-                // '}'. Span the whole thing the user actually wrote, from
-                // the opening '{' to wherever the literal's content ends
-                // (i.e. as far as this Cursor can see), rather than just
-                // pointing at the single byte where we gave up.
+                // Ran off the end of the literal before finding a closing '}'.
                 let end = cursor.loc();
                 return Err(lexer_error! {
                     span = Span::new(open, end),
@@ -232,11 +183,8 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
             let cp = parse_hex(cursor, esc_start)?;
             let end = cursor.loc();
 
-            // Reject UTF-16 surrogate halves (U+D800–U+DFFF). These are
-            // not valid Unicode scalar values and cannot be represented as
-            // `char`. We catch this here — after parse_hex, before
-            // constructing any `char` — so both char and string literals
-            // get the error from a single place.
+            // Reject UTF-16 surrogate halves (U+D800–U+DFFF). These are not valid Unicode scalar values and cannot be 
+            // represented a `char`.
             if (0xD800..=0xDFFF).contains(&cp) {
                 return Err(lexer_error! {
                     span = Span::new(esc_start, end),
@@ -248,13 +196,11 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
                 });
             }
 
-            // char::from_u32 accepts all non-surrogate codepoints ≤
-            // U+10FFFF, which is exactly what parse_hex already allows
-            // through, so this unwrap cannot fail.
+            // char::from_u32 accepts all non-surrogate codepoints <= U+10FFFF so this unwrap cannot fail.
             let _ = esc_span; // span was only needed for the surrogate error above
             char::from_u32(cp).expect(
-                "decode_escape: parse_hex returned a non-surrogate codepoint that \
-                 char::from_u32 rejected -- this is a bug",
+                "decode_escape: parse_hex returned a non-surrogate codepoint that char::from_u32 rejected \
+                -- this is a bug",
             )
         }
 
@@ -270,9 +216,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
 
         _ => {
             // The byte after `\` is the first byte of a multi-byte UTF-8
-            // character. Walk the rest of that character so both the
-            // reported character and the error span are correct, instead
-            // of misinterpreting a lone continuation byte via `as char`.
+            // character. Walk the rest of that character so both the reported character and the error span are correct
             let (ch, end) = finish_char(cursor, b_pos);
             return Err(lexer_error! {
                 span = Span::new(esc_start, end),
@@ -288,7 +232,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
 
 pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLexerError> {
     let raw = lex.slice();
-    let tok_span = global_span(lex);
+    let tok_span = current_span(lex);
 
     if raw == "''" {
         return Err(lexer_error!{
@@ -311,7 +255,7 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLe
         }
         Some(_) => {
             let start = cursor.loc();
-            // Advance past one full UTF-8 character, not just one byte.
+            // Advance past one full UTF-8 character
             cursor.next();
             let (c, _end) = finish_char(&mut cursor, start);
             c
@@ -326,10 +270,8 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLe
     };
 
     if !cursor.is_empty() {
-        // Multiple characters (or a character plus trailing junk) inside
-        // a single-quoted literal: span the *entire* literal, including
-        // both quotes, so the user sees the whole offending token rather
-        // than just the tail end of it.
+        // Multiple characters (or a character plus trailing junk) inside a single-quoted literal: 
+        // span the *entire* literal, including both quotes
         return Err(lexer_error! {
             span = tok_span,
             message = "too many characters in char literal",
@@ -343,7 +285,7 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLe
 
 pub fn parse_str(lex: &mut LogosLexer<'_>) -> Result<String, InternalLexerError> {
     let raw = lex.slice();
-    let tok_span = global_span(lex);
+    let tok_span = current_span(lex);
 
     let inner_base = tok_span.lo + 1;
     let inner = &raw[1..raw.len() - 1];
@@ -358,13 +300,11 @@ pub fn parse_str(lex: &mut LogosLexer<'_>) -> Result<String, InternalLexerError>
                 out.push(esc);
             }
 
-            // ASCII fast path: push directly, no need to look at UTF-8
-            // continuation bytes.
+            // ASCII: push directly, no need to look at UTF-8 continuation bytes.
             b if b.is_ascii() => out.push(b as char),
 
-            // Non-ASCII: walk back one byte (already consumed by `next()`)
-            // and re-decode the full UTF-8 sequence as a `&str` so
-            // multi-byte characters survive intact.
+            // Non-ASCII: walk back one byte (already consumed by `next()`) and re-decode the full UTF-8 sequence as a 
+            // `&str`
             _ => {
                 let start = cursor.loc() - 1;
                 let (c, _end) = finish_char(&mut cursor, start);

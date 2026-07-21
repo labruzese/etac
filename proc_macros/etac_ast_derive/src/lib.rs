@@ -259,7 +259,7 @@ fn expand(input: &DeriveInput) -> Result<Ts2> {
     } else {
         quote!(visitor.#visitor_fn_name(self))
     };
-    eprintln!("fn {}(&mut self, {}: &{});", visitor_fn_name, ident_case::RenameRule::SnakeCase.apply_to_variant(input.ident.to_string()), input.ident);
+    //eprintln!("fn {}(&mut self, {}: &{});", visitor_fn_name, ident_case::RenameRule::SnakeCase.apply_to_variant(input.ident.to_string()), input.ident);
 
     Ok(quote! {
         #[automatically_derived]

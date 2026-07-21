@@ -1,13 +1,13 @@
 use etac_cache::{EtaCache, FileId};
 use etac_errors::DiagCtxt;
-use etac_lexer::Lexer;
+use etac_lexer::EtaLexer;
 
 /// testing interface for lexer
 pub fn lex<'ec>(cache: &'ec EtaCache, file_id: FileId<'ec>) -> String {
     let dcx = DiagCtxt::new(cache);
 
     let mut out = String::new();
-    for item in Lexer::new(cache.base_offset(file_id), cache.source_text(file_id), &dcx) {
+    for item in EtaLexer::new(cache.base_offset(file_id), cache.source_text(file_id), &dcx) {
         match item {
             Ok(token) => {
                 etac_test::write_token(&mut out, token, cache);

@@ -1,7 +1,7 @@
 use etac_ast::{Expr, ExprKind, LValue, LvalueKind};
 use etac_cache::{EtaCache, Span};
 use etac_errors::{etac_error, Diag, DiagCtxt};
-use etac_lexer::{ILexer, Token};
+use etac_lexer::{ILexer, RawToken};
 use lalrpop_util::{lalrpop_mod, ErrorRecovery, ParseError};
 
 #[macro_use]
@@ -37,7 +37,7 @@ impl<Out> Parsed<Out> {
 pub(crate) struct ParseState<'dcx, 'src> {
     pub diagc: &'dcx DiagCtxt<'dcx>,
     pub cache: &'dcx EtaCache,
-    pub lalrpop_errs: Vec<ErrorRecovery<u32, Token<'src>, Diag<'dcx>>>,
+    pub lalrpop_errs: Vec<ErrorRecovery<u32, RawToken<'src>, Diag<'dcx>>>,
     pub etac_errs: Vec<Diag<'dcx>>,
 }
 
@@ -144,7 +144,7 @@ pub(crate) fn lvalue_to_expr(lv: LValue, cache: &EtaCache) -> Expr {
 /// LALRPOP error to [`Diag`]
 fn to_diag<'dcx, 'src>(
     diagc: &'dcx DiagCtxt,
-    err: ParseError<u32, Token<'src>, Diag<'dcx>>,
+    err: ParseError<u32, RawToken<'src>, Diag<'dcx>>,
 ) -> Diag<'dcx> {
     use ParseError::*;
     match err {

@@ -88,7 +88,7 @@ impl DiagCtx {
 }
 
 #[derive(Debug)]
-pub(crate) struct Diagnostic {
+pub struct Diagnostic {
     pub level: Level,
     pub message: String,
     pub loc: Option<Span>,
@@ -108,7 +108,7 @@ pub(crate) struct Diagnostic {
 #[must_use = "a Diag does nothing until you call `.emit()` (or `.cancel()` it)"]
 pub struct Diag<'dcx> {
     pub(crate) dcx: &'dcx DiagCtx,
-    pub diagnostic: Box<Diagnostic>,
+    diagnostic: Box<Diagnostic>,
     #[cfg(debug_assertions)] bomb: DropBomb,
 }
 impl<'dcx> Diag<'dcx> {

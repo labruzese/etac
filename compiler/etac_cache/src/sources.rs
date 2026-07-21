@@ -84,6 +84,7 @@ pub struct Span {
     pub hi: u32,
 }
 impl Span {
+    pub const DUMMY: Span = Span { lo: u32::MAX, hi: u32::MAX };
     pub fn new(lo: impl Into<u32>, hi: impl Into<u32>) -> Self {
         Self { lo: lo.into(), hi: hi.into(), }
     }

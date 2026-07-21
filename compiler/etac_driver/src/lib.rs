@@ -29,7 +29,7 @@ where
     P::Out: std::fmt::Display,
 {
     let cache = dcx.cache();
-    let lexer = etac_lexer::Lexer::new(cache.base_offset(file), cache.source_text(file), dcx);
+    let lexer = etac_lexer::EtaLexer::new(cache.base_offset(file), cache.source_text(file), dcx);
 
     let mut lexer = if logger.lex {
         compat::ULexer::Tee(logger.tee_lexer(file, cache, lexer))
@@ -82,7 +82,7 @@ pub fn run(flags: &Flags) -> CompilationResult {
     let files: Vec<File<'_>> = flags
         .source_files
         .iter()
-        .filter_map(|path| match resolver.classify_cli(&dcx, path) {
+        .filter_map(|path| match resolver.classify_cli(&mut cache.sources, &dcx, path) {
             Ok(file) => file,
             Err(diag) => {
                 diag.emit();
@@ -107,7 +107,7 @@ pub fn run(flags: &Flags) -> CompilationResult {
     }
 
     match dcx.has_errors() {
-        Some(_) => Err((&dcx).into()),
-        None => Ok((&dcx).into()),
+        true => Err((&dcx).into()),
+        false => Ok((&dcx).into()),
     }
 }
