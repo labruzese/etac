@@ -6,9 +6,8 @@ authors.workspace = true
 
 [dependencies]
 etac_ast.workspace           = true
-elsa.workspace               = true
-dashmap.workspace            = true
-crossbeam-skiplist.workspace = true
+etac_source.workspace 	     = true
+etac_intern.workspace 	     = true
 id-arena.workspace 	     = true
 
 [lints]

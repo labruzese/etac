@@ -36,16 +36,16 @@ pub fn node(_attr: TokenStream, item: TokenStream) -> TokenStream {
         None => {
             return Error::new_spanned(
                 input,
-                "struct must declare `node_id: NodeId<Self>` to be a #[node]",
+                "struct must declare `node_id: Id<Self>` to be a #[node]",
             ).into_compile_error().into();
         }
     };
     let ty = &node_id_field.ty;
     let ty_str = quote!(#ty).to_string().replace(' ', "");
-    if !ty_str.ends_with("NodeId<Self>") {
+    if !ty_str.ends_with("Id<Self>") {
         return Error::new_spanned(
             &node_id_field.ty,
-            "the `node_id` field of a #[node] must have type `NodeId<Self>`",
+            "the `node_id` field of a #[node] must have type `Id<Self>`",
         ).into_compile_error().into();
     }
 
@@ -59,7 +59,7 @@ pub fn node(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let expanded = quote! {
         #input
         impl AstNode<#name> for #name {
-            fn node_id(&self) -> NodeId<#name> {
+            fn node_id(&self) -> Id<#name> {
                 self.node_id
             }
         }

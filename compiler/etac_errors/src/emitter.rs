@@ -6,7 +6,7 @@
 use std::{cell::RefCell, collections::HashMap, io::Write, rc::Rc};
 
 use ariadne::{Config, IndexType, Label, Report, ReportKind};
-use etac_cache::sources::{FileId, SourceMap};
+use etac_source::{FileId, SourceMap};
 
 use crate::{Level};
 

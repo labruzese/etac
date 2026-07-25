@@ -1,8 +1,8 @@
-use either::Either;
-use etac_ast::*;
+use etac_source::{Span, Symbol};
 use etac_errors::{etac_error, Diag};
 use etac_lexer::Token;
-use etac_cache::Span;
+use etac_ast::ast::*;
+
 use crate::{ParseState, lvalue_to_expr};
 use crate::alloc;
 
@@ -34,7 +34,7 @@ extern {
     type Location = u32;
     type Error = Diag<'dcx>;
 
-    enum Token<'src> {
+    enum Token {
         "use"     => Token::KeywordUse,
         "length"  => Token::KeywordLength,
         "while"   => Token::KeywordWhile,
@@ -76,29 +76,34 @@ extern {
         "boollit" => Token::BoolLiteral(<bool>),
         "charlit" => Token::CharLiteral(<u32>),
         "strlit"  => Token::StrLiteral(<String>),
-        "ident"   => Token::Identifier(<&'src str>),
+        "ident"   => Token::Identifier(<Symbol>),
         "intlit"  => Token::Integer(<i64>),
     }
 }
 
-// ---- Identifiers ----
+// -- error handeling --
 
-Ident: Ident = <l:@L> <s:"ident"> <r:@R> => Ident::new(state.cache.alloc_span(Span::new(l, r)), s.to_string());
+Error: Span = {
+    <l:@L> <e:!> <r:@R> => { 
+	state.lalrpop_errs.push(e);
+	l..r.into()
+    }
+}
 
 // Top level
 
 pub Program: Program = {
-    <l:@L> <uses:UseList> <definitions:Definition+> <r:@R> =>
-	alloc!{ Program::new(uses, definitions) @l..r }
-    <uses:UseList> <r:@R> =>? Err(
+    <l:@L> <uses:Use*> <definitions:DefinitionKind+> <r:@R> => Program { span: l..r.into(), uses, definitions },
+
+    <uses:Use*> <r:@R> =>? Err(
 	etac_error! {
-	    state.diagc, Span::new(r, r), "Program must contain at least one definition";
+	    state.diagc, r..r, "Program must contain at least one definition";
 	    primary: "expected definition"
 	}.into()
     ),
-    <uses:UseList> <definitions:Definition+> <l:@L> <u:Use> <r:@R> <mul:UseList> =>? Err(
+    <uses:Use*> <definitions:DefinitionKind+> <l:@L> <u:Use> <r:@R> <mul:Use*> =>? Err(
 	etac_error! {
-	    state.diagc, Span::new(l, r), "Use statements must go above all defintions";
+	    state.diagc, l..r, "Use statements must go above all defintions";
 	    primary: "Use not allowed here";
 	    note: "Try moving this use to the top of the file";
 	}.into()
@@ -107,406 +112,361 @@ pub Program: Program = {
 }
 
 pub Interface: Interface = {
-    <l:@L> <items:InterfaceItem+> <r:@R> => Interface::new(state.cache.alloc_span(Span::new(l, r)), items),
+    <l:@L> <items:InterfaceItemKind+> <r:@R> => Interface { span: l..r.into(), items },
     <r:@R> =>? Err(
 	etac_error! {
-	    state.diagc, Span::new(r, r), "Interface must contain at least one method declaration";
+	    state.diagc, r..r, "Interface must contain at least one method declaration";
 	    primary: "expected declaration"
 	}.into()
     ),
 }
 
-InterfaceItem: InterfaceItem = {
-    <md:MethodDecl> => InterfaceItem::new(
-	state.cache.dup_span(md.node_id),
-	InterfaceItemKind::MethodDecl(md)
-    ),
-    <l:@L> <e:!> <r:@R> => {
-	state.lalrpop_errs.push(e);
-	InterfaceItem::new(
-	    state.cache.alloc_span(Span::new(l, r)),
-	    InterfaceItemKind::Error
-	)
-    }
-}
-
-UseList: Vec<Use> = {
-    <mut h:UseList> <t:Use> => {
-        h.push(t);
-	h
-    },
-    => vec![],
-}
-
 Use: Use = {
-    <l:@L> "use" <id:Ident> ";"? <r:@R> => Use::new(state.cache.alloc_span(Span::new(l, r)), id),
+    <l:@L> "use" <interface:Ident> ";"? <r:@R> => Use { span: l..r.into(), interface },
 }
 
-Definition: Definition = {
-    <m:Method>    => Definition::new(state.cache.dup_span(m.node_id), DefinitionKind::Method(m)),
-    <gd:GlobDecl> => Definition::new(state.cache.dup_span(gd.node_id), DefinitionKind::GlobDecl(gd)),
-    <l:@L> <e:!> <r:@R> => {
-	state.lalrpop_errs.push(e);
-	Definition::new(
-	    state.cache.alloc_span(Span::new(l, r)),
-	    DefinitionKind::Error
-	)
-    }
+DefinitionKind: DefinitionKind = {
+    Method    	=> DefinitionKind::Method(<>),
+    GlobDecl 	=> DefinitionKind::GlobDecl(<>),
+    Error	=> DefinitionKind::Error(<>)
+}
+
+InterfaceItemKind: InterfaceItemKind = {
+    MethodDecl	=> InterfaceItemKind::MethodDecl(<>),
+    Error 	=> InterfaceItemKind::Error(<>),
 }
 
 MethodDecl: MethodDecl = {
-    <l:@L> <id:Ident> "(" <params:Comma<Decl>> ")" <ret:(":" <CommaPlus<Type>>)?> <r:@R> =>
-        MethodDecl::new(state.cache.alloc_span(Span::new(l, r)), id, params, ret.unwrap_or_default()),
+    <l:@L> 
+	<id:Ident> "(" <params:Comma<Decl>> ")" 
+	<ret:(":" <CommaPlus<TypeKind>>)?> 
+    <r:@R> =>
+        MethodDecl { span: l..r.into(), id, params, ret: ret.unwrap_or_default() },
 }
 
 Method: Method = {
-    <l:@L> <decl:MethodDecl> <body:Block> <r:@R> => {
-	let MethodDecl { id, params, ret_types, .. } = decl;
-	Method::new(state.cache.alloc_span(Span::new(l, r)), id, params, ret_types, body)
-    },
-    // Recover a broken body while preserving the (already-valid) signature, so
-    // downstream passes can still resolve calls to this method.
-    <l:@L> <decl:MethodDecl> <bl:@L> <e:!> <r:@R> => {
-	state.lalrpop_errs.push(e);
-	let MethodDecl { id, params, ret_types, .. } = decl;
-	let bspan = Span::new(bl, r);
-	let err = Stmt::new(state.cache.alloc_span(bspan), StmtKind::Error);
-	let body = Block::new(state.cache.alloc_span(bspan), vec![err]);
-	Method::new(state.cache.alloc_span(Span::new(l, r)), id, params, ret_types, body)
-    },
+    <l:@L> <decl:MethodDecl> <body:MethodBodyKind> <r:@R> => Method { span: l..r.into(), decl, body },
+}
+
+MethodBodyKind: MethodBodyKind = {
+    Block => MethodBodyKind::Block(<>),
+    Error => MethodBodyKind::Error(<>),
 }
 
 GlobDecl: GlobDecl = {
-    <l:@L> <id:Ident> ":" <typ:GlobDeclType> <val:("=" <GlobalValue>)?> ";"? <r:@R> =>
-	GlobDecl::new(state.cache.alloc_span(Span::new(l, r)), id, typ, val),
+    <l:@L> <id:Ident> ":" <typ:GlobDeclTypeKind> <val:("=" <LitKind>)?> ";"? <r:@R> =>
+	GlobDecl { span: l..r.into(), id, typ, val },
 }
 
-GlobalValue: Value = {
-    <l:@L> "-" <n:"intlit"> <r:@R> 	=> panic!("lexer should've parsed this as [i64] not -[i64]"),
-    <l:@L> <n:"intlit"> <r:@R>    	=> Value::new(state.cache.alloc_span(Span::new(l, r)), ValueKind::Int(n)),
-    <l:@L> <b:"boollit"> <r:@R>		=> Value::new(state.cache.alloc_span(Span::new(l, r)), ValueKind::Bool(b)),
+// -- statements -- 
+
+StmtKind: StmtKind = {
+    Stmt_Open,
+    Stmt_Closed,
+    <l:@L> <e:!> <r:@R> => { state.lalrpop_errs.push(e); StmtKind::Error(l..r.into()) }
 }
 
-
-// ----- Types -----
-
-Type: Type = {
-    TypeSized,
-    TypeUnsized,
-    <l:@L> <e:!> <r:@R> => {
-	state.lalrpop_errs.push(e);
-	Type::new(state.cache.alloc_span(Span::new(l, r)), TypeKind::Error)
-    }
+IfStmt: IfStmt = {
+    IfStmt_Open,
+    IfStmt_Closed,
 }
 
-
-SizedDim: (u32, Expr, u32) = {
-    <l:@L> "[" <size:Expr> "]" <r:@R> => (l, size, r)
-}
-UnsizedDim: (u32, u32) = {
-    <l:@L> "[" "]" <r:@R> => (l, r)
+WhileStmt: WhileStmt = {
+    WhileStmt_Open,
+    WhileStmt_Closed,
 }
 
-TypeUnsized: Type = {
-    <base:BaseType> <sdims:SizedDim*> <udims:UnsizedDim+> => {
-        let all: Vec<_> = sdims.into_iter().map(Either::Left)
-            .chain(udims.into_iter().map(Either::Right))
-            .collect();
-        all.into_iter().rev().fold(base, |inner, dim| match dim {
-            Either::Left((l, size, r)) =>
-                Type::new(state.cache.alloc_span(Span::new(l, r)), TypeKind::Array {
-		    of: Box::new(inner),
-		    size: Some(Box::new(size))
-		}),
-            Either::Right((l, r)) =>
-                Type::new(state.cache.alloc_span(Span::new(l, r)), TypeKind::Array {
-		    of: Box::new(inner),
-		    size: None
-		}),
-        })
-    }
+ReturnStmt: ReturnStmt = {
+    <l:@L> "return" <values:Comma<ExprKind>> ";"? <r:@R> => ReturnStmt { span: l..r.into(), values },
 }
 
-TypeSized: Type = {
-    <BaseType>,
-    <base:BaseType> <dims:SizedDim+> => {
-        dims.into_iter().rev().fold(base, |inner, (l, size, r)| {
-            Type::new(state.cache.alloc_span(Span::new(l, r)), TypeKind::Array {
-		of: Box::new(inner),
-		size: Some(Box::new(size))
-	    })
-        })
-    }
-}
-
-GlobDeclType: Type = {
-    <BaseType>,
-    <TypeUnsized>,
-    <base:BaseType> "[" <l:@L> <size:Expr> <r:@R> "]" =>? Err(
-	etac_error! {
-	    state.diagc, Span::new(l, r), "Global arrays can't be initialized at the point of declaration";
-	    primary: "initialization happens here"
-	}.into()
-    ),
-}
-
-BaseType: Type = {
-    <l:@L> "int" <r:@R> 	=> Type::new(state.cache.alloc_span(Span::new(l, r)), TypeKind::Int),
-    <l:@L> "bool" <r:@R>	=> Type::new(state.cache.alloc_span(Span::new(l, r)), TypeKind::Bool),
-}
-
-// ----- Blocks -----
 
 Block: Block = {
-    <l:@L> "{" <mut stmts:(<Stmt> ";"?)*> <ret:ReturnStmtNode?> "}" <r:@R> => {
-	if let Some(ret) = ret { stmts.push(ret); }
-	Block::new(state.cache.alloc_span(Span::new(l, r)), stmts)
+    <l:@L> "{" <mut stmts:(<StmtKind> ";"?)*> <ret:ReturnStmt?> "}" <r:@R> => {
+	if let Some(ret) = ret { stmts.push(StmtKind::Return(ret)); }
+	Block { span: l..r.into(), stmts }
     },
 }
 
-
-// ---- Statements (General and Control Flow) ----
-
-Stmt: Stmt = {
-    StmtOpen,
-    StmtClosed,
-    <l:@L> <e:!> <r:@R> => {
-	state.lalrpop_errs.push(e);
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::Error)
-    }
+AssignStmt: AssignStmt = {
+    <l:@L> <targets:TargetKind> "=" <values:CommaPlus<ExprKind>> <r:@R> => AssignStmt { span: l..r.into(), targets, values },
 }
-
-ReturnStmtNode: Stmt = {
-    <l:@L> "return" <values:Comma<Expr>> ";"? <r:@R> =>
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::Return { values }),
-}
-
-// elses can be matched
-StmtOpen: Stmt = {
-    IfStmtOpen,
-    WhileStmtOpen,
-}
-
-IfStmtOpen: Stmt = {
-    <l:@L> "if" <cond:Expr> <t:Stmt> <r:@R> =>
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::If {
-	    cond,
-	    then_branch: Box::new(t),
-	    else_branch: None
-	}),
-    <l:@L> "if" <cond:Expr> <t:StmtClosed> "else" <e:StmtOpen> <r:@R> =>
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::If {
-	    cond,
-	    then_branch: Box::new(t),
-	    else_branch: Some(Box::new(e))
-	}),
-}
-WhileStmtOpen: Stmt = {
-    <l:@L> "while" <cond:Expr> <body:StmtOpen> <r:@R> =>
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::While {
-	    cond,
-	    body: Box::new(body)
-	}),
-}
-
-// nothing for else to match
-StmtClosed: Stmt = {
-    IfStmtClosed,
-    WhileStmtClosed,
-    <l:@L> <b:Block> <r:@R>          	=> Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::Block(b)),
-    <l:@L> <pcall:ProcCall> <r:@R>   	=> Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::Call(pcall)),
-    <l:@L> <decls:DeclTargets> <r:@R> 	=> Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::Decls(decls)),
-    <l:@L> <ts:DeclTargets> "=" <values:CommaPlus<Expr>> <r:@R> =>
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::Assign {
-	    targets: ts.into_iter().map(Target::Decl).collect(),
-	    values,
-	}),
-    <l:@L> <ts:NonDeclTargets> "=" <values:CommaPlus<Expr>> <r:@R> =>
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::Assign {
-	    targets: ts,
-	    values
-	}),
-}
-
-IfStmtClosed: Stmt = {
-    <l:@L> "if" <cond:Expr> <t:StmtClosed> "else" <e:StmtClosed> <r:@R> =>
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::If {
-	    cond,
-	    then_branch: Box::new(t),
-	    else_branch: Some(Box::new(e))
-	}),
-}
-WhileStmtClosed: Stmt = {
-    <l:@L> "while" <cond:Expr> <body:StmtClosed> <r:@R> =>
-	Stmt::new(state.cache.alloc_span(Span::new(l, r)), StmtKind::While {
-	    cond,
-	    body: Box::new(body)
-	}),
-}
-
-// ---- Non-Control Flow Statements ----
 
 Decl: Decl = {
-    <l:@L> <id:Ident> ":" <typ:Type> <r:@R> => Decl::new(state.cache.alloc_span(Span::new(l, r)), id, typ),
+    <l:@L> <id:Ident> ":" <typ:TypeKind> <r:@R> => Decl { span: l..r.into(), id, typ },
+}
+
+// -- disambiguate assignment vs decl since we can't lookahead we need to keep possibilities as state -- 
+
+Assign_Or_Decl: StmtKind = {
+    <l:@L> <decls:DeclTargets> <r:@R> 						=> StmtKind::Decls(MultiDeclStmt { span: l..r.into(), decls }),
+    <l:@L> <targets:DeclTargets> "=" <values:CommaPlus<ExprKind>> <r:@R> 	=> StmtKind::Assign(AssignStmt { span: l..r.into(), targets: targets.into_iter().map(TargetKind::Decl).collect(), values }),
+    <l:@L> <targets:NonDeclTargets> "=" <values:CommaPlus<ExprKind>> <r:@R> 	=> StmtKind::Assign(AssignStmt { span: l..r.into(), targets, values }),
 }
 
 // pure decl target also valid as multi-decl
 DeclTargets: Vec<Decl> = {
-    <d:Decl> => vec![d],
-    <mut p:DeclTargets> "," <n:Decl> => {
-	p.push(n);
-	p
-    }
+    Decl => vec![<>],
+    <mut p:DeclTargets> "," <n:Decl> => { p.push(n); p }
 }
 
 // contains >0 non-decl target (not valid multi-decl)
-NonDeclTargets: Vec<Target> = {
-    <t:NonDeclTarget> => vec![t],
-    <p:DeclTargets> "," <n:NonDeclTarget> =>
-	p.into_iter().map(Target::Decl).chain(std::iter::once(n)).collect(),
-    <mut p:NonDeclTargets> "," <n:NonDeclTarget> => {
-	p.push(n);
-	p
-    },
-    <mut p:NonDeclTargets> "," <n:Decl> => {
-	p.push(Target::Decl(n));
-	p
-    }
+NonDeclTargets: Vec<TargetKind> = {
+    NonDeclTarget 				=> vec![<>],
+    <p:DeclTargets> "," <n:NonDeclTarget> 	=> p.into_iter().map(TargetKind::Decl).chain(std::iter::once(n)).collect(),
+    <mut p:NonDeclTargets> "," <n:NonDeclTarget>=> { p.push(n); p },
+    <mut p:NonDeclTargets> "," <n:Decl> 	=> { p.push(TargetKind::Decl(n)); p }
 }
 
-NonDeclTarget: Target = {
-    <lv:LValue> 	 => Target::LValue(lv),
-    <l:@L> "_" <r:@R>	 => Target::Discard(Leaf::new(state.cache.alloc_span(Span::new(l, r)), ())),
+NonDeclTarget: TargetKind = {
+    LValueKind 	 	=> TargetKind::LValue(<>),
+    Discard		=> TargetKind::Discard(<>),
 }
 
-LValue: LValue = {
-    <base:LValueBase> <indices:ArrayIndex*> => {
-        indices.into_iter().fold(base, |lv, (idx, ispan)| {
-            let span = state.cache.span(lv.node_id).to(ispan);
-	    let array = lvalue_to_expr(lv, state.cache);
-            LValue::new(state.cache.alloc_span(span), LValueKind::Index {
-		array: Box::new(array),
-		index: Box::new(idx)
-	    })
-        })
-    },
+// -- elses can be matched -- 
+
+Stmt_Open: StmtKind = {
+    IfStmt_Open 	=> StmtKind::If(<>),
+    WhileStmt_Open 	=> StmtKind::While(<>),
 }
-LValueBase: LValue = {
-    <id:Ident>        => LValue::new(state.cache.dup_span(id.node_id), LValueKind::Id(id)),
-    <pc:ProcCall>     => LValue::new(state.cache.dup_span(pc.node_id), LValueKind::ProcCall(pc)),
+
+IfStmt_Open: IfStmt = {
+    <l:@L> "if" <cond:ExprKind> <t:StmtKind> <r:@R> 			=> 
+	IfStmt { span: l..r.into(), cond, then_branch: Box::new(t), else_branch: None },
+    <l:@L> "if" <cond:ExprKind> <t:Stmt_Closed> "else" <e:Stmt_Open> <r:@R> 	=> 
+	IfStmt { span: l..r.into(), cond, then_branch: Box::new(t), else_branch: Some(Box::new(e)) },
+}
+
+WhileStmt_Open: WhileStmt = {
+    <l:@L> "while" <cond:ExprKind> <body:Stmt_Open> <r:@R> => WhileStmt { span: l..r.into(), cond, body: Box::new(body) },
+}
+
+// -- nothing for else to match -- 
+
+Stmt_Closed: StmtKind = {
+    Assign_Or_Decl,
+    IfStmt_Closed			=> StmtKind::If(<>),
+    WhileStmt_Closed			=> StmtKind::While(<>),
+    Block     				=> StmtKind::Block(<>),
+    ProcCall   				=> StmtKind::Call(<>),
+}
+
+IfStmt_Closed: IfStmt = {
+    <l:@L> "if" <cond:ExprKind> <t:Stmt_Closed> "else" <e:Stmt_Closed> <r:@R> => 
+	IfStmt { span: l..r.into(), cond, then_branch: Box::new(t), else_branch: Some(Box::new(e)) },
+}
+
+WhileStmt_Closed: WhileStmt = {
+    <l:@L> "while" <cond:ExprKind> <body:Stmt_Closed> <r:@R> => 
+	WhileStmt { span: l..r.into(), cond, body: Box::new(body) },
+}
+
+
+// -- types --
+
+TypeKind: TypeKind = {
+    TypeSized,
+    TypeUnsized,
+    <l:@L> <e:!> <r:@R> => { state.lalrpop_errs.push(e); TypeKind::Error(l..r.into()) }
+}
+
+GlobDeclTypeKind: TypeKind = {
+    TypeUnsized,
+    <l:@L> <_t:TypeSized> <r:@R> =>? Err(etac_error! {
+	state.diagc, l..r.into(), "global arrays can't be initialized at the point of declaration";
+	primary: "initialization happens here"
+    }.into()),
+}
+
+TypeUnsized: TypeKind = {
+    <base:TypeUnsized> <l:@L> <udim:UnsizedDim> <r:@R> => 
+	TypeKind::Array(ArrType { span: l..r.into(), of: Box::new(base), size: None }),
+    <base:TypeSized> <l:@L> <udim:UnsizedDim> <r:@R> =>
+	TypeKind::Array(ArrType { span: l..r.into(), of: Box::new(base), size: None }),
+}
+
+TypeSized: TypeKind = {
+    <l:@L> "int" <r:@R> 				=> TypeKind::Int(l..r.into()),
+    <l:@L> "bool" <r:@R> 				=> TypeKind::Bool(l..r.into()),
+    <base:TypeSized> <l:@L> <size:SizedDim> <r:@R> 	=> TypeKind::Array(ArrType { span: l..r.into(), of: Box::new(base), size })
+}
+
+SizedDim: Option<ExprKind> = {
+   "[" ExprKind "]" => Some(<>)
+}
+
+UnsizedDim: Option<ExprKind> = {
+    "[" "]" => None
+}
+
+// -- targets & lvalues --
+
+TargetKind: TargetKind = {
+    LValueKind 	=> TargetKind::LValue(<>),
+    Decl 	=> TargetKind::Decl(<>),
+    Discard	=> TargetKind::Discard(<>),
+}
+
+Discard: Span = {
+    <l:@L> "_" <r:@R> => l..r.into()
+}
+
+LValueKind: LValueKind = {
+    Ident 			=> LValueKind::Id(<>),
+    ProcCall 			=> LValueKind::ProcCall(<>),
+    ExprIndex<LValueExprs> 	=> LValueKind::Index(<>),
+}
+
+LValueExprs: ExprKind = {
+    Ident 			=> ExprKind::Id(<>),
+    ProcCall 			=> ExprKind::Call(<>),
+    ExprIndex<LValueExprs> 	=> ExprKind::Index(<>),
+}
+
+// ---- expressions ----
+
+Ident: Ident = {
+    <l:@L> <sym:"ident"> <r:@R> => Ident { span: l..r.into(), sym },
 }
 
 ProcCall: ProcCall = {
-    <l:@L> <id:Ident> "(" <args:Comma<Expr>> ")" <r:@R> => ProcCall::new(state.cache.alloc_span(Span::new(l, r)), id, args),
+    <l:@L> <id:Ident> "(" <args:Comma<ExprKind>> ")" <r:@R> => ProcCall { span: l..r.into(), id, args },
 }
 
-// index expression plus the span of the `[..]` bracket group
-#[inline] ArrayIndex: (Expr, Span) = {
-    <l:@L> "[" <e:Expr> "]" <r:@R> => (e, Span::new(l, r))
+LengthCall: LengthCall = {
+    <l:@L> "length" "(" <array:ExprKind> ")" <r:@R> => LengthCall { span: l..r.into(), param: Box::new(array) },
 }
 
-// ---- Expressions ----
-
-#[inline] UnaryOp: UOp = {
-    "-" => UOp::Neg,
-    "!" => UOp::Not
+LitKind: LitKind = {
+    IntLit,
+    BoolLit,
+    CharLit,
+    ArrayLitKind => LitKind::Array(<>)
 }
 
-#[inline] MulOp: BinOp = {
-    "*"   => BinOp::Mul,
-    "*>>" => BinOp::HighMul,
-    "/"   => BinOp::Div,
-    "%"   => BinOp::Mod,
+IntLit:  LitKind = { <l:@L> <value:"intlit">  <r:@R> => LitKind::Int  { span: l..r.into(), value } }
+BoolLit: LitKind = { <l:@L> <value:"boollit"> <r:@R> => LitKind::Bool { span: l..r.into(), value } }
+CharLit: LitKind = { <l:@L> <value:"charlit"> <r:@R> => LitKind::Char { span: l..r.into(), value } }
+
+ArrayLitKind: ArrayLitKind = {
+    StringLit => ArrayLitKind::String(<>),
+    ArrayLit => ArrayLitKind::Array(<>),
+}
+StringLit: StringLit = { 
+    <l:@L> <s:"strlit"> <r:@R> => StringLit { span: l..r.into(), value: s.chars().collect() },
+}
+ArrayLit: ArrayLit = { 
+    <l:@L> "[" <elems:CommaTrailing<ExprKind>> "]" <r:@R> => ArrayLit { span: l..r.into(), value: elems },
 }
 
-#[inline] AddOp: BinOp = {
-    "+" => BinOp::Add,
-    "-" => BinOp::Sub
+ExprIndex<ExprKindSubset>: ExprIndex = {
+    <l:@L> <a:ExprKindSubset> "[" <i:ExprKind> "]" <r:@R> => ExprIndex { span: l..r.into(), array: Box::new(a), index: Box::new(i) },
 }
 
-#[inline] RelOp: BinOp = {
-    "<"  => BinOp::Lt, "<=" => BinOp::Le,
-    ">"  => BinOp::Gt, ">=" => BinOp::Ge,
-}
+PrimaryExprs: ExprKind = {
+    LitKind    => ExprKind::Lit(<>),
+    Ident      => ExprKind::Id(<>),
+    ProcCall   => ExprKind::Call(<>),
+    LengthCall => ExprKind::Length(<>),
+    "("ExprKind")",
+    ExprIndex<PrimaryExprs> => ExprKind::Index(<>),
+    Error      => ExprKind::Error(<>),
+};
 
-#[inline] EqOp: BinOp = {
-    "==" => BinOp::Eq,
-    "!=" => BinOp::Neq
-}
-
-#[inline] AndOp: BinOp = {
-    "&" => BinOp::And,
-}
-
-#[inline] OrOp: BinOp = {
-    "|" => BinOp::Or,
-}
-
-
-Expr: Expr = {
+ExprKind: ExprKind = {
     #[precedence(level="0")]
-    Primary,
+    PrimaryExprs,
 
-    #[precedence(level="1")]
-    <l:@L> <op:UnaryOp> <or:@R> <e:Expr> <r:@R>
-        => Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Unary { op: Leaf::new(state.cache.alloc_span(Span::new(l, or)), op), operand: Box::new(e) }),
+    #[precedence(level="1")] #[assoc(side="right")]
+    <l:@L> 
+	<op:UOp<PL1>> 
+	<operand:ExprKind> 
+    <r:@R> => UnaryExpr { span: l..r.into(), op, operand: Box::new(operand) },
 
     #[precedence(level="2")] #[assoc(side="left")]
-    <l:@L> <lhs:Expr> <ol:@L> <op:MulOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Binary { op: Leaf::new(state.cache.alloc_span(Span::new(ol, or)), op), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
+    <l:@L> 
+	<lhs:ExprKind> 
+	<op:BinOp<PL2>> 
+	<rhs:ExprKind> 
+    <r:@R> => BinaryExpr { span: l..r.into(), op, lhs: Box::new(lhs), rhs: Box::new(rhs) },
 
     #[precedence(level="3")] #[assoc(side="left")]
-    <l:@L> <lhs:Expr> <ol:@L> <op:AddOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Binary { op: Leaf::new(state.cache.alloc_span(Span::new(ol, or)), op), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
+    <l:@L> 
+	<lhs:ExprKind> 
+	<op:BinOp<PL3>> 
+	<rhs:ExprKind> 
+    <r:@R> => BinaryExpr { span: l..r.into(), op, lhs: Box::new(lhs), rhs: Box::new(rhs) },
 
     #[precedence(level="4")] #[assoc(side="left")]
-    <l:@L> <lhs:Expr> <ol:@L> <op:RelOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Binary { op: Leaf::new(state.cache.alloc_span(Span::new(ol, or)), op), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
+    <l:@L> 
+	<lhs:ExprKind> 
+	<op:BinOp<PL4>> 
+	<rhs:ExprKind> 
+    <r:@R> => BinaryExpr { span: l..r.into(), op, lhs: Box::new(lhs), rhs: Box::new(rhs) },
 
     #[precedence(level="5")] #[assoc(side="left")]
-    <l:@L> <lhs:Expr> <ol:@L> <op:EqOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Binary { op: Leaf::new(state.cache.alloc_span(Span::new(ol, or)), op), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
+    <l:@L> 
+	<lhs:ExprKind> 
+	<op:BinOp<PL5>> 
+	<rhs:ExprKind> 
+    <r:@R> => BinaryExpr { span: l..r.into(), op, lhs: Box::new(lhs), rhs: Box::new(rhs) },
 
     #[precedence(level="6")] #[assoc(side="left")]
-    <l:@L> <lhs:Expr> <ol:@L> <op:AndOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Binary { op: Leaf::new(state.cache.alloc_span(Span::new(ol, or)), op), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
+    <l:@L> 
+	<lhs:ExprKind> 
+	<op:BinOp<PL6>> 
+	<rhs:ExprKind> 
+    <r:@R> => BinaryExpr { span: l..r.into(), op, lhs: Box::new(lhs), rhs: Box::new(rhs) },
 
     #[precedence(level="7")] #[assoc(side="left")]
-    <l:@L> <lhs:Expr> <ol:@L> <op:OrOp> <or:@R> <rhs:Expr> <r:@R>
-        => Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Binary { op: Leaf::new(state.cache.alloc_span(Span::new(ol, or)), op), lhs: Box::new(lhs), rhs: Box::new(rhs) }),
+    <l:@L> 
+	<lhs:ExprKind> 
+	<op:BinOp<PL7>> 
+	<rhs:ExprKind> 
+    <r:@R> => BinaryExpr { span: l..r.into(), op, lhs: Box::new(lhs), rhs: Box::new(rhs) },
+};
 
-    #[precedence(level="8")]
-    <l:@L> <e:!> <r:@R> => {
-	state.lalrpop_errs.push(e);
-	Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Error)
-    }
+// -- operator helper macros --
+
+#[inline]
+BinOp<BinOpKind>: BinOp = {
+    <l:@L> <kind:BinOpKind> <r:@R> => BinOp { span: l..r.into(), kind }
 }
 
-// ---- Primary: atoms, postfix indexing, parens. ----
-Primary: Expr = {
-    <array:PrimaryBase> <indices:ArrayIndex*> => {
-        indices.into_iter().fold(array, |arr, (idx, ispan)| {
-	    let span = state.cache.span(arr.node_id).to(ispan);
-	    Expr::new(state.cache.alloc_span(span), ExprKind::Index { array: Box::new(arr), index: Box::new(idx) })
-        })
-    },
+#[inline]
+UOp<UOpKind>: UOp = {
+    <l:@L> <kind:UOpKind> <r:@R> => UOp { span: l..r.into(), kind }
 }
 
-PrimaryBase: Expr = {
-    <l:@L> <lit:Lit> <r:@R>                          	=> Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Lit(lit)),
-    <id:Ident>                                       	=> Expr::new(state.cache.dup_span(id.node_id), ExprKind::Id(id)),
-    <l:@L> <id:Ident> "(" <a:Comma<Expr>> ")" <r:@R>	=> {
-	let pc = ProcCall::new(state.cache.alloc_span(Span::new(l, r)), id, a);
-	Expr::new(state.cache.dup_span(pc.node_id), ExprKind::Call(pc))
-    },
-    <l:@L> "length" "(" <e:Expr> ")" <r:@R>     	=> Expr::new(state.cache.alloc_span(Span::new(l, r)), ExprKind::Length(Box::new(e))),
-    "(" <Expr> ")",
-}
+// -- operator bindings --
 
-Lit: Lit = {
-    <n:"intlit">  => Lit::Int(n as i128),
-    <c:"charlit"> => Lit::Char(char::from_u32(c).expect("lexer should have rejected invalid codepoint")),
-    <b:"boollit"> => Lit::Bool(b),
-    <s:"strlit">  => Lit::Arr(ArrLit::Str(s)),
-    "{" <exprs:CommaTrailing<Expr>> "}" => Lit::Arr(ArrLit::Array(exprs)),
+PL1: UOpKind = {
+    "-" 	=> UOpKind::Neg,
+    "!" 	=> UOpKind::Not,
+}
+PL2: BinOpKind = {
+    "*" 	=> BinOpKind::Mul,
+    "*>>" 	=> BinOpKind::HighMul,
+    "/" 	=> BinOpKind::Div,
+    "%" 	=> BinOpKind::Mod,
+}
+PL3: BinOpKind = {
+    "+" 	=> BinOpKind::Plus,
+    "-" 	=> BinOpKind::Minus,
+}
+PL4: BinOpKind = {
+    "<" 	=> BinOpKind::Lt,
+    "<=" 	=> BinOpKind::Le,
+    ">" 	=> BinOpKind::Gt,
+    ">=" 	=> BinOpKind::Ge,
+}
+PL5: BinOpKind = {
+    "==" 	=> BinOpKind::Eq,
+    "!=" 	=> BinOpKind::Neq,
+}
+PL6: BinOpKind = {
+    "&" 	=> BinOpKind::LAnd,
+}
+PL7: BinOpKind = {
+    "|" 	=> BinOpKind::LOr,
 }

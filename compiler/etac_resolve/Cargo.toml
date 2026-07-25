@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-etac_cache.workspace  = true
+etac_source.workspace  = true
 etac_errors.workspace = true
 
 [dev-dependencies]

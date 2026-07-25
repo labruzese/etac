@@ -1,4 +1,4 @@
-use etac_cache::sources::Span;
+use etac_source::Span;
 
 macro_rules! lexer_error {
     (span = $span:expr, message = $message:expr $(, $key:ident = $val:expr)* $(,)?) => {{

@@ -3,6 +3,18 @@
 version = 4
 
 [[package]]
+name = "ahash"
+version = "0.8.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a15f179cd60c4584b8a8c596927aadc462e27f2ca70c04e0071964a73ba7a75"
+dependencies = [
+ "cfg-if",
+ "once_cell",
+ "version_check",
+ "zerocopy",
+]
+
+[[package]]
 name = "aho-corasick"
 version = "1.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10,6 +22,12 @@ checksum = "ddd31a130427c27518df266943a5308ed92d4b226cc639f5a8f1002816174301"
 dependencies = [
  "memchr",
 ]
+
+[[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "anstream"
@@ -308,7 +326,8 @@ name = "etac_ast"
 version = "0.1.0"
 dependencies = [
  "etac_ast_derive",
- "id-arena",
+ "etac_intern",
+ "etac_source",
  "pretty",
 ]
 
@@ -326,10 +345,9 @@ dependencies = [
 name = "etac_cache"
 version = "0.1.0"
 dependencies = [
- "crossbeam-skiplist",
- "dashmap",
- "elsa",
  "etac_ast",
+ "etac_intern",
+ "etac_source",
  "id-arena",
 ]
 
@@ -352,15 +370,25 @@ dependencies = [
  "ariadne",
  "by_address",
  "elsa",
- "etac_cache",
+ "etac_source",
+]
+
+[[package]]
+name = "etac_intern"
+version = "0.1.0"
+dependencies = [
+ "etac_source",
+ "lasso",
+ "rustc-hash",
 ]
 
 [[package]]
 name = "etac_lexer"
 version = "0.1.0"
 dependencies = [
- "etac_cache",
  "etac_errors",
+ "etac_intern",
+ "etac_source",
  "etac_test",
  "expect-test",
  "indoc",
@@ -371,11 +399,11 @@ dependencies = [
 name = "etac_parse"
 version = "0.1.0"
 dependencies = [
- "either",
  "etac_ast",
- "etac_cache",
  "etac_errors",
+ "etac_intern",
  "etac_lexer",
+ "etac_source",
  "etac_test",
  "expect-test",
  "indoc",
@@ -387,8 +415,8 @@ dependencies = [
 name = "etac_resolve"
 version = "0.1.0"
 dependencies = [
- "etac_cache",
  "etac_errors",
+ "etac_source",
  "tempfile",
 ]
 
@@ -404,6 +432,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "etac_source"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-skiplist",
+ "dashmap",
+ "elsa",
+]
+
+[[package]]
 name = "etac_test"
 version = "0.1.0"
 dependencies = [
@@ -411,7 +448,7 @@ dependencies = [
  "etac_cache",
  "etac_errors",
  "etac_lexer",
- "etac_parse",
+ "etac_source",
 ]
 
 [[package]]
@@ -508,6 +545,10 @@ name = "hashbrown"
 version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+ "allocator-api2",
+]
 
 [[package]]
 name = "hashbrown"
@@ -631,6 +672,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "884f3e747ed2dcee867cda1b0c31a048f9e20de2d916a248949319921a2e666e"
 dependencies = [
  "regex-automata",
+]
+
+[[package]]
+name = "lasso"
+version = "0.7.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6e14eda50a3494b3bf7b9ce51c52434a761e383d7238ce1dd5dcec2fbc13e9fb"
+dependencies = [
+ "hashbrown 0.14.5",
 ]
 
 [[package]]
@@ -862,6 +912,12 @@ name = "regex-syntax"
 version = "0.8.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a2d987857b319362043e95f5353c0535c1f58eec5336fdfcf626430af7def58"
+
+[[package]]
+name = "rustc-hash"
+version = "2.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6b1e7f9a428571be2dc5bc0505c13fb6bf936822b894ec87abf8a08a4e51742d"
 
 [[package]]
 name = "rustix"
@@ -1251,6 +1307,26 @@ name = "yansi"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cfe53a6657fd280eaa890a3bc59152892ffa3e30101319d168b781ed6529b049"
+
+[[package]]
+name = "zerocopy"
+version = "0.8.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5a105cd7b140f6eeec8acff2ea38135d3cab283ada58540f629fe51e46696eb"
+dependencies = [
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.8.55"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fe976fb70c78cd64cccfe3a6fc142244e8a77b70959b30faf9d0ac37ee228eb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "zmij"

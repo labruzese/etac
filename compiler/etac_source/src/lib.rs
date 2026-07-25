@@ -11,7 +11,7 @@ pub type InterfaceId<'sm> = FileId<'sm>;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct FileId<'sm> {
-    pub(crate) base: u32,
+    pub base: u32,
     _cache: PhantomData<&'sm SourceMap>,
 }
 impl FileId<'_> {
@@ -90,3 +90,8 @@ impl Span {
     }
 }
 
+impl From<std::ops::Range<u32>> for Span {
+    fn from(value: std::ops::Range<u32>) -> Self {
+        Span::new(value.start, value.end)
+    }
+}

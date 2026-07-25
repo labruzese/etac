@@ -1,173 +1,155 @@
-pub mod interface;
-
-use etac_ast_derive::{Ast, node, kind};
-use interface::StopAstRecursion;
-use interface::Visitor;
-use crate::id::{AstNode, NodeId};
-
-// Error
-
-#[derive(Copy)] #[node] pub struct Error {
-    node_id: NodeId<Self>
-}
+use etac_intern::Symbol;
+use etac_source::Span;
 
 // Top level
 
-#[node] pub struct Program {
-    node_id: NodeId<Self>,
-    uses: Vec<Use>,
-    definitions: Vec<DefinitionKind>
+pub struct Program {
+    pub span: Span,
+    pub uses: Vec<Use>,
+    pub definitions: Vec<DefinitionKind>,
 }
 
-#[node] pub struct Interface {
-    node_id: NodeId<Self>,
-    items: Vec<InterfaceItemKind>
+pub struct Interface {
+    pub span: Span,
+    pub items: Vec<InterfaceItemKind>
 }
 
-#[node] pub struct Use {
-    node_id: NodeId<Self>,
-    id: Ident,
-    interface: NodeId<Interface>,
+pub struct Use {
+    pub span: Span,
+    pub interface: Ident,
 }
 
 // Definitions
 
-#[kind] pub enum DefinitionKind {
+pub enum DefinitionKind {
     Method(Method),
     GlobDecl(GlobDecl),
-    Error(Error),
+    Error(Span),
 }
 
-#[kind] pub enum InterfaceItemKind {
+pub enum InterfaceItemKind {
     MethodDecl(MethodDecl),
-    Error(Error),
+    Error(Span),
 }
 
-#[node] pub struct MethodDecl {
-    node_id: NodeId<Self>,
-    id: Ident,
-    params: Vec<Decl>,
-    ret_types: Vec<TypeKind>
+pub struct MethodDecl {
+    pub span: Span,
+    pub id: Ident,
+    pub params: Vec<Decl>,
+    pub ret_types: Vec<TypeKind>
 }
 
-#[node] pub struct Method {
-    node_id: NodeId<Self>,
-    id: Ident,
-    params: Vec<Decl>,
-    ret_types: Vec<TypeKind>,
-    body: Block
+pub struct Method {
+    pub span: Span,
+    pub decl: MethodDecl,
+    pub body: MethodBodyKind,
 }
 
-#[node] pub struct GlobDecl {
-    node_id: NodeId<Self>,
-    id: Ident,
-    typ: TypeKind,
-    val: Option<GlobValueKind>
+pub enum MethodBodyKind {
+    Block(Block),
+    Error(Span),
 }
 
-#[kind] pub enum GlobValueKind {
-    Int(IntLit),
-    Bool(BoolLit),
+pub struct GlobDecl {
+    pub span: Span,
+    pub id: Ident,
+    pub typ: TypeKind,
+    pub val: Option<LitKind>
 }
 
 // Statements
 
-#[kind] pub enum StmtKind {
+pub enum StmtKind {
     Assign(AssignStmt),
+    Decls(MultiDeclStmt),
     If(IfStmt),
     While(WhileStmt),
     Return(ReturnStmt),
     Call(ProcCall),
     Block(Block),
-    Decls(MultiDeclStmt),
-    Error(Error),
+    Error(Span),
 }
 
-#[node] pub struct AssignStmt {
-    node_id: NodeId<Self>,
-    targets: Vec<TargetKind>,
-    values: Vec<ExprKind>,
+pub struct AssignStmt {
+    pub span: Span,
+    pub targets: Vec<TargetKind>,
+    pub values: Vec<ExprKind>,
 }
 
-#[node] pub struct IfStmt {
-    node_id: NodeId<Self>,
-    cond: ExprKind,
-    then_branch: NodeId<StmtKind>,
-    else_branch: Option<NodeId<StmtKind>>
+pub struct MultiDeclStmt {
+    pub span: Span,
+    pub decls: Vec<Decl>
 }
 
-#[node] pub struct WhileStmt {
-    node_id: NodeId<Self>,
-    cond: ExprKind,
-    body: NodeId<StmtKind>,
+pub struct Decl {
+    pub span: Span,
+    pub id: Ident,
+    pub typ: TypeKind
 }
 
-#[node] pub struct ReturnStmt {
-    node_id: NodeId<Self>,
-    values: Vec<ExprKind>,
+pub struct IfStmt {
+    pub span: Span,
+    pub cond: Box<ExprKind>,
+    pub then_branch: Box<StmtKind>,
+    pub else_branch: Option<Box<StmtKind>>
 }
 
-#[node] pub struct ProcCall {
-    node_id: NodeId<Self>,
-    id: Ident,
-    args: Vec<ExprKind>
+pub struct WhileStmt {
+    pub span: Span,
+    pub cond: Box<ExprKind>,
+    pub body: Box<StmtKind>,
 }
 
-#[node] pub struct Block {
-    node_id: NodeId<Self>,
-    stmts: Vec<StmtKind>
+pub struct ReturnStmt {
+    pub span: Span,
+    pub values: Vec<ExprKind>,
 }
 
-#[node] pub struct MultiDeclStmt {
-    node_id: NodeId<Self>,
-    decls: Vec<Decl>
+pub struct ProcCall {
+    pub span: Span,
+    pub id: Ident,
+    pub args: Vec<ExprKind>
 }
 
-#[node] pub struct Decl {
-    node_id: NodeId<Self>,
-    id: Ident,
-    typ: TypeKind
+pub struct Block {
+    pub span: Span,
+    pub stmts: Vec<StmtKind>
 }
+
 
 // Types
 
-#[kind] pub enum TypeKind {
+pub enum TypeKind {
     Array(ArrType),
-    Int(IntType),
-    Bool(BoolType),
-    Error(Error),
+    Int(Span),
+    Bool(Span),
+    Error(Span),
 }
 
-#[derive(Copy)] #[node] pub struct IntType{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct BoolType{ node_id: NodeId<Self> }
-
-#[node] pub struct ArrType{ 
-    node_id: NodeId<Self>,
-    of: NodeId<TypeKind>,
-    size: Option<NodeId<ExprKind>> 
+pub struct ArrType { 
+    pub span: Span,
+    pub of: Box<TypeKind>,
+    pub size: Option<Box<ExprKind>> 
 }
 
 // Targets & LValues
 
-#[kind] pub enum TargetKind {
+pub enum TargetKind {
     LValue(LValueKind),
     Decl(Decl),
-    Discard(Discard),
+    Discard(Span),
 }
 
-#[kind] pub enum LValueKind {
+pub enum LValueKind {
     Id(Ident),
     ProcCall(ProcCall),
     Index(ExprIndex),
 }
 
-#[derive(Copy)] #[node] pub struct Discard {
-    node_id: NodeId<Self>,
-}
 
 // ---- Expressions ----
 
-#[kind] pub enum ExprKind {
+pub enum ExprKind {
     Id(Ident),
     Lit(LitKind),
     Index(ExprIndex),
@@ -175,86 +157,83 @@ use crate::id::{AstNode, NodeId};
     Length(LengthCall),
     Unary(UnaryExpr),
     Binary(BinaryExpr),
-    Error(Error),
+    Error(Span),
 }
 
-#[node] pub struct Ident {
-    node_id: NodeId<Self>,
-    sym: String,
+pub struct Ident {
+    pub span: Span,
+    pub sym: Symbol,
 }
 
-#[kind] pub enum LitKind {
-    Int(IntLit),
-    Bool(BoolLit),
-    Char(CharLit),
-    Arr(ArrLit),
+pub enum LitKind {
+    Int { span: Span, value: i64 },
+    Bool { span: Span, value: bool },
+    Char { span: Span, value: char },
+    Array(ArrayLitKind),
 }
 
-#[derive(Copy)] #[node] pub struct IntLit{ node_id: NodeId<Self>, value: i64 }
-#[derive(Copy)] #[node] pub struct BoolLit{ node_id: NodeId<Self>, value: bool }
-#[derive(Copy)] #[node] pub struct CharLit{ node_id: NodeId<Self>, value: char }
-#[node] pub struct ArrLit{ node_id: NodeId<Self>, value: Vec<ExprKind> }
-
-#[derive(Copy)] #[node] pub struct ExprIndex {
-    node_id: NodeId<Self>,
-    array: NodeId<ExprKind>,
-    index: NodeId<ExprKind>,
+pub enum ArrayLitKind {
+    String(StringLit),
+    Array(ArrayLit),
 }
 
-#[derive(Copy)] #[node] pub struct LengthCall {
-    node_id: NodeId<Self>,
-    param: NodeId<ExprKind>,
+pub struct StringLit{ pub span: Span, pub value: Vec<char> }
+
+pub struct ArrayLit{ pub span: Span, pub value: Vec<ExprKind> }
+
+pub struct ExprIndex {
+    pub span: Span,
+    pub array: Box<ExprKind>,
+    pub index: Box<ExprKind>,
+}
+
+pub struct LengthCall {
+    pub span: Span,
+    pub param: Box<ExprKind>,
 }
 
 // Operators
-#[derive(Copy)] #[node] pub struct UnaryExpr {
-    node_id: NodeId<Self>,
-    op: UOpKind,
-    operand: NodeId<ExprKind>,
+pub struct UnaryExpr {
+    pub span: Span,
+    pub op: UOp,
+    pub operand: Box<ExprKind>,
 }
 
-#[derive(Copy)] #[kind] pub enum UOpKind {
-    Neg(NegOp),
-    Not(NotOp),
-}
-#[derive(Copy)] #[node] pub struct NegOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct NotOp{ node_id: NodeId<Self> }
-
-#[derive(Copy)] #[node] pub struct BinaryExpr {
-    node_id: NodeId<Self>,
-    op: BinOpKind,
-    lhs: NodeId<ExprKind>,
-    rhs: NodeId<ExprKind>,
+pub struct UOp {
+    pub span: Span,
+    pub kind: UOpKind,
 }
 
-#[derive(Copy)] #[kind] pub enum BinOpKind {
-    Add(AddOp),
-    Sub(SubOp),
-    Mul(MulOp),
-    HighMul(HighMulOp),
-    Div(DivOp),
-    Mod(ModOp),
-    Eq(EqOp),
-    Neq(NeqOp),
-    Lt(LtOp),
-    Gt(GtOp),
-    Le(LeOp),
-    Ge(GeOp),
-    And(AndOp),
-    Or(OrOp),
+pub enum UOpKind {
+    Neg,
+    Not,
 }
 
-#[derive(Copy)] #[node] pub struct AddOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct SubOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct MulOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct HighMulOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct DivOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct ModOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct EqOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct NeqOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct LtOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct GtOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct LeOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct GeOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct AndOp{ node_id: NodeId<Self> }
-#[derive(Copy)] #[node] pub struct OrOp{ node_id: NodeId<Self> }
+pub struct BinaryExpr {
+    pub span: Span,
+    pub op: BinOp,
+    pub lhs: Box<ExprKind>,
+    pub rhs: Box<ExprKind>,
+}
+
+pub struct BinOp {
+    pub span: Span,
+    pub kind: BinOpKind,
+}
+
+pub enum BinOpKind {
+    Add,
+    Sub,
+    Mul,
+    HighMul,
+    Div,
+    Mod,
+    Eq,
+    Neq,
+    Lt,
+    Gt,
+    Le,
+    Ge,
+    LAnd,
+    LOr,
+}

@@ -1,10 +1,11 @@
-pub mod sources;    
 pub mod asts;       
+
 
 #[derive(Default)]
 pub struct EtaCache {
-    pub asts: asts::AstArena,
-    pub sources: sources::SourceMap,
+    // pub asts: asts::AstArena,
+    pub sources: etac_source::SourceMap,
+    pub interner: etac_intern::InternerMap,
 }
 
 impl EtaCache {

@@ -1,11 +1,9 @@
-use etac_ast::{Expr, ExprKind, LValue, LvalueKind};
-use etac_cache::{EtaCache, Span};
-use etac_errors::{etac_error, Diag, DiagCtxt};
-use etac_lexer::{ILexer, RawToken};
-use lalrpop_util::{lalrpop_mod, ErrorRecovery, ParseError};
+use etac_source::SourceMap;
 
-#[macro_use]
-mod grammar_macros;
+use etac_errors::{etac_error, Diag, DiagCtxt};
+use etac_intern::{Symbol, InternReader};
+use etac_lexer::{ILexer, RawToken, SourceToken};
+use lalrpop_util::{lalrpop_mod, ErrorRecovery, ParseError};
 
 lalrpop_mod!(grammar);
 
@@ -15,9 +13,15 @@ lalrpop_mod!(grammar);
 #[derive(Debug)]
 pub enum Parsed<Out> {
     /// Parsed cleanly, no errors.
-    Ok(Out),
+    Ok {
+        ast: Out,
+        symbols: InternReader,
+    },
     /// lalrpop recovered from one or more errors but still produced a full tree.
-    Recovered(Out),
+    Recovered {
+        ast: Out,
+        symbols: InternReader,
+    },
     /// Parsing hit a fatal error and produced no tree.
     Failed,
 }
@@ -27,7 +31,7 @@ impl<Out> Parsed<Out> {
     /// [`Recovered`](Parsed::Recovered)).
     pub fn output(&self) -> Option<&Out> {
         match self {
-            Parsed::Ok(out) | Parsed::Recovered(out) => Some(out),
+            Parsed::Ok{ ast, ..} | Parsed::Recovered{ ast, ..} => Some(ast),
             Parsed::Failed => None,
         }
     }
@@ -37,7 +41,7 @@ impl<Out> Parsed<Out> {
 pub(crate) struct ParseState<'dcx, 'src> {
     pub diagc: &'dcx DiagCtxt<'dcx>,
     pub cache: &'dcx EtaCache,
-    pub lalrpop_errs: Vec<ErrorRecovery<u32, RawToken<'src>, Diag<'dcx>>>,
+    pub lalrpop_errs: Vec<ErrorRecovery<u32, SourceToken, Diag<'dcx>>>,
     pub etac_errs: Vec<Diag<'dcx>>,
 }
 
@@ -58,7 +62,7 @@ pub use grammar::__ToTriple;
 pub trait IParser<'dcx, 'src> {
     type Out;
 
-    fn parse(&mut self, lexer: &mut impl ILexer<'src, 'dcx>) -> Parsed<Self::Out>;
+    fn parse(&mut self, lexer: impl ILexer<'src, 'dcx>) -> Parsed<Self::Out>;
 
     fn errors_mut(&mut self) -> &mut [Diag<'dcx>];
 
@@ -91,7 +95,7 @@ macro_rules! impl_iparser {
             type Out = $out;
 
             fn parse(&mut self, lexer: &mut impl ILexer<'src, 'dcx>) -> Parsed<Self::Out> {
-                let parse = <$full>::parse(&<$full>::new(), &mut self.state, lexer);
+                let parse = <$full>::parse(&<$full>::new(), &mut self.state, &mut lexer);
                 let mut recovered = false;
                 for e in std::mem::take(&mut self.state.lalrpop_errs) {
                     let diag = to_diag(self.diagnostic_context(), e.error);
@@ -100,9 +104,10 @@ macro_rules! impl_iparser {
                     }
                     self.state.etac_errs.push(diag)
                 }
+                let symbols = lexer.symbols();
                 match (parse, recovered) {
-                    (Ok(out), false) => Parsed::Ok(out),
-                    (Ok(out), true) => Parsed::Recovered(out),
+                    (Ok(ast),false) => Parsed::Ok { ast, symbols },
+                    (Ok(ast),true) => Parsed::Recovered { ast, symbols },
                     (Err(fatal), _) => {
                         self.state.etac_errs.push(to_diag(self.diagnostic_context(), fatal));
                         Parsed::Failed
@@ -128,10 +133,6 @@ macro_rules! impl_iparser {
 impl_iparser! {grammar::ProgramParser, etac_ast::Program}
 impl_iparser! {grammar::InterfaceParser, etac_ast::Interface}
 
-/// Reinterpret a parsed [`LValue`] as the equivalent [`Expr`], minting a fresh id
-/// (sharing the lvalue's recorded span) for the rebuilt carrier. The AST models the
-/// array operand of an indexed lvalue (`a[i]`) as an `Expr`, so the grammar funnels
-/// the accumulated base through here when folding postfix `[..]` groups.
 pub(crate) fn lvalue_to_expr(lv: LValue, cache: &EtaCache) -> Expr {
     let kind = match lv.kind {
         LvalueKind::Id(id) => ExprKind::Id(id),
@@ -144,7 +145,7 @@ pub(crate) fn lvalue_to_expr(lv: LValue, cache: &EtaCache) -> Expr {
 /// LALRPOP error to [`Diag`]
 fn to_diag<'dcx, 'src>(
     diagc: &'dcx DiagCtxt,
-    err: ParseError<u32, RawToken<'src>, Diag<'dcx>>,
+    err: ParseError<u32, RawToken, Diag<'dcx>>,
 ) -> Diag<'dcx> {
     use ParseError::*;
     match err {

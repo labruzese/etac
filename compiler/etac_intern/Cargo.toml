@@ -1,0 +1,13 @@
+[package]
+name = "etac_intern"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+etac_source.workspace	= true
+rustc-hash.workspace	= true
+lasso.workspace		= true
+
+[lints]
+workspace = true

@@ -9,7 +9,8 @@ etac_ast.workspace    = true
 etac_cache.workspace  = true
 etac_errors.workspace = true
 etac_lexer.workspace  = true
-etac_parse.workspace  = true
+etac_source.workspace = true
+# etac_parse.workspace  = true
 
 [lints]
 workspace = true

@@ -7,23 +7,26 @@ use std::{
 };
 
 use etac_errors::dcx::{DiagCtx, Diag};
-use etac_cache::sources::Span;
+use etac_intern::{Interner, Symbol, InternReader};
+use etac_source::Span;
 use logos::Logos;
 
 mod internal_error;
 use internal_error::{InternalLexerError, lexer_error};
 
-pub struct SourceToken<'src> {
-    pub tok: RawToken<'src>,
+pub struct SourceToken {
+    pub tok: RawToken,
     pub span: Span,
 }
 
-pub trait ILexer<'src, 'dcx>: Iterator<Item = Result<SourceToken<'src>, Diag<'dcx>>> {}
+pub trait ILexer<'src, 'dcx>: Iterator<Item = Result<SourceToken, Diag<'dcx>>> {
+    fn symbols(self) -> InternReader;
+}
 
-type LogosLexer<'src> = logos::Lexer<'src, RawToken<'src>>;
+type LogosLexer<'src> = logos::Lexer<'src, RawToken>;
 
 pub struct EtaLexer<'src, 'dcx> {
-    inner: logos::SpannedIter<'src, RawToken<'src>>,
+    inner: logos::SpannedIter<'src, RawToken>,
     dcx: &'dcx DiagCtx,
 }
 
@@ -31,19 +34,24 @@ impl<'src, 'dcx> EtaLexer<'src, 'dcx> {
     pub fn new(base: u32, source: &'src str, diag_context: &'dcx DiagCtx) -> Self {
         Self {
             dcx: diag_context,
-            inner: <RawToken as Logos>::lexer_with_extras(source, base).spanned(),
+            inner: <RawToken as Logos>::lexer_with_extras(source, (base, Interner::default())).spanned(),
         }
     }
 }
 
-impl<'src, 'dcx> ILexer<'src, 'dcx> for EtaLexer<'src, 'dcx> {}
+impl<'src, 'dcx> ILexer<'src, 'dcx> for EtaLexer<'src, 'dcx> {
+    fn symbols(mut self) -> InternReader {
+        std::mem::take(&mut self.inner.extras.1).into_reader()
+    }
+}
+
 // transformed for lalrpop
 impl<'src, 'dcx> Iterator for EtaLexer<'src, 'dcx> {
-    type Item = Result<SourceToken<'src>, Diag<'dcx>>;
+    type Item = Result<SourceToken, Diag<'dcx>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let (next, local_span) = self.inner.next()?;
-        let base = self.inner.extras;
+        let base = self.inner.extras.0;
         let span = Span::new(base + local_span.start as u32, base + local_span.end as u32);
         match next {
             Ok(tok) => Some(Ok(SourceToken { tok, span })),
@@ -60,12 +68,11 @@ impl<'src, 'dcx> Iterator for EtaLexer<'src, 'dcx> {
 mod strings;
 
 #[derive(Debug, Clone, PartialEq, Logos)]
-#[logos(lifetime = 's)]
 #[logos(skip r"[ \t\n\f\r]+")]
 #[logos(skip(r"//[^\n]*", allow_greedy = true))]
-#[logos(extras = u32)]
+#[logos(extras = (u32, Interner))]
 #[logos(error(InternalLexerError, internal_error_unknown_token))]
-pub enum RawToken<'s> {
+pub enum RawToken {
     // Keywords
     #[token("use")]
     KeywordUse,
@@ -106,8 +113,8 @@ pub enum RawToken<'s> {
     #[regex(r#""([^"\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*""#, strings::parse_str)]
     StrLiteral(String),
 
-    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.slice())]
-    Identifier(&'s str),
+    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.extras.1.intern(lex.slice()))]
+    Identifier(Symbol),
 
     #[regex(r"-?[1-9][0-9]*|0", parse_int)]
     Integer(i64),
@@ -177,7 +184,7 @@ fn parse_int(lex: &mut LogosLexer<'_>) -> Result<i64, InternalLexerError> {
     })
 }
 
-impl Display for RawToken<'_> {
+impl Display for RawToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RawToken::KeywordUse => write!(f, "use"),
@@ -208,7 +215,7 @@ impl Display for RawToken<'_> {
                 "string {}",
                 s.escape_default().collect::<String>().replace("\\u{", "\\x{")
             ),
-            RawToken::Identifier(s) => write!(f, "id {s}"),
+            RawToken::Identifier(s) => write!(f, "id {}", s.into_inner()),
             RawToken::Integer(n) => write!(f, "integer {n}"),
             RawToken::LParen => write!(f, "("),
             RawToken::RParen => write!(f, ")"),
@@ -237,14 +244,14 @@ impl Display for RawToken<'_> {
 
 // helpers
 
-fn current_span<'s>(lex: &logos::Lexer<'s, RawToken<'s>>) -> Span {
+fn current_span<'s>(lex: &LogosLexer) -> Span {
     Span::new(
-        lex.extras + lex.span().start as u32,
-        lex.extras + lex.span().end as u32
+        lex.extras.0 + lex.span().start as u32,
+        lex.extras.0 + lex.span().end as u32
     )
 }
 
-fn internal_error_unknown_token<'s>(lex: &mut logos::Lexer<'s, RawToken<'s>>) -> InternalLexerError {
+fn internal_error_unknown_token<'s>(lex: &mut LogosLexer) -> InternalLexerError {
     lexer_error! {
         span = current_span(lex),
         message = "unknown token",

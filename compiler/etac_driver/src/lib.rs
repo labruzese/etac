@@ -31,18 +31,6 @@ where
     let cache = dcx.cache();
     let lexer = etac_lexer::EtaLexer::new(cache.base_offset(file), cache.source_text(file), dcx);
 
-    let mut lexer = if logger.lex {
-        compat::ULexer::Tee(logger.tee_lexer(file, cache, lexer))
-    } else {
-        compat::ULexer::Raw(lexer)
-    };
-
-    let mut parser = if logger.parse {
-        compat::UParser::Tee(logger.tee_parser(file, cache, parser))
-    } else {
-        compat::UParser::Raw(parser)
-    };
-
     match parser.parse(&mut lexer) {
         Parsed::Ok(tree) => Ok(tree),
         Parsed::Recovered(tree) => {

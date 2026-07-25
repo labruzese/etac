@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use etac_cache::sources::{SourceMap, Span};
+use etac_source::{SourceMap, Span};
 
 use crate::Level;
 use crate::emitter::{Emitter, IoEmitter};

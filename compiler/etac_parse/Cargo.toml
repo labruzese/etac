@@ -5,12 +5,12 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-etac_ast.workspace     = true
-etac_cache.workspace   = true
-etac_errors.workspace  = true
-etac_lexer.workspace   = true
-either.workspace       = true
 lalrpop-util.workspace = true
+etac_ast.workspace     = true
+etac_lexer.workspace   = true
+etac_errors.workspace  = true
+etac_source.workspace = true
+etac_intern.workspace = true
 
 [dev-dependencies]
 expect-test.workspace = true

@@ -1,0 +1,13 @@
+[package]
+name = "etac_source"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+elsa.workspace               = true
+dashmap.workspace            = true
+crossbeam-skiplist.workspace = true
+
+[lints]
+workspace = true

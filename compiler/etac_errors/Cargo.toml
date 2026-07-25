@@ -5,7 +5,7 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-etac_cache.workspace = true
+etac_source.workspace = true
 ariadne.workspace    = true
 elsa.workspace	     = true
 by_address.workspace = true

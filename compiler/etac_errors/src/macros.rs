@@ -115,11 +115,11 @@ macro_rules! etac_error {
 
     // ---- at a span ----
     ($dcx:expr, $span:expr, $fmt:literal $(, $args:expr)* $(,)?) => {
-        $dcx.err($span, $crate::__etac_diag!(@fmt $fmt $(, $args)*))
+        $dcx.err($span.into(), $crate::__etac_diag!(@fmt $fmt $(, $args)*))
     };
     ($dcx:expr, $span:expr, $fmt:literal $(, $args:expr)* ; $($decor:tt)*) => {
         $crate::__etac_diag!(@decorate
-            $dcx.err($span, $crate::__etac_diag!(@fmt $fmt $(, $args)*)) ; $($decor)*)
+            $dcx.err($span.into(), $crate::__etac_diag!(@fmt $fmt $(, $args)*)) ; $($decor)*)
     };
 }
 
@@ -133,11 +133,11 @@ macro_rules! etac_error {
 #[macro_export]
 macro_rules! etac_warn {
     ($dcx:expr, $span:expr, $fmt:literal $(, $args:expr)* $(,)?) => {
-        $dcx.warn($span, $crate::__etac_diag!(@fmt $fmt $(, $args)*))
+        $dcx.warn($span.span(), $crate::__etac_diag!(@fmt $fmt $(, $args)*))
     };
     ($dcx:expr, $span:expr, $fmt:literal $(, $args:expr)* ; $($decor:tt)*) => {
         $crate::__etac_diag!(@decorate
-            $dcx.warn($span, $crate::__etac_diag!(@fmt $fmt $(, $args)*)) ; $($decor)*)
+            $dcx.warn($span.into(), $crate::__etac_diag!(@fmt $fmt $(, $args)*)) ; $($decor)*)
     };
 }
 

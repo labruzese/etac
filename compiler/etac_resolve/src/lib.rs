@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use etac_cache::sources::{FileId, InterfaceId, SourceId, SourceMap, Span};
+use etac_source::{FileId, InterfaceId, SourceId, SourceMap, Span};
 use etac_errors::etac_error;
 use etac_errors::dcx::{DiagCtx, Diag};
 
