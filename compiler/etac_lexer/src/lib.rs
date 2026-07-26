@@ -1,32 +1,30 @@
 //! Lexer
 #![allow(clippy::cast_possible_truncation)]
 
-use std::{
-    fmt::{self, Display},
-    num::ParseIntError,
-};
+use std::num::ParseIntError;
 
 use etac_errors::dcx::{DiagCtx, Diag};
-use etac_intern::{Interner, Symbol, InternReader};
+use etac_intern::{Interner};
 use etac_source::Span;
 use logos::Logos;
 
 mod internal_error;
 use internal_error::{InternalLexerError, lexer_error};
 
-pub struct SourceToken {
-    pub tok: RawToken,
-    pub span: Span,
-}
+pub mod token;
 
-pub trait ILexer<'src, 'dcx>: Iterator<Item = Result<SourceToken, Diag<'dcx>>> {
-    fn symbols(self) -> InternReader;
-}
+use crate::token::{RawToken, SourceToken};
+
+mod strings;
+
+// -- inner lexer type -- 
 
 type LogosLexer<'src> = logos::Lexer<'src, RawToken>;
 
+// -- public lexer type --
+
 pub struct EtaLexer<'src, 'dcx> {
-    inner: logos::SpannedIter<'src, RawToken>,
+    inner: LogosLexer<'src>,
     dcx: &'dcx DiagCtx,
 }
 
@@ -34,14 +32,16 @@ impl<'src, 'dcx> EtaLexer<'src, 'dcx> {
     pub fn new(base: u32, source: &'src str, diag_context: &'dcx DiagCtx) -> Self {
         Self {
             dcx: diag_context,
-            inner: <RawToken as Logos>::lexer_with_extras(source, (base, Interner::default())).spanned(),
+            inner: <RawToken as Logos>::lexer_with_extras(source, (base, Interner::default())),
         }
     }
-}
 
-impl<'src, 'dcx> ILexer<'src, 'dcx> for EtaLexer<'src, 'dcx> {
-    fn symbols(mut self) -> InternReader {
-        std::mem::take(&mut self.inner.extras.1).into_reader()
+    pub fn interner(&self) -> &Interner {
+        &self.inner.extras.1
+    }
+
+    pub fn into_interner(self) -> Interner {
+        self.inner.extras.1
     }
 }
 
@@ -50,11 +50,12 @@ impl<'src, 'dcx> Iterator for EtaLexer<'src, 'dcx> {
     type Item = Result<SourceToken, Diag<'dcx>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (next, local_span) = self.inner.next()?;
+        let next = self.inner.next()?;
+        let local_span = self.inner.span();
         let base = self.inner.extras.0;
         let span = Span::new(base + local_span.start as u32, base + local_span.end as u32);
         match next {
-            Ok(tok) => Some(Ok(SourceToken { tok, span })),
+            Ok(tok) => Some(Ok((span.lo, tok, span.hi))),
             Err(ie) => {
                 let mut d = self.dcx.err(ie.span, ie.message);
                 if let Some(l) = ie.plabel { d = d.with_primary_label(l); }
@@ -65,193 +66,39 @@ impl<'src, 'dcx> Iterator for EtaLexer<'src, 'dcx> {
     }
 }
 
-mod strings;
 
-#[derive(Debug, Clone, PartialEq, Logos)]
-#[logos(skip r"[ \t\n\f\r]+")]
-#[logos(skip(r"//[^\n]*", allow_greedy = true))]
-#[logos(extras = (u32, Interner))]
-#[logos(error(InternalLexerError, internal_error_unknown_token))]
-pub enum RawToken {
-    // Keywords
-    #[token("use")]
-    KeywordUse,
-    #[token("length")]
-    KeywordLength,
-    #[token("while")]
-    KeywordWhile,
-    #[token("if")]
-    KeywordIf,
-    #[token("else")]
-    KeywordElse,
-    #[token("return")]
-    KeywordReturn,
-    #[token("int")]
-    KeywordInt,
-    #[token("bool")]
-    KeywordBool,
-
-    // Punctuation
-    #[token(";")]
-    SemiColon,
-    #[token("_")]
-    Discard,
-    #[token(":")]
-    OfType,
-    #[token("=")]
-    Assign,
-    #[token(",")]
-    Comma,
-
-    #[token("true", |_| true)]
-    #[token("false", |_| false)]
-    BoolLiteral(bool),
-
-    #[regex(r"'([^'\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*'", strings::parse_char)]
-    CharLiteral(u32),
-
-    #[regex(r#""([^"\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*""#, strings::parse_str)]
-    StrLiteral(String),
-
-    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.extras.1.intern(lex.slice()))]
-    Identifier(Symbol),
-
-    #[regex(r"-?[1-9][0-9]*|0", parse_int)]
-    Integer(i64),
-
-    // Brackets and braces
-    #[token("(")]
-    LParen,
-    #[token(")")]
-    RParen,
-    #[token("[")]
-    LBracket,
-    #[token("]")]
-    RBracket,
-    #[token("{")]
-    BlockOpen,
-    #[token("}")]
-    BlockClose,
-
-    // Arithmetic operators
-    #[token("*")]
-    OperatorMul,
-    #[token("*>>")]
-    OperatorHighMul,
-    #[token("/")]
-    OperatorDiv,
-    #[token("%")]
-    OperatorMod,
-    #[token("!")]
-    OperatorNot,
-    #[token("-")]
-    Minus,
-    #[token("+")]
-    OperatorAdd,
-
-    // Relational operators
-    #[token("==")]
-    RelOpEq,
-    #[token("!=")]
-    RelOpNeq,
-    #[token(">")]
-    RelOpGr,
-    #[token(">=")]
-    RelOpGe,
-    #[token("<")]
-    RelOpLt,
-    #[token("<=")]
-    RelOpLe,
-
-    // Logical operators
-    #[token("&")]
-    Land,
-    #[token("|")]
-    Lor,
-}
-
-// Callbacks
+// -- lexing callbacks -- 
 
 fn parse_int(lex: &mut LogosLexer<'_>) -> Result<i64, InternalLexerError> {
-    lex.slice().parse::<i64>().map_err(|err: ParseIntError| lexer_error! {
-        span = current_span(lex),
-        message = format!("illegal integer literal: {}", err),
-        plabel = format!("this number is too {}", 
-            if err.to_string().contains("large") { "large" } 
-            else if err.to_string().contains("small") { "small" } 
-            else { panic!("rust error message is weird") }),
-        note = "eta only supports ints in the range [-2^63, 2^63)"
-    })
+    lex.slice().parse::<i64>().map_err(|err: ParseIntError| {
+        let (msg, prim) = match err.kind() {
+            std::num::IntErrorKind::PosOverflow => (
+                "this integer literal is too large to be stored in any Eta type",
+                "this integer is too large"),
+            std::num::IntErrorKind::NegOverflow => (
+                "this integer literal is too small to be stored in any Eta type",
+                "this integer is too small"),
+            _ => panic!("internal int parsing error"),
+        };
+        lexer_error! {
+            span = current_span(lex),
+            message = format!("illegal integer literal: {}", msg),
+            plabel = prim,
+            note = "eta only supports ints in the range [-2^63, 2^63)"
+        }}
+    )
 }
 
-impl Display for RawToken {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            RawToken::KeywordUse => write!(f, "use"),
-            RawToken::KeywordLength => write!(f, "length"),
-            RawToken::KeywordWhile => write!(f, "while"),
-            RawToken::KeywordIf => write!(f, "if"),
-            RawToken::KeywordElse => write!(f, "else"),
-            RawToken::KeywordReturn => write!(f, "return"),
-            RawToken::KeywordInt => write!(f, "int"),
-            RawToken::KeywordBool => write!(f, "bool"),
-            RawToken::SemiColon => write!(f, ";"),
-            RawToken::Discard => write!(f, "_"),
-            RawToken::OfType => write!(f, ":"),
-            RawToken::Assign => write!(f, "="),
-            RawToken::Comma => write!(f, ","),
-            RawToken::BoolLiteral(b) => write!(f, "{b}"),
-            RawToken::CharLiteral(c) => write!(
-                f,
-                "character {}",
-                char::from_u32(*c)
-                    .expect("illegal char somehow lexed")
-                    .escape_default()
-                    .collect::<String>()
-                    .replace("\\u{", "\\x{")
-            ),
-            RawToken::StrLiteral(s) => write!(
-                f,
-                "string {}",
-                s.escape_default().collect::<String>().replace("\\u{", "\\x{")
-            ),
-            RawToken::Identifier(s) => write!(f, "id {}", s.into_inner()),
-            RawToken::Integer(n) => write!(f, "integer {n}"),
-            RawToken::LParen => write!(f, "("),
-            RawToken::RParen => write!(f, ")"),
-            RawToken::LBracket => write!(f, "["),
-            RawToken::RBracket => write!(f, "]"),
-            RawToken::BlockOpen => write!(f, "{{"),
-            RawToken::BlockClose => write!(f, "}}"),
-            RawToken::OperatorMul => write!(f, "*"),
-            RawToken::OperatorHighMul => write!(f, "*>>"),
-            RawToken::OperatorDiv => write!(f, "/"),
-            RawToken::OperatorMod => write!(f, "%"),
-            RawToken::OperatorNot => write!(f, "!"),
-            RawToken::Minus => write!(f, "-"),
-            RawToken::OperatorAdd => write!(f, "+"),
-            RawToken::RelOpEq => write!(f, "=="),
-            RawToken::RelOpNeq => write!(f, "!="),
-            RawToken::RelOpGr => write!(f, ">"),
-            RawToken::RelOpGe => write!(f, ">="),
-            RawToken::RelOpLt => write!(f, "<"),
-            RawToken::RelOpLe => write!(f, "<="),
-            RawToken::Land => write!(f, "&"),
-            RawToken::Lor => write!(f, "|"),
-        }
-    }
-}
+// -- helpers --
 
-// helpers
-
-fn current_span<'s>(lex: &LogosLexer) -> Span {
+fn current_span(lex: &LogosLexer) -> Span {
     Span::new(
         lex.extras.0 + lex.span().start as u32,
         lex.extras.0 + lex.span().end as u32
     )
 }
 
-fn internal_error_unknown_token<'s>(lex: &mut LogosLexer) -> InternalLexerError {
+fn internal_error_unknown_token(lex: &mut LogosLexer) -> InternalLexerError {
     lexer_error! {
         span = current_span(lex),
         message = "unknown token",

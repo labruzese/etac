@@ -230,7 +230,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
     Ok(esc)
 }
 
-pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLexerError> {
+pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<char, InternalLexerError> {
     let raw = lex.slice();
     let tok_span = current_span(lex);
 
@@ -280,7 +280,7 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<u32, InternalLe
         });
     }
 
-    Ok(value as u32)
+    Ok(value)
 }
 
 pub fn parse_str(lex: &mut LogosLexer<'_>) -> Result<String, InternalLexerError> {
@@ -304,7 +304,7 @@ pub fn parse_str(lex: &mut LogosLexer<'_>) -> Result<String, InternalLexerError>
             b if b.is_ascii() => out.push(b as char),
 
             // Non-ASCII: walk back one byte (already consumed by `next()`) and re-decode the full UTF-8 sequence as a 
-            // `&str`
+            // `&str` 
             _ => {
                 let start = cursor.loc() - 1;
                 let (c, _end) = finish_char(&mut cursor, start);

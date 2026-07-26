@@ -1,42 +1,37 @@
+use std::cell::RefCell;
 use std::fmt::Write as _;
+use std::io;
+use std::rc::Rc;
 
-use etac_errors::dcx::Diagnostic;
+use etac_errors::emitter::EmitConfig;
+use etac_errors::emitter::IoEmitter;
+use etac_intern::Interner;
+use etac_lexer::token::SourceToken;
 use etac_source::SourceMap;
-use etac_lexer::{SourceToken};
+use etac_source::Span;
 
-pub fn write_diag(buffer: &mut String, diag: Diagnostic, sm: &SourceMap) {
-    let loc = diag.loc;
-    let level = &diag.level;
-    let message = &diag.message;
-    let note = diag.note.as_deref().unwrap_or("");
-    let mut labels = String::new();
-    diag.labels.iter().for_each(|(span, message, ..)| {
-        let file = sm.source_name(sm.resolve_span(*span).1);
-        let (line_start, column_start) = sm.line_column(span.lo);
-        let (line_end, column_end) = sm.line_column(span.hi);
-        let _ = writeln!(labels, "\n\t{file}:{line_start}:{column_start}..{line_end}:{column_end} {message:?}");
-    });
-    let diag_str = format!("{level:?} {{\n\tmessage: {message}\n\tnote: {note}{labels}}}");
-    match loc {
-        Some(s) => {
-            let file = sm.source_name(sm.resolve_span(s).1);
-            let (line_start, column_start) = sm.line_column(s.lo);
-            let (line_end, column_end) = sm.line_column(s.hi);
-            let _ = writeln!(buffer, "{file}:{line_start}:{column_start}..{line_end}:{column_end} {diag_str}");
+pub struct StringWriter(pub Rc<RefCell<String>>);
+    impl io::Write for StringWriter {
+        fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+            let s = std::str::from_utf8(buf)
+                .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+            self.0.borrow_mut().push_str(s);
+            Ok(buf.len())
         }
-        None => {
-            let _ = writeln!(buffer, "{diag_str}");
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
         }
     }
-    diag.cancel();
+
+pub fn string_emitter(write_buf: &Rc<RefCell<String>>, config: EmitConfig) -> IoEmitter<StringWriter> {
+    IoEmitter::with_config(StringWriter(write_buf.clone()), config)
 }
 
-pub fn write_token(buffer: &mut String, token: SourceToken, sm: &SourceMap) {
-    let SourceToken { tok, span } = token;
-    let file = sm.source_name(sm.resolve_span(span));
-    let (line_start, column_start) = sm.line_column(span.lo);
-    let (line_end, column_end) = sm.line_column(span.hi);
-    let _ = writeln!(buffer, "{file}:{line_start}:{column_start}..{line_end}:{column_end} {tok:?}");
+pub fn write_token(write_buf: &RefCell<String>, token: SourceToken, sm: &SourceMap, lookup: &Interner) {
+    let (start, tok, end) = token;
+    let span_location = sm.span_location(Span::new(start, end));
+    let display_token = etac_lexer::token::TokenDisplay::new(tok, |sym| lookup.resolve(*sym));
+    let _ = writeln!(write_buf.borrow_mut(), "{span_location} {display_token}");
 }
 
 // pub fn write_parse_output<T: etac_ast::sexpr::Sexpr>(buffer: &mut String, file: FileId, output: etac_parse::Parsed<T>, cache: &EtaCache) {

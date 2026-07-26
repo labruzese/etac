@@ -11,6 +11,7 @@ etac_errors.workspace = true
 logos.workspace       = true
 
 [dev-dependencies]
+etac_cache.workspace    = true
 expect-test.workspace 	= true
 indoc.workspace 	= true
 etac_test.workspace 	= true

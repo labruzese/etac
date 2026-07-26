@@ -72,9 +72,8 @@ impl DiagCtx {
     }
 
     pub fn emit_diagnostics(mut self, source_map: &SourceMap) {
-        let mut emit_cache = crate::emitter::EmitCache::new(source_map);
         for diag in self.diagnostics.into_vec().drain(..) {
-            self.emitter.emit(&mut emit_cache, *diag);
+            self.emitter.emit(source_map, *diag);
         }
         #[cfg(debug_assertions)] self.bomb.defuse();
     }
@@ -144,6 +143,10 @@ impl<'dcx> Diag<'dcx> {
             #[cfg(debug_assertions)]
             bomb: DropBomb::new("Diag dropped without writing diagnostic to context"),
         }
+    }
+
+    pub fn level(&self) -> Level {
+        self.diagnostic.level
     }
 
     /// Point the primary (red) label at the diagnostic's own span.

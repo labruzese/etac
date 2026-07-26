@@ -177,7 +177,7 @@ pub enum ArrayLitKind {
     Array(ArrayLit),
 }
 
-pub struct StringLit{ pub span: Span, pub value: Vec<char> }
+pub struct StringLit{ pub span: Span, pub value: Symbol }
 
 pub struct ArrayLit{ pub span: Span, pub value: Vec<ExprKind> }
 

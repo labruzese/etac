@@ -60,7 +60,7 @@ impl Logger {
     /// keep flowing to the parser.
     pub fn tee_lexer<'ec, 'src, 'dcx, I>(&self, file: FileId<'ec>, cache: &'ec EtaCache, inner: I) -> TeeLexer<'ec, I>
     where
-        I: Iterator<Item = Result<(u32, RawToken<'src>, u32), Diag<'dcx>>>,
+        I: Iterator<Item = Result<SourceToken, Diag<'dcx>>>,
     {
         TeeLexer {
             cache,

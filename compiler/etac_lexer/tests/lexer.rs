@@ -1,23 +1,33 @@
-use etac_cache::{EtaCache, FileId};
-use etac_errors::DiagCtxt;
+use std::{cell::RefCell, rc::Rc};
+
+use etac_errors::{dcx::DiagCtx, emitter::EmitConfig};
 use etac_lexer::EtaLexer;
+use etac_source::{FileId, SourceMap};
 
 /// testing interface for lexer
-pub fn lex<'ec>(cache: &'ec EtaCache, file_id: FileId<'ec>) -> String {
-    let dcx = DiagCtxt::new(cache);
+pub fn lex<'sm>(sm: &'sm SourceMap, file_id: FileId<'sm>) -> String {
+    let out = Rc::new(RefCell::new(String::new()));
+    let dcx = DiagCtx::with_emitter(Box::new(etac_test::string_emitter(
+        &out,
+        EmitConfig::default().with_color(false).with_compact(false),
+    )));
+    let mut lexer = EtaLexer::new(sm.base_offset(file_id), &sm.get_source(file_id).source, &dcx);
 
-    let mut out = String::new();
-    for item in EtaLexer::new(cache.base_offset(file_id), cache.source_text(file_id), &dcx) {
+    loop {
+        let item = lexer.next();
         match item {
-            Ok(token) => {
-                etac_test::write_token(&mut out, token, cache);
+            Some(Ok(token)) => {
+                etac_test::write_token(&out, token, sm, lexer.interner());
             }
-            Err(diag) => {
-                etac_test::write_diag(&mut out, diag, cache);
+            Some(Err(diag)) => {
+                diag.finish(); // queued for emission
             }
+            None => break,
         }
     }
-    out
+
+    dcx.emit_diagnostics(sm);
+    out.take()
 }
 
 #[allow(unused_macros)]
@@ -31,25 +41,25 @@ macro_rules! lextest {
     };
 
     // --- @item rules must come BEFORE the general catch-all ---
-    (@item $cache:ident, $ids:ident, $n:ident; $name:literal { $src:expr, $expected:expr } $($rest:tt)*) => {
-        $ids.push_back($cache.store_source($name, $src.to_owned()).0);
+    (@item $sm:ident, $ids:ident, $n:ident; $name:literal { $src:expr, $expected:expr } $($rest:tt)*) => {
+        $ids.push_back($sm.store_source($name, $src.to_owned()).0);
         let expected: expect_test::Expect = $expected;
-        expected.assert_eq(&lexer::lex(&$cache, $ids.pop_front().unwrap()));
-        lextest!(@item $cache, $ids, $n; $($rest)*);
+        expected.assert_eq(&lexer::lex(&$sm, $ids.pop_front().unwrap()));
+        lextest!(@item $sm, $ids, $n; $($rest)*);
     };
-    (@item $cache:ident, $ids:ident, $n:ident; { $src:expr, $expected:expr } $($rest:tt)*) => {
+    (@item $sm:ident, $ids:ident, $n:ident; { $src:expr, $expected:expr } $($rest:tt)*) => {
         let name = format!("src{}", $n);
         $n += 1;
-        $ids.push_back($cache.store_source(name, $src.to_owned()).0);
+        $ids.push_back($sm.alloc_source(name, $src.to_owned()).0);
         let expected: expect_test::Expect = $expected;
-        expected.assert_eq(&lexer::lex(&$cache, $ids.pop_front().unwrap()));
-        lextest!(@item $cache, $ids, $n; $($rest)*);
+        expected.assert_eq(&lexer::lex(&$sm, $ids.pop_front().unwrap()));
+        lextest!(@item $sm, $ids, $n; $($rest)*);
     };
-    (@item $cache:ident, $ids:ident, $n:ident;) => {};
+    (@item $sm:ident, $ids:ident, $n:ident;) => {};
 
     // --- wrapped/general entry point ---
     (@wrap $($rest:tt)*) => {{
-        let cache = etac_cache::EtaCache::new();
+        let cache = etac_source::SourceMap::default();
         let mut ids = std::collections::VecDeque::new();
         let mut n: usize = 0;
         lextest!(@item cache, ids, n; $($rest)*);

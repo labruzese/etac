@@ -386,6 +386,7 @@ dependencies = [
 name = "etac_lexer"
 version = "0.1.0"
 dependencies = [
+ "etac_cache",
  "etac_errors",
  "etac_intern",
  "etac_source",
@@ -435,6 +436,7 @@ dependencies = [
 name = "etac_source"
 version = "0.1.0"
 dependencies = [
+ "ariadne",
  "crossbeam-skiplist",
  "dashmap",
  "elsa",
@@ -444,9 +446,11 @@ dependencies = [
 name = "etac_test"
 version = "0.1.0"
 dependencies = [
+ "ariadne",
  "etac_ast",
  "etac_cache",
  "etac_errors",
+ "etac_intern",
  "etac_lexer",
  "etac_source",
 ]

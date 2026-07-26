@@ -5,6 +5,7 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
+ariadne.workspace 	     = true
 elsa.workspace               = true
 dashmap.workspace            = true
 crossbeam-skiplist.workspace = true
