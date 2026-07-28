@@ -1,5 +1,5 @@
 use etac_errors::dcx::Diag;
-use etac_intern::Interner;
+use etac_intern::{EtacInterner};
 
 #[derive(Debug)]
 pub enum Parsed<Out> {
@@ -17,9 +17,9 @@ impl<Out> Parsed<Out> {
     }
 }
 
-pub struct ParseResult<'dcx, Out> {
+pub struct ParseResult<'src, 'dcx, Out> {
     pub parse: Parsed<Out>,
     pub diags: Vec<Diag<'dcx>>,
-    pub symbols: Interner,
+    pub symbols: &'src mut EtacInterner,
 }
 

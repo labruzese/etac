@@ -4,7 +4,7 @@
 use std::num::ParseIntError;
 
 use etac_errors::dcx::{DiagCtx, Diag};
-use etac_intern::{Interner};
+use etac_intern::{EtacInterner};
 use etac_source::Span;
 use logos::Logos;
 
@@ -29,18 +29,18 @@ pub struct EtaLexer<'src, 'dcx> {
 }
 
 impl<'src, 'dcx> EtaLexer<'src, 'dcx> {
-    pub fn new(base: u32, source: &'src str, diag_context: &'dcx DiagCtx) -> Self {
+    pub fn new(base: u32, source: &'src str, interner: &'src mut EtacInterner, diag_context: &'dcx DiagCtx) -> Self {
         Self {
             dcx: diag_context,
-            inner: <RawToken as Logos>::lexer_with_extras(source, (base, Interner::default())),
+            inner: <RawToken as Logos>::lexer_with_extras(source, (base, interner)),
         }
     }
 
-    pub fn interner(&self) -> &Interner {
-        &self.inner.extras.1
+    pub fn interner(&self) -> &EtacInterner {
+        self.inner.extras.1
     }
 
-    pub fn into_interner(self) -> Interner {
+    pub fn into_interner_mut(self) -> &'src mut EtacInterner {
         self.inner.extras.1
     }
 }

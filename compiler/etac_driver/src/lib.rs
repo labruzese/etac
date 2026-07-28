@@ -4,91 +4,110 @@
 //! input between each phase, storing every phase's output back into the cache
 //! and attaching loggers along the way.
 
-use etac_cache::{EtaCache, FileId};
-use etac_errors::{Diag, DiagCtxt, ErrorGuaranteed};
-use etac_parse::{IParser, Parsed};
+use std::convert::identity;
+
+use etac_cache::EtaCache;
+use etac_errors::{
+    dcx::{Diag, DiagCtx},
+    guarentee::ErrorGuaranteed,
+};
+use etac_intern::{EtacInterner};
+use etac_parse::{
+    result::{ParseResult, Parsed},
+    IParser,
+};
 use etac_resolve::{File, Resolver};
-use etac_session::{cli::Flags, logger::Logger};
+use etac_session::cli::Flags;
+use etac_source::{FileId, SourceMap};
 
 pub use crate::status::{CompilationFailure, CompilationSuccess};
 
-mod compat;
 mod status;
 
 type Result<T> = std::result::Result<T, ErrorGuaranteed>;
 type CompilationResult = std::result::Result<CompilationSuccess, CompilationFailure>;
 
-fn parse_one<'dcx, P>(
-    logger: &Logger,
-    dcx: &'dcx DiagCtxt<'dcx>,
-    file: FileId<'dcx>,
-    parser: P,
-) -> Result<P::Out>
-where
-    P: IParser<'dcx, 'dcx>,
-    P::Out: std::fmt::Display,
-{
-    let cache = dcx.cache();
-    let lexer = etac_lexer::EtaLexer::new(cache.base_offset(file), cache.source_text(file), dcx);
+struct ParseOneSuccess<'src, Out> {
+    out: Out,
+    interner: &'src mut EtacInterner,
+}
 
-    match parser.parse(&mut lexer) {
-        Parsed::Ok(tree) => Ok(tree),
+fn parse_one<'src, 'dcx, P>(
+    sm: &'src SourceMap,
+    interner: &'src mut EtacInterner,
+    dcx: &'dcx DiagCtx,
+    file: FileId<'src>,
+    parser: P,
+) -> Result<ParseOneSuccess<'src, P::Out>>
+where
+    P: IParser<'src, 'dcx>,
+{
+    let source = sm.get_source(file);
+    let offset = sm.base_offset(file);
+    let lexer = etac_lexer::EtaLexer::new(offset, &source.source, interner, dcx);
+
+    let ParseResult {
+        parse,
+        mut diags,
+        symbols,
+    } = parser.parse(lexer);
+
+    match parse {
+        Parsed::Ok(tree) => Ok(ParseOneSuccess {
+            out: tree,
+            interner: symbols,
+        }),
         Parsed::Recovered(tree) => {
-            let _g: ErrorGuaranteed = parser
-                .into_errors()
-                .into_iter()
-                .map(Diag::emit)
-                .reduce(|_, g| g)
-                .expect("parse not to recover with no errors");
-            Ok(tree)
+            let _g = diags
+                .drain(..)
+                .map(Diag::finish)
+                .reduce(|_, g| identity(g))
+                .expect("recovered tree must have at least one diagnostic");
+            Ok(ParseOneSuccess {
+                out: tree,
+                interner: symbols,
+            })
         }
         Parsed::Failed => {
-            let g: ErrorGuaranteed = parser
-                .into_errors()
-                .into_iter()
-                .map(Diag::emit)
-                .reduce(|_, g| g)
-                .expect("parse not to fail with no errors");
-
-            // drain the remaining token stream so trailing lexical errors still reach the user
-            lexer.for_each(|i| {
-                let _ = i.map_err(Diag::emit);
-            });
-
+            let g = diags
+                .drain(..)
+                .map(Diag::finish)
+                .reduce(|_, g| identity(g))
+                .expect("failed tree must have at least one diagnostic");
             Err(g)
         }
     }
 }
 
 pub fn run(flags: &Flags) -> CompilationResult {
-    let logger = Logger::new(flags);
-    let cache = EtaCache::new();
-    let dcx = DiagCtxt::new(&cache);
+    let mut cache = EtaCache::new();
+    let dcx = DiagCtx::new();
 
     let mut resolver = Resolver::new(&flags.source_path, &flags.lib_path);
 
     let files: Vec<File<'_>> = flags
         .source_files
         .iter()
-        .filter_map(|path| match resolver.classify_cli(&mut cache.sources, &dcx, path) {
+        .filter_map(|path| match resolver.classify_cli(&cache.sources, &dcx, path) {
             Ok(file) => file,
             Err(diag) => {
-                diag.emit();
+                let _ = diag.finish();
                 None
             }
         })
         .collect();
 
+
     for file in files {
         match file {
             File::Program(id) => {
-                if let Ok(program) = parse_one(&logger, &dcx, id, etac_parse::ProgramParser::new(&dcx)) {
-                    cache.store_program(id, program);
+                if let Ok(ParseOneSuccess{ out, interner }) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id, etac_parse::ProgramParser::new(&dcx)) {
+                    
                 }
             }
             File::Interface(id) => {
-                if let Ok(interface) = parse_one(&logger, &dcx, id, etac_parse::InterfaceParser::new(&dcx)) {
-                    cache.store_interface(id, interface);
+                if let Ok(ParseOneSuccess{ out, interner }) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id, etac_parse::InterfaceParser::new(&dcx)) {
+                    
                 }
             }
         }

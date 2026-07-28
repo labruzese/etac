@@ -1,5 +1,4 @@
 use std::marker::PhantomData;
-use std::ops::Range;
 use std::rc::Rc;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;

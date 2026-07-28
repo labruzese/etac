@@ -1,12 +1,12 @@
-use etac_errors::DiagCtxt;
+use etac_errors::dcx::DiagCtx;
 
 #[derive(Debug)]
 pub struct CompilationFailure {
     pub errors: usize,
     pub warnings: usize,
 }
-impl From<&DiagCtxt<'_>> for CompilationFailure {
-    fn from(value: &DiagCtxt<'_>) -> Self {
+impl From<&DiagCtx> for CompilationFailure {
+    fn from(value: &DiagCtx) -> Self {
         CompilationFailure {
             errors: value.err_count(),
             warnings: value.warn_count(),
@@ -16,8 +16,8 @@ impl From<&DiagCtxt<'_>> for CompilationFailure {
 pub struct CompilationSuccess {
     pub warnings: usize
 }
-impl From<&DiagCtxt<'_>> for CompilationSuccess {
-    fn from(value: &DiagCtxt<'_>) -> Self {
+impl From<&DiagCtx> for CompilationSuccess {
+    fn from(value: &DiagCtx) -> Self {
         CompilationSuccess {
             warnings: value.warn_count(),
         }

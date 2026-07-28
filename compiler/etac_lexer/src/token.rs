@@ -1,7 +1,7 @@
 use core::fmt;
 use std::fmt::Display;
 
-use etac_intern::{InternReader, Interner, Symbol};
+use etac_intern::{EtacInterner, Symbol};
 use logos::Logos;
 
 use crate::{internal_error::InternalLexerError, internal_error_unknown_token};
@@ -11,7 +11,7 @@ pub type SourceToken = (u32, RawToken, u32);
 #[derive(Debug, Clone, PartialEq, Logos)]
 #[logos(skip r"[ \t\n\f\r]+")]
 #[logos(skip(r"//[^\n]*", allow_greedy = true))]
-#[logos(extras = (u32, Interner))]
+#[logos(extras = (u32, &'s mut EtacInterner))]
 #[logos(error(InternalLexerError, internal_error_unknown_token))]
 pub enum RawToken {
     // Keywords
@@ -52,11 +52,11 @@ pub enum RawToken {
     CharLiteral(char),
 
     #[regex(r#""([^"\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*""#, |lex| { 
-        crate::strings::parse_str(lex).map(|s| lex.extras.1.intern(&s))
+        crate::strings::parse_str(lex).map(|s| lex.extras.1.get_or_intern(&s))
     })]
     StrLiteral(Symbol),
 
-    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.extras.1.intern(lex.slice()))]
+    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.extras.1.get_or_intern(lex.slice()))]
     Identifier(Symbol),
 
     #[regex(r"-?[1-9][0-9]*|0", crate::parse_int)]
@@ -128,14 +128,14 @@ impl<'a, F: Fn(&Symbol) -> &'a str> TokenDisplay<'a, F> {
 
 pub fn display_with_interner<'a>(
     tok: RawToken,
-    interner: &'a Interner,
+    interner: &'a EtacInterner,
 ) -> TokenDisplay<'a, impl Fn(&Symbol) -> &'a str + 'a> {
-    TokenDisplay::new(tok, move |s| interner.resolve(*s))
+    TokenDisplay::new(tok, move |s| interner.resolve(s))
 }
 
 pub fn display_with_intern_reader<'a>(
     tok: RawToken,
-    ireader: &'a InternReader,
+    ireader: &'a EtacInterner,
 ) -> TokenDisplay<'a, impl Fn(&Symbol) -> &'a str + 'a> {
     TokenDisplay::new(tok, move |s| ireader.resolve(s))
 }

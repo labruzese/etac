@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use etac_errors::emitter::EmitConfig;
 use etac_errors::emitter::IoEmitter;
-use etac_intern::Interner;
+use etac_intern::EtacInterner;
 use etac_lexer::token::SourceToken;
 use etac_source::SourceMap;
 use etac_source::Span;
@@ -27,12 +27,13 @@ pub fn string_emitter(write_buf: &Rc<RefCell<String>>, config: EmitConfig) -> Io
     IoEmitter::with_config(StringWriter(write_buf.clone()), config)
 }
 
-pub fn write_token(write_buf: &RefCell<String>, token: SourceToken, sm: &SourceMap, lookup: &Interner) {
+pub fn write_token(write_buf: &RefCell<String>, token: SourceToken, sm: &SourceMap, lookup: &EtacInterner) {
     let (start, tok, end) = token;
     let span_location = sm.span_location(Span::new(start, end));
-    let display_token = etac_lexer::token::TokenDisplay::new(tok, |sym| lookup.resolve(*sym));
+    let display_token = etac_lexer::token::TokenDisplay::new(tok, |sym| lookup.resolve(sym));
     let _ = writeln!(write_buf.borrow_mut(), "{span_location} {display_token}");
 }
+
 
 // pub fn write_parse_output<T: etac_ast::sexpr::Sexpr>(buffer: &mut String, file: FileId, output: etac_parse::Parsed<T>, cache: &EtaCache) {
 //     let file = cache.source_name(file);

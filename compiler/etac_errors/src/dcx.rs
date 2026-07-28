@@ -177,6 +177,7 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Emit a fully-built diagnostic.
+    #[must_use = "consider returning this guarentee as a proof that you have already emitted for this error"]
     pub fn finish(mut self) -> ErrorGuaranteed {
         let level = self.diagnostic.level;
         match level {

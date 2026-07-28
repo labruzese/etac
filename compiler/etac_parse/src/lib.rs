@@ -27,18 +27,18 @@ type LalrpopFailure<'dcx> = ParseError<u32, RawToken, Diag<'dcx>>;
 pub trait IParser<'src, 'dcx> {
     type Out;
 
-    fn parse(self, lexer: EtaLexer<'src, 'dcx>) -> ParseResult<'dcx, Self::Out>;
+    fn parse(self, lexer: EtaLexer<'src, 'dcx>) -> ParseResult<'src, 'dcx, Self::Out>;
 
     fn diagnostic_context(&self) -> &'dcx DiagCtx;
 }
 
 /// easily implement IParser from lalrpop parse fn
-fn parse_generic<'dcx, 'src, LalrpopParser, LalrpopParseFn, Out> (
+fn parse_generic<'src, 'dcx, LalrpopParser, LalrpopParseFn, Out> (
     parser: LalrpopParser,
     parse_inner: LalrpopParseFn,
     mut pstate: ParseState<'dcx>,
     mut lexer: EtaLexer<'src, 'dcx>
-) -> ParseResult<'dcx, Out> 
+) -> ParseResult<'src, 'dcx, Out> 
 where 
     LalrpopParseFn: Fn(&LalrpopParser, &mut ParseState<'dcx>, &mut EtaLexer<'src, 'dcx>) -> Result<Out, LalrpopFailure<'dcx>> 
 {
@@ -59,7 +59,7 @@ where
             Parsed::Failed
         }
     };
-    let symbols = lexer.into_interner();
+    let symbols = lexer.into_interner_mut();
     let diags = pstate.etac_errs;
     ParseResult {
         parse: parsed,
@@ -102,7 +102,7 @@ macro_rules! impl_iparser {
             type Out = $out;
 
             /// basically just defer to parse_generic by extracting lalrpop parse fn
-            fn parse(self, lexer: EtaLexer<'src, 'dcx>) -> ParseResult<'dcx, Self::Out> {
+            fn parse(self, lexer: EtaLexer<'src, 'dcx>) -> ParseResult<'src, 'dcx, Self::Out> {
                 let parser = <$full>::new();
                 parse_generic(
                     parser,
@@ -131,7 +131,7 @@ impl_iparser! {
 // -- helpers --
 
 /// LALRPOP error to [`Diag`]
-fn to_diag<'dcx, 'src>(
+fn to_diag<'dcx>(
     diagc: &'dcx DiagCtx,
     err: ParseError<u32, RawToken, Diag<'dcx>>,
 ) -> Diag<'dcx> {

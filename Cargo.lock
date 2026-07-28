@@ -357,10 +357,12 @@ version = "0.1.0"
 dependencies = [
  "etac_cache",
  "etac_errors",
+ "etac_intern",
  "etac_lexer",
  "etac_parse",
  "etac_resolve",
  "etac_session",
+ "etac_source",
 ]
 
 [[package]]
