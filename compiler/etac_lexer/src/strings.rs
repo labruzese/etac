@@ -82,7 +82,7 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                     // No digits between `{` and `}`.
                     return Err(lexer_error! {
                         span = Span::new(open, close),
-                        message = "empty unicode escape expected non-empty hex between '{{' and '}}'",
+                        message = "empty unicode escape expected non-empty hex between '{' and '}'",
                         plabel = "expected non-empty hex here",
                     });
                 }
