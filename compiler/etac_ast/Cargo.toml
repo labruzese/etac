@@ -10,6 +10,7 @@ etac_source.workspace		= true
 etac_intern.workspace 		= true
 pretty.workspace 	  	= true
 pastey.workspace 		= true
+indenter.workspace		= true
 
 [lints]
 workspace = true

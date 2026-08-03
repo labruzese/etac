@@ -21,7 +21,8 @@ fn add() {
               (uses)
               (defs
                 (error)))
-            program         : src0.eta:1:1..1:4
+            program > +++
+            error   > +++
 
             Error: unexpected token `+`
                ╭─[ src0.eta:1:1 ]
@@ -61,57 +62,83 @@ fn all_comparisons() {
                     (assign (targets (: c4 bool)) (values (>= a b)))
                     (assign (targets (: c5 bool)) (values (== a b)))
                     (assign (targets (: c6 bool)) (values (!= a b)))))))
-            program         : src0.eta:1:1..8:2
-            method          : src0.eta:1:1..8:2
-            mdecl           : src0.eta:1:1..1:24
-            id compare      : src0.eta:1:1..1:8
-            decl            : src0.eta:1:9..1:15
-            id a            : src0.eta:1:9..1:10
-            decl            : src0.eta:1:17..1:23
-            id b            : src0.eta:1:17..1:18
-            block           : src0.eta:1:25..8:2
-            assign          : src0.eta:2:5..2:21
-            bexpr           : src0.eta:2:16..2:21
-            binop           : src0.eta:2:18..2:19
-            id a            : src0.eta:2:16..2:17
-            id b            : src0.eta:2:20..2:21
-            decl            : src0.eta:2:5..2:13
-            id c1           : src0.eta:2:5..2:7
-            assign          : src0.eta:3:5..3:22
-            bexpr           : src0.eta:3:16..3:22
-            binop           : src0.eta:3:18..3:20
-            id a            : src0.eta:3:16..3:17
-            id b            : src0.eta:3:21..3:22
-            decl            : src0.eta:3:5..3:13
-            id c2           : src0.eta:3:5..3:7
-            assign          : src0.eta:4:5..4:21
-            bexpr           : src0.eta:4:16..4:21
-            binop           : src0.eta:4:18..4:19
-            id a            : src0.eta:4:16..4:17
-            id b            : src0.eta:4:20..4:21
-            decl            : src0.eta:4:5..4:13
-            id c3           : src0.eta:4:5..4:7
-            assign          : src0.eta:5:5..5:22
-            bexpr           : src0.eta:5:16..5:22
-            binop           : src0.eta:5:18..5:20
-            id a            : src0.eta:5:16..5:17
-            id b            : src0.eta:5:21..5:22
-            decl            : src0.eta:5:5..5:13
-            id c4           : src0.eta:5:5..5:7
-            assign          : src0.eta:6:5..6:22
-            bexpr           : src0.eta:6:16..6:22
-            binop           : src0.eta:6:18..6:20
-            id a            : src0.eta:6:16..6:17
-            id b            : src0.eta:6:21..6:22
-            decl            : src0.eta:6:5..6:13
-            id c5           : src0.eta:6:5..6:7
-            assign          : src0.eta:7:5..7:22
-            bexpr           : src0.eta:7:16..7:22
-            binop           : src0.eta:7:18..7:20
-            id a            : src0.eta:7:16..7:17
-            id b            : src0.eta:7:21..7:22
-            decl            : src0.eta:7:5..7:13
-            id c6           : src0.eta:7:5..7:7
+            program > compare(a: int, b: int) {
+                    >     c1: bool = a < b
+                    >     c2: bool = a <= b
+                    > ...
+                    >     c5: bool = a == b
+                    >     c6: bool = a != b
+                    > }
+            method  > compare(a: int, b: int) {
+                    >     c1: bool = a < b
+                    >     c2: bool = a <= b
+                    > ...
+                    >     c5: bool = a == b
+                    >     c6: bool = a != b
+                    > }
+            mdecl   > compare(a: int, b: int)
+            id      > compare
+            decl    > a: int
+            int_t   > int
+            id      > a
+            decl    > b: int
+            int_t   > int
+            id      > b
+            block   > {
+                    >     c1: bool = a < b
+                    >     c2: bool = a <= b
+                    > ...
+                    >     c5: bool = a == b
+                    >     c6: bool = a != b
+                    > }
+            assign  > c1: bool = a < b
+            bexpr   > a < b
+            binop   > <
+            id      > a
+            id      > b
+            decl    > c1: bool
+            bool_t  > bool
+            id      > c1
+            assign  > c2: bool = a <= b
+            bexpr   > a <= b
+            binop   > <=
+            id      > a
+            id      > b
+            decl    > c2: bool
+            bool_t  > bool
+            id      > c2
+            assign  > c3: bool = a > b
+            bexpr   > a > b
+            binop   > >
+            id      > a
+            id      > b
+            decl    > c3: bool
+            bool_t  > bool
+            id      > c3
+            assign  > c4: bool = a >= b
+            bexpr   > a >= b
+            binop   > >=
+            id      > a
+            id      > b
+            decl    > c4: bool
+            bool_t  > bool
+            id      > c4
+            assign  > c5: bool = a == b
+            bexpr   > a == b
+            binop   > ==
+            id      > a
+            id      > b
+            decl    > c5: bool
+            bool_t  > bool
+            id      > c5
+            assign  > c6: bool = a != b
+            bexpr   > a != b
+            binop   > !=
+            id      > a
+            id      > b
+            decl    > c6: bool
+            bool_t  > bool
+            id      > c6
 
         "#]]
     }
@@ -138,38 +165,52 @@ fn array_chain_index() {
                     (assign (targets (: a (array (array int)))) (values (array (array 1 2) (array 3 4))))
                     (assign (targets (: x int)) (values (index (index a 0) 1)))
                     (assign (targets (index (index a 1) 0)) (values 5))))))
-            program         : src0.eta:1:1..5:2
-            method          : src0.eta:1:1..5:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..5:2
-            assign          : src0.eta:2:5..2:34
-            arr_lit         : src0.eta:2:18..2:34
-            arr_lit         : src0.eta:2:19..2:25
-            int_lit         : src0.eta:2:20..2:21
-            int_lit         : src0.eta:2:23..2:24
-            arr_lit         : src0.eta:2:27..2:33
-            int_lit         : src0.eta:2:28..2:29
-            int_lit         : src0.eta:2:31..2:32
-            decl            : src0.eta:2:5..2:15
-            arr_t           : src0.eta:2:13..2:15
-            arr_t           : src0.eta:2:11..2:13
-            id a            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:21
-            expr_idx        : src0.eta:3:14..3:21
-            expr_idx        : src0.eta:3:14..3:18
-            id a            : src0.eta:3:14..3:15
-            int_lit         : src0.eta:3:16..3:17
-            int_lit         : src0.eta:3:19..3:20
-            decl            : src0.eta:3:5..3:11
-            id x            : src0.eta:3:5..3:6
-            assign          : src0.eta:4:5..4:16
-            int_lit         : src0.eta:4:15..4:16
-            expr_idx        : src0.eta:4:5..4:12
-            expr_idx        : src0.eta:4:5..4:9
-            id a            : src0.eta:4:5..4:6
-            int_lit         : src0.eta:4:7..4:8
-            int_lit         : src0.eta:4:10..4:11
+            program > f() {
+                    >     a: int[][] = {{1, 2}, {3, 4}}
+                    >     x: int = a[0][1]
+                    >     a[1][0] = 5
+                    > }
+            method  > f() {
+                    >     a: int[][] = {{1, 2}, {3, 4}}
+                    >     x: int = a[0][1]
+                    >     a[1][0] = 5
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     a: int[][] = {{1, 2}, {3, 4}}
+                    >     x: int = a[0][1]
+                    >     a[1][0] = 5
+                    > }
+            assign  > a: int[][] = {{1, 2}, {3, 4}}
+            arr_lit > {{1, 2}, {3, 4}}
+            arr_lit > {1, 2}
+            int_lit > 1
+            int_lit > 2
+            arr_lit > {3, 4}
+            int_lit > 3
+            int_lit > 4
+            decl    > a: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > a
+            assign  > x: int = a[0][1]
+            expr_idx> a[0][1]
+            expr_idx> a[0]
+            id      > a
+            int_lit > 0
+            int_lit > 1
+            decl    > x: int
+            int_t   > int
+            id      > x
+            assign  > a[1][0] = 5
+            int_lit > 5
+            expr_idx> a[1][0]
+            expr_idx> a[1]
+            id      > a
+            int_lit > 1
+            int_lit > 0
 
         "#]]
     }
@@ -196,29 +237,44 @@ fn array_decls() {
                     (decls (: a (array (array int))))
                     (decls (: b (array (array int i))))
                     (decls (: d (array (array int i) j)))))))
-            program         : src0.eta:1:1..5:2
-            method          : src0.eta:1:1..5:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..5:2
-            decls           : src0.eta:2:5..2:15
-            decl            : src0.eta:2:5..2:15
-            arr_t           : src0.eta:2:13..2:15
-            arr_t           : src0.eta:2:11..2:13
-            id a            : src0.eta:2:5..2:6
-            decls           : src0.eta:3:5..3:16
-            decl            : src0.eta:3:5..3:16
-            arr_t           : src0.eta:3:14..3:16
-            arr_t           : src0.eta:3:11..3:14
-            id i            : src0.eta:3:12..3:13
-            id b            : src0.eta:3:5..3:6
-            decls           : src0.eta:4:5..4:17
-            decl            : src0.eta:4:5..4:17
-            arr_t           : src0.eta:4:14..4:17
-            arr_t           : src0.eta:4:11..4:14
-            id i            : src0.eta:4:12..4:13
-            id j            : src0.eta:4:15..4:16
-            id d            : src0.eta:4:5..4:6
+            program > f() {
+                    >     a: int[][]
+                    >     b: int[i][]
+                    >     d: int[i][j]
+                    > }
+            method  > f() {
+                    >     a: int[][]
+                    >     b: int[i][]
+                    >     d: int[i][j]
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     a: int[][]
+                    >     b: int[i][]
+                    >     d: int[i][j]
+                    > }
+            decls   > a: int[][]
+            decl    > a: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > a
+            decls   > b: int[i][]
+            decl    > b: int[i][]
+            arr_t   > []
+            arr_t   > [i]
+            int_t   > int
+            id      > i
+            id      > b
+            decls   > d: int[i][j]
+            decl    > d: int[i][j]
+            arr_t   > [j]
+            arr_t   > [i]
+            int_t   > int
+            id      > i
+            id      > j
+            id      > d
 
         "#]]
     }
@@ -243,26 +299,37 @@ fn arrayinit() {
                   (block
                     (assign (targets (: a (array int))) (values (array 72 101 108 108 111)))
                     (assign (targets (: a (array int))) (values Spur(3)))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:6
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:7..4:2
-            assign          : src0.eta:2:5..2:36
-            arr_lit         : src0.eta:2:16..2:36
-            int_lit         : src0.eta:2:17..2:19
-            int_lit         : src0.eta:2:20..2:23
-            int_lit         : src0.eta:2:24..2:27
-            int_lit         : src0.eta:2:28..2:31
-            int_lit         : src0.eta:2:32..2:35
-            decl            : src0.eta:2:5..2:13
-            arr_t           : src0.eta:2:11..2:13
-            id a            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:23
-            string_lit      : src0.eta:3:16..3:23
-            decl            : src0.eta:3:5..3:13
-            arr_t           : src0.eta:3:11..3:13
-            id a            : src0.eta:3:5..3:6
+            program > foo() {
+                    >     a: int[] = {72,101,108,108,111}
+                    >     a: int[] = "Hello"
+                    > }
+            method  > foo() {
+                    >     a: int[] = {72,101,108,108,111}
+                    >     a: int[] = "Hello"
+                    > }
+            mdecl   > foo()
+            id      > foo
+            block   > {
+                    >     a: int[] = {72,101,108,108,111}
+                    >     a: int[] = "Hello"
+                    > }
+            assign  > a: int[] = {72,101,108,108,111}
+            arr_lit > {72,101,108,108,111}
+            int_lit > 72
+            int_lit > 101
+            int_lit > 108
+            int_lit > 108
+            int_lit > 111
+            decl    > a: int[]
+            arr_t   > []
+            int_t   > int
+            id      > a
+            assign  > a: int[] = "Hello"
+            string_lit> "Hello"
+            decl    > a: int[]
+            arr_t   > []
+            int_t   > int
+            id      > a
 
         "#]]
     }
@@ -295,40 +362,66 @@ fn arrayinit2() {
                       (block
                         (assign (targets n) (values (- n 1)))
                         (assign (targets (index a n)) (values n))))))))
-            program         : src0.eta:1:1..8:2
-            method          : src0.eta:1:1..8:2
-            mdecl           : src0.eta:1:1..1:6
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:7..8:2
-            assign          : src0.eta:2:5..2:24
-            pcall           : src0.eta:2:14..2:24
-            id gcd          : src0.eta:2:14..2:17
-            int_lit         : src0.eta:2:18..2:20
-            int_lit         : src0.eta:2:22..2:23
-            decl            : src0.eta:2:5..2:11
-            id n            : src0.eta:2:5..2:6
-            decls           : src0.eta:3:5..3:14
-            decl            : src0.eta:3:5..3:14
-            arr_t           : src0.eta:3:11..3:14
-            id n            : src0.eta:3:12..3:13
-            id a            : src0.eta:3:5..3:6
-            while           : src0.eta:4:5..7:6
-            bexpr           : src0.eta:4:12..4:17
-            binop           : src0.eta:4:14..4:15
-            id n            : src0.eta:4:12..4:13
-            int_lit         : src0.eta:4:16..4:17
-            block           : src0.eta:4:19..7:6
-            assign          : src0.eta:5:7..5:16
-            bexpr           : src0.eta:5:11..5:16
-            binop           : src0.eta:5:13..5:14
-            id n            : src0.eta:5:11..5:12
-            int_lit         : src0.eta:5:15..5:16
-            id n            : src0.eta:5:7..5:8
-            assign          : src0.eta:6:7..6:15
-            id n            : src0.eta:6:14..6:15
-            expr_idx        : src0.eta:6:7..6:11
-            id a            : src0.eta:6:7..6:8
-            id n            : src0.eta:6:9..6:10
+            program > foo() {
+                    >     n: int = gcd(10, 2)
+                    >     a: int[n]
+                    > ...
+                    >       a[n] = n
+                    >     }
+                    > }
+            method  > foo() {
+                    >     n: int = gcd(10, 2)
+                    >     a: int[n]
+                    > ...
+                    >       a[n] = n
+                    >     }
+                    > }
+            mdecl   > foo()
+            id      > foo
+            block   > {
+                    >     n: int = gcd(10, 2)
+                    >     a: int[n]
+                    > ...
+                    >       a[n] = n
+                    >     }
+                    > }
+            assign  > n: int = gcd(10, 2)
+            pcall   > gcd(10, 2)
+            id      > gcd
+            int_lit > 10
+            int_lit > 2
+            decl    > n: int
+            int_t   > int
+            id      > n
+            decls   > a: int[n]
+            decl    > a: int[n]
+            arr_t   > [n]
+            int_t   > int
+            id      > n
+            id      > a
+            while   > while (n > 0) {
+                    >   n = n - 1
+                    >   a[n] = n
+                    > }
+            bexpr   > n > 0
+            binop   > >
+            id      > n
+            int_lit > 0
+            block   > {
+                    >   n = n - 1
+                    >   a[n] = n
+                    > }
+            assign  > n = n - 1
+            bexpr   > n - 1
+            binop   > -
+            id      > n
+            int_lit > 1
+            id      > n
+            assign  > a[n] = n
+            id      > n
+            expr_idx> a[n]
+            id      > a
+            id      > n
 
         "#]]
     }
@@ -363,7 +456,26 @@ fn beauty() {
                 (error)
                 (error)
                 (error)))
-            program         : src0.eta:1:1..3:80
+            program > ===============================================================================
+                    > = This is a beautiful document heading, not a xi program, but it still lexes! =
+                    > ===============================================================================
+            error   > ===============================================================================
+                    > =
+            error   > This
+            error   > is
+            error   > a
+            error   > beautiful
+            error   > document
+            error   > heading,
+            error   > not
+            error   > a
+            error   > xi
+            error   > program,
+            error   > but
+            error   > it
+            error   > still
+            error   > lexes! =
+                    > ===============================================================================
 
             Error: unexpected token `==`
                ╭─[ src0.eta:1:1 ]
@@ -495,50 +607,68 @@ fn bool_short_circuit() {
                     (assign (targets (: d bool)) (values (| (& a b) (& c (! a)))))
                     (assign (targets (: e bool)) (values (& (| a b) (| b c))))
                     (return (== d e))))))
-            program         : src0.eta:1:1..5:2
-            method          : src0.eta:1:1..5:2
-            mdecl           : src0.eta:1:1..1:35
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:10
-            id a            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:12..1:19
-            id b            : src0.eta:1:12..1:13
-            decl            : src0.eta:1:21..1:28
-            id c            : src0.eta:1:21..1:22
-            block           : src0.eta:1:36..5:2
-            assign          : src0.eta:2:5..2:29
-            bexpr           : src0.eta:2:15..2:29
-            binop           : src0.eta:2:21..2:22
-            bexpr           : src0.eta:2:15..2:20
-            binop           : src0.eta:2:17..2:18
-            id a            : src0.eta:2:15..2:16
-            id b            : src0.eta:2:19..2:20
-            bexpr           : src0.eta:2:23..2:29
-            binop           : src0.eta:2:25..2:26
-            id c            : src0.eta:2:23..2:24
-            uexpr           : src0.eta:2:27..2:29
-            uop             : src0.eta:2:27..2:28
-            id a            : src0.eta:2:28..2:29
-            decl            : src0.eta:2:5..2:12
-            id d            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:32
-            bexpr           : src0.eta:3:15..3:32
-            binop           : src0.eta:3:23..3:24
-            bexpr           : src0.eta:3:16..3:21
-            binop           : src0.eta:3:18..3:19
-            id a            : src0.eta:3:16..3:17
-            id b            : src0.eta:3:20..3:21
-            bexpr           : src0.eta:3:26..3:31
-            binop           : src0.eta:3:28..3:29
-            id b            : src0.eta:3:26..3:27
-            id c            : src0.eta:3:30..3:31
-            decl            : src0.eta:3:5..3:12
-            id e            : src0.eta:3:5..3:6
-            return          : src0.eta:4:5..4:18
-            bexpr           : src0.eta:4:12..4:18
-            binop           : src0.eta:4:14..4:16
-            id d            : src0.eta:4:12..4:13
-            id e            : src0.eta:4:17..4:18
+            program > f(a: bool, b: bool, c: bool): bool {
+                    >     d: bool = a & b | c & !a
+                    >     e: bool = (a | b) & (b | c)
+                    >     return d == e
+                    > }
+            method  > f(a: bool, b: bool, c: bool): bool {
+                    >     d: bool = a & b | c & !a
+                    >     e: bool = (a | b) & (b | c)
+                    >     return d == e
+                    > }
+            mdecl   > f(a: bool, b: bool, c: bool): bool
+            id      > f
+            decl    > a: bool
+            bool_t  > bool
+            id      > a
+            decl    > b: bool
+            bool_t  > bool
+            id      > b
+            decl    > c: bool
+            bool_t  > bool
+            id      > c
+            bool_t  > bool
+            block   > {
+                    >     d: bool = a & b | c & !a
+                    >     e: bool = (a | b) & (b | c)
+                    >     return d == e
+                    > }
+            assign  > d: bool = a & b | c & !a
+            bexpr   > a & b | c & !a
+            binop   > |
+            bexpr   > a & b
+            binop   > &
+            id      > a
+            id      > b
+            bexpr   > c & !a
+            binop   > &
+            id      > c
+            uexpr   > !a
+            uop     > !
+            id      > a
+            decl    > d: bool
+            bool_t  > bool
+            id      > d
+            assign  > e: bool = (a | b) & (b | c)
+            bexpr   > (a | b) & (b | c)
+            binop   > &
+            bexpr   > a | b
+            binop   > |
+            id      > a
+            id      > b
+            bexpr   > b | c
+            binop   > |
+            id      > b
+            id      > c
+            decl    > e: bool
+            bool_t  > bool
+            id      > e
+            return  > return d == e
+            bexpr   > d == e
+            binop   > ==
+            id      > d
+            id      > e
 
         "#]]
     }
@@ -561,25 +691,35 @@ fn chained_comparison() {
                 (method (decl f (params (: a int) (: b int) (: c int)) (returns bool))
                   (block
                     (return (< (< a b) c))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:32
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:9
-            id a            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:11..1:17
-            id b            : src0.eta:1:11..1:12
-            decl            : src0.eta:1:19..1:25
-            id c            : src0.eta:1:19..1:20
-            block           : src0.eta:1:33..3:2
-            return          : src0.eta:2:5..2:21
-            bexpr           : src0.eta:2:12..2:21
-            binop           : src0.eta:2:18..2:19
-            bexpr           : src0.eta:2:12..2:17
-            binop           : src0.eta:2:14..2:15
-            id a            : src0.eta:2:12..2:13
-            id b            : src0.eta:2:16..2:17
-            id c            : src0.eta:2:20..2:21
+            program > f(a: int, b: int, c: int): bool {
+                    >     return a < b < c
+                    > }
+            method  > f(a: int, b: int, c: int): bool {
+                    >     return a < b < c
+                    > }
+            mdecl   > f(a: int, b: int, c: int): bool
+            id      > f
+            decl    > a: int
+            int_t   > int
+            id      > a
+            decl    > b: int
+            int_t   > int
+            id      > b
+            decl    > c: int
+            int_t   > int
+            id      > c
+            bool_t  > bool
+            block   > {
+                    >     return a < b < c
+                    > }
+            return  > return a < b < c
+            bexpr   > a < b < c
+            binop   > <
+            bexpr   > a < b
+            binop   > <
+            id      > a
+            id      > b
+            id      > c
 
         "#]]
     }
@@ -612,40 +752,64 @@ fn chained_if() {
                         (assign (targets r) (values 0))
                         (assign (targets r) (values 1))))
                     (return r)))))
-            program         : src0.eta:1:1..7:2
-            method          : src0.eta:1:1..7:2
-            mdecl           : src0.eta:1:1..1:22
-            id classify     : src0.eta:1:1..1:9
-            decl            : src0.eta:1:10..1:16
-            id n            : src0.eta:1:10..1:11
-            block           : src0.eta:1:23..7:2
-            assign          : src0.eta:2:5..2:15
-            int_lit         : src0.eta:2:14..2:15
-            decl            : src0.eta:2:5..2:11
-            id r            : src0.eta:2:5..2:6
-            if              : src0.eta:3:5..5:15
-            bexpr           : src0.eta:3:8..3:13
-            binop           : src0.eta:3:10..3:11
-            id n            : src0.eta:3:8..3:9
-            int_lit         : src0.eta:3:12..3:13
-            assign          : src0.eta:3:14..3:20
-            uexpr           : src0.eta:3:18..3:20
-            uop             : src0.eta:3:18..3:19
-            int_lit         : src0.eta:3:19..3:20
-            id r            : src0.eta:3:14..3:15
-            if              : src0.eta:4:10..5:15
-            bexpr           : src0.eta:4:13..4:19
-            binop           : src0.eta:4:15..4:17
-            id n            : src0.eta:4:13..4:14
-            int_lit         : src0.eta:4:18..4:19
-            assign          : src0.eta:4:20..4:25
-            int_lit         : src0.eta:4:24..4:25
-            id r            : src0.eta:4:20..4:21
-            assign          : src0.eta:5:10..5:15
-            int_lit         : src0.eta:5:14..5:15
-            id r            : src0.eta:5:10..5:11
-            return          : src0.eta:6:5..6:13
-            id r            : src0.eta:6:12..6:13
+            program > classify(n: int): int {
+                    >     r: int = 0
+                    >     if n < 0 r = -1
+                    > ...
+                    >     else r = 1
+                    >     return r
+                    > }
+            method  > classify(n: int): int {
+                    >     r: int = 0
+                    >     if n < 0 r = -1
+                    > ...
+                    >     else r = 1
+                    >     return r
+                    > }
+            mdecl   > classify(n: int): int
+            id      > classify
+            decl    > n: int
+            int_t   > int
+            id      > n
+            int_t   > int
+            block   > {
+                    >     r: int = 0
+                    >     if n < 0 r = -1
+                    > ...
+                    >     else r = 1
+                    >     return r
+                    > }
+            assign  > r: int = 0
+            int_lit > 0
+            decl    > r: int
+            int_t   > int
+            id      > r
+            if      > if n < 0 r = -1
+                    > else if n == 0 r = 0
+                    > else r = 1
+            bexpr   > n < 0
+            binop   > <
+            id      > n
+            int_lit > 0
+            assign  > r = -1
+            uexpr   > -1
+            uop     > -
+            int_lit > 1
+            id      > r
+            if      > if n == 0 r = 0
+                    > else r = 1
+            bexpr   > n == 0
+            binop   > ==
+            id      > n
+            int_lit > 0
+            assign  > r = 0
+            int_lit > 0
+            id      > r
+            assign  > r = 1
+            int_lit > 1
+            id      > r
+            return  > return r
+            id      > r
 
         "#]]
     }
@@ -673,41 +837,60 @@ fn complex_interface() {
               (decl noop (params) (returns))
               (decl identity (params (: x (array int))) (returns (array int)))
               (decl matrix (params (: m (array (array int)))) (returns (array (array int)))))
-            interface       : src0.eti:2:1..7:28
-            mdecl           : src0.eti:2:1..2:25
-            id add          : src0.eti:2:1..2:4
-            decl            : src0.eti:2:5..2:11
-            id a            : src0.eti:2:5..2:6
-            decl            : src0.eti:2:13..2:19
-            id b            : src0.eti:2:13..2:14
-            mdecl           : src0.eti:3:1..3:30
-            id subtract     : src0.eti:3:1..3:9
-            decl            : src0.eti:3:10..3:16
-            id a            : src0.eti:3:10..3:11
-            decl            : src0.eti:3:18..3:24
-            id b            : src0.eti:3:18..3:19
-            mdecl           : src0.eti:4:1..4:33
-            id divide       : src0.eti:4:1..4:7
-            decl            : src0.eti:4:8..4:14
-            id a            : src0.eti:4:8..4:9
-            decl            : src0.eti:4:16..4:22
-            id b            : src0.eti:4:16..4:17
-            mdecl           : src0.eti:5:1..5:7
-            id noop         : src0.eti:5:1..5:5
-            mdecl           : src0.eti:6:1..6:26
-            id identity     : src0.eti:6:1..6:9
-            decl            : src0.eti:6:10..6:18
-            arr_t           : src0.eti:6:16..6:18
-            id x            : src0.eti:6:10..6:11
-            arr_t           : src0.eti:6:24..6:26
-            mdecl           : src0.eti:7:1..7:28
-            id matrix       : src0.eti:7:1..7:7
-            decl            : src0.eti:7:8..7:18
-            arr_t           : src0.eti:7:16..7:18
-            arr_t           : src0.eti:7:14..7:16
-            id m            : src0.eti:7:8..7:9
-            arr_t           : src0.eti:7:26..7:28
-            arr_t           : src0.eti:7:24..7:26
+            interfce> add(a: int, b: int): int
+                    > subtract(a: int, b: int): int
+                    > divide(a: int, b: int): int, int
+                    > noop()
+                    > identity(x: int[]): int[]
+                    > matrix(m: int[][]): int[][]
+            mdecl   > add(a: int, b: int): int
+            id      > add
+            decl    > a: int
+            int_t   > int
+            id      > a
+            decl    > b: int
+            int_t   > int
+            id      > b
+            int_t   > int
+            mdecl   > subtract(a: int, b: int): int
+            id      > subtract
+            decl    > a: int
+            int_t   > int
+            id      > a
+            decl    > b: int
+            int_t   > int
+            id      > b
+            int_t   > int
+            mdecl   > divide(a: int, b: int): int, int
+            id      > divide
+            decl    > a: int
+            int_t   > int
+            id      > a
+            decl    > b: int
+            int_t   > int
+            id      > b
+            int_t   > int
+            int_t   > int
+            mdecl   > noop()
+            id      > noop
+            mdecl   > identity(x: int[]): int[]
+            id      > identity
+            decl    > x: int[]
+            arr_t   > []
+            int_t   > int
+            id      > x
+            arr_t   > []
+            int_t   > int
+            mdecl   > matrix(m: int[][]): int[][]
+            id      > matrix
+            decl    > m: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > m
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
 
         "#]]
     }
@@ -735,29 +918,41 @@ fn dangling_else() {
                       (if b
                         (assign (targets x) (values 1))
                         (assign (targets x) (values 2))))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:20
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:10
-            id a            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:12..1:19
-            id b            : src0.eta:1:12..1:13
-            block           : src0.eta:1:21..4:2
-            assign          : src0.eta:2:5..2:15
-            int_lit         : src0.eta:2:14..2:15
-            decl            : src0.eta:2:5..2:11
-            id x            : src0.eta:2:5..2:6
-            if              : src0.eta:3:5..3:31
-            id a            : src0.eta:3:8..3:9
-            if              : src0.eta:3:10..3:31
-            id b            : src0.eta:3:13..3:14
-            assign          : src0.eta:3:15..3:20
-            int_lit         : src0.eta:3:19..3:20
-            id x            : src0.eta:3:15..3:16
-            assign          : src0.eta:3:26..3:31
-            int_lit         : src0.eta:3:30..3:31
-            id x            : src0.eta:3:26..3:27
+            program > f(a: bool, b: bool) {
+                    >     x: int = 0
+                    >     if a if b x = 1 else x = 2
+                    > }
+            method  > f(a: bool, b: bool) {
+                    >     x: int = 0
+                    >     if a if b x = 1 else x = 2
+                    > }
+            mdecl   > f(a: bool, b: bool)
+            id      > f
+            decl    > a: bool
+            bool_t  > bool
+            id      > a
+            decl    > b: bool
+            bool_t  > bool
+            id      > b
+            block   > {
+                    >     x: int = 0
+                    >     if a if b x = 1 else x = 2
+                    > }
+            assign  > x: int = 0
+            int_lit > 0
+            decl    > x: int
+            int_t   > int
+            id      > x
+            if      > if a if b x = 1 else x = 2
+            id      > a
+            if      > if b x = 1 else x = 2
+            id      > b
+            assign  > x = 1
+            int_lit > 1
+            id      > x
+            assign  > x = 2
+            int_lit > 2
+            id      > x
 
         "#]]
     }
@@ -782,38 +977,49 @@ fn deeply_nested() {
                   (block
                     (assign (targets (: x int)) (values (/ (* (+ 1 2) (+ 3 4)) (* (- 5 6) (- 7 8)))))
                     (return x)))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:9
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:10..4:2
-            assign          : src0.eta:2:5..2:55
-            bexpr           : src0.eta:2:14..2:55
-            binop           : src0.eta:2:34..2:35
-            bexpr           : src0.eta:2:15..2:32
-            binop           : src0.eta:2:23..2:24
-            bexpr           : src0.eta:2:16..2:21
-            binop           : src0.eta:2:18..2:19
-            int_lit         : src0.eta:2:16..2:17
-            int_lit         : src0.eta:2:20..2:21
-            bexpr           : src0.eta:2:26..2:31
-            binop           : src0.eta:2:28..2:29
-            int_lit         : src0.eta:2:26..2:27
-            int_lit         : src0.eta:2:30..2:31
-            bexpr           : src0.eta:2:37..2:54
-            binop           : src0.eta:2:45..2:46
-            bexpr           : src0.eta:2:38..2:43
-            binop           : src0.eta:2:40..2:41
-            int_lit         : src0.eta:2:38..2:39
-            int_lit         : src0.eta:2:42..2:43
-            bexpr           : src0.eta:2:48..2:53
-            binop           : src0.eta:2:50..2:51
-            int_lit         : src0.eta:2:48..2:49
-            int_lit         : src0.eta:2:52..2:53
-            decl            : src0.eta:2:5..2:11
-            id x            : src0.eta:2:5..2:6
-            return          : src0.eta:3:5..3:13
-            id x            : src0.eta:3:12..3:13
+            program > f(): int {
+                    >     x: int = ((1 + 2) * (3 + 4)) / ((5 - 6) * (7 - 8))
+                    >     return x
+                    > }
+            method  > f(): int {
+                    >     x: int = ((1 + 2) * (3 + 4)) / ((5 - 6) * (7 - 8))
+                    >     return x
+                    > }
+            mdecl   > f(): int
+            id      > f
+            int_t   > int
+            block   > {
+                    >     x: int = ((1 + 2) * (3 + 4)) / ((5 - 6) * (7 - 8))
+                    >     return x
+                    > }
+            assign  > x: int = ((1 + 2) * (3 + 4)) / ((5 - 6) * (7 - 8))
+            bexpr   > ((1 + 2) * (3 + 4)) / ((5 - 6) * (7 - 8))
+            binop   > /
+            bexpr   > (1 + 2) * (3 + 4)
+            binop   > *
+            bexpr   > 1 + 2
+            binop   > +
+            int_lit > 1
+            int_lit > 2
+            bexpr   > 3 + 4
+            binop   > +
+            int_lit > 3
+            int_lit > 4
+            bexpr   > (5 - 6) * (7 - 8)
+            binop   > *
+            bexpr   > 5 - 6
+            binop   > -
+            int_lit > 5
+            int_lit > 6
+            bexpr   > 7 - 8
+            binop   > -
+            int_lit > 7
+            int_lit > 8
+            decl    > x: int
+            int_t   > int
+            id      > x
+            return  > return x
+            id      > x
 
         "#]]
     }
@@ -838,21 +1044,32 @@ fn empty_array() {
                   (block
                     (assign (targets (: a (array int))) (values (array)))
                     (assign (targets (: b (array bool))) (values (array)))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..4:2
-            assign          : src0.eta:2:5..2:18
-            arr_lit         : src0.eta:2:16..2:18
-            decl            : src0.eta:2:5..2:13
-            arr_t           : src0.eta:2:11..2:13
-            id a            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:19
-            arr_lit         : src0.eta:3:17..3:19
-            decl            : src0.eta:3:5..3:14
-            arr_t           : src0.eta:3:12..3:14
-            id b            : src0.eta:3:5..3:6
+            program > f() {
+                    >     a: int[] = {}
+                    >     b: bool[] = {}
+                    > }
+            method  > f() {
+                    >     a: int[] = {}
+                    >     b: bool[] = {}
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     a: int[] = {}
+                    >     b: bool[] = {}
+                    > }
+            assign  > a: int[] = {}
+            arr_lit > {}
+            decl    > a: int[]
+            arr_t   > []
+            int_t   > int
+            id      > a
+            assign  > b: bool[] = {}
+            arr_lit > {}
+            decl    > b: bool[]
+            arr_t   > []
+            bool_t  > bool
+            id      > b
 
         "#]]
     }
@@ -873,11 +1090,14 @@ fn empty_body() {
               (defs
                 (method (decl f (params) (returns))
                   (block))))
-            program         : src0.eta:1:1..2:2
-            method          : src0.eta:1:1..2:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..2:2
+            program > f() {
+                    > }
+            method  > f() {
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    > }
 
         "#]]
     }
@@ -900,15 +1120,23 @@ fn err_toss_indexing() {
                 (method (decl main (params (: args (array (array int)))) (returns))
                   (block
                     (error)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:20
-            id main         : src0.eta:1:1..1:5
-            decl            : src0.eta:1:6..1:19
-            arr_t           : src0.eta:1:17..1:19
-            arr_t           : src0.eta:1:15..1:17
-            id args         : src0.eta:1:6..1:10
-            block           : src0.eta:1:21..3:2
+            program > main(args: int[][]) {
+                    >     _[0] = true
+                    > }
+            method  > main(args: int[][]) {
+                    >     _[0] = true
+                    > }
+            mdecl   > main(args: int[][])
+            id      > main
+            decl    > args: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > args
+            block   > {
+                    >     _[0] = true
+                    > }
+            error   > _[0] = true
 
             Error: unexpected token `[`
                ╭─[ src0.eta:2:6 ]
@@ -940,12 +1168,20 @@ fn error_assign_brace() {
                     (block
                       (error))
                     (error)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
-            block           : src0.eta:2:5..2:12
+            program > f() {
+                    >     {1,2,3}[0] = 5
+                    > }
+            method  > f() {
+                    >     {1,2,3}[0] = 5
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     {1,2,3}[0] = 5
+                    > }
+            block   > {1,2,3}
+            error   > 1,2,3
+            error   > [0] = 5
 
             Error: unexpected token `1`
                ╭─[ src0.eta:2:6 ]
@@ -983,13 +1219,22 @@ fn error_assign_paren() {
                   (block
                     (error)
                     (error)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:10
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:9
-            id x            : src0.eta:1:3..1:4
-            block           : src0.eta:1:11..3:2
+            program > f(x: int) {
+                    >     (x) = 5
+                    > }
+            method  > f(x: int) {
+                    >     (x) = 5
+                    > }
+            mdecl   > f(x: int)
+            id      > f
+            decl    > x: int
+            int_t   > int
+            id      > x
+            block   > {
+                    >     (x) = 5
+                    > }
+            error   > (
+            error   > x) = 5
 
             Error: unexpected token `(`
                ╭─[ src0.eta:2:5 ]
@@ -1026,11 +1271,18 @@ fn error_assign_string() {
                 (method (decl f (params) (returns))
                   (block
                     (error)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
+            program > f() {
+                    >     "hello"[0] = 5
+                    > }
+            method  > f() {
+                    >     "hello"[0] = 5
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     "hello"[0] = 5
+                    > }
+            error   > "hello"[0] = 5
 
             Error: unexpected token `"hello"`
                ╭─[ src0.eta:2:5 ]
@@ -1118,12 +1370,15 @@ fn error_eta_unfinished() {
               (defs
                 (method (decl f (params) (returns))
                   (error))))
-            program         : src0.eta:1:1..3:6
-            use             : src0.eta:1:1..1:7
-            id io           : src0.eta:1:5..1:7
-            method          : src0.eta:3:1..3:6
-            mdecl           : src0.eta:3:1..3:4
-            id f            : src0.eta:3:1..3:2
+            program > use io
+                    > 
+                    > f() {
+            use     > use io
+            id      > io
+            method  > f() {
+            mdecl   > f()
+            id      > f
+            error   > {
 
             Error: unexpected end of file
                ╭─[ src0.eta:3:6 ]
@@ -1147,9 +1402,10 @@ fn error_eti_unfinished() {
             src0.eti: parse(recovered)
             (interface
               (decl f (params) (returns (error))))
-            interface       : src0.eti:1:1..1:5
-            mdecl           : src0.eti:1:1..1:5
-            id f            : src0.eti:1:1..1:2
+            interfce> f():
+            mdecl   > f():
+            id      > f
+            error   > 
 
             Error: unexpected end of file
                ╭─[ src0.eti:1:5 ]
@@ -1179,11 +1435,18 @@ fn error_expr_as_stmt() {
                 (method (decl f (params) (returns))
                   (block
                     (error)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
+            program > f() {
+                    >     1 + 2
+                    > }
+            method  > f() {
+                    >     1 + 2
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     1 + 2
+                    > }
+            error   > 1 + 2
 
             Error: unexpected token `1`
                ╭─[ src0.eta:2:5 ]
@@ -1209,7 +1472,8 @@ fn error_if_start() {
               (uses)
               (defs
                 (error)))
-            program         : src0.eta:1:1..1:11
+            program > if true {}
+            error   > if true {}
 
             Error: unexpected token `if`
                ╭─[ src0.eta:1:1 ]
@@ -1239,11 +1503,18 @@ fn error_length_as_id() {
                 (method (decl f (params) (returns))
                   (block
                     (error)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
+            program > f() {
+                    >     length: int = 5
+                    > }
+            method  > f() {
+                    >     length: int = 5
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     length: int = 5
+                    > }
+            error   > length: int = 5
 
             Error: unexpected token `length`
                ╭─[ src0.eta:2:5 ]
@@ -1275,15 +1546,27 @@ fn error_return_not_last() {
                   (block
                     (error)
                     (assign (targets (: x int)) (values 2))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:9
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:10..4:2
-            assign          : src0.eta:3:5..3:15
-            int_lit         : src0.eta:3:14..3:15
-            decl            : src0.eta:3:5..3:11
-            id x            : src0.eta:3:5..3:6
+            program > f(): int {
+                    >     return 1
+                    >     x: int = 2
+                    > }
+            method  > f(): int {
+                    >     return 1
+                    >     x: int = 2
+                    > }
+            mdecl   > f(): int
+            id      > f
+            int_t   > int
+            block   > {
+                    >     return 1
+                    >     x: int = 2
+                    > }
+            error   > return 1
+            assign  > x: int = 2
+            int_lit > 2
+            decl    > x: int
+            int_t   > int
+            id      > x
 
             Error: unexpected token `x`
                ╭─[ src0.eta:3:5 ]
@@ -1309,7 +1592,8 @@ fn error_return_start() {
               (uses)
               (defs
                 (error)))
-            program         : src0.eta:1:1..1:7
+            program > return
+            error   > return
 
             Error: unexpected token `return`
                ╭─[ src0.eta:1:1 ]
@@ -1359,7 +1643,8 @@ fn error_while_start() {
               (uses)
               (defs
                 (error)))
-            program         : src0.eta:1:1..1:14
+            program > while true {}
+            error   > while true {}
 
             Error: unexpected token `while`
                ╭─[ src0.eta:1:1 ]
@@ -1396,31 +1681,48 @@ fn ex1() {
                     (call print Spur(5))
                     (assign (targets (: c3po int)) (values (+ x 47)))
                     (assign (targets (: r2d2 int)) (values c3po))))))
-            program         : src0.eta:1:1..7:2
-            use             : src0.eta:1:1..1:7
-            id io           : src0.eta:1:5..1:7
-            method          : src0.eta:3:1..7:2
-            mdecl           : src0.eta:3:1..3:20
-            id main         : src0.eta:3:1..3:5
-            decl            : src0.eta:3:6..3:19
-            arr_t           : src0.eta:3:17..3:19
-            arr_t           : src0.eta:3:15..3:17
-            id args         : src0.eta:3:6..3:10
-            block           : src0.eta:3:21..7:2
-            pcall           : src0.eta:4:3..4:32
-            id print        : src0.eta:4:3..4:8
-            string_lit      : src0.eta:4:9..4:31
-            assign          : src0.eta:5:3..5:23
-            bexpr           : src0.eta:5:15..5:23
-            binop           : src0.eta:5:19..5:20
-            char_lit        : src0.eta:5:15..5:18
-            int_lit         : src0.eta:5:21..5:23
-            decl            : src0.eta:5:3..5:12
-            id c3po         : src0.eta:5:3..5:7
-            assign          : src0.eta:6:3..6:19
-            id c3po         : src0.eta:6:15..6:19
-            decl            : src0.eta:6:3..6:12
-            id r2d2         : src0.eta:6:3..6:7
+            program > use io
+                    > 
+                    > main(args: int[][]) {
+                    > ...
+                    >   c3po: int = 'x' + 47;
+                    >   r2d2: int = c3po // No Han Solo
+                    > }
+            use     > use io
+            id      > io
+            method  > main(args: int[][]) {
+                    >   print("Hello, Worl\x{64}!\n")
+                    >   c3po: int = 'x' + 47;
+                    >   r2d2: int = c3po // No Han Solo
+                    > }
+            mdecl   > main(args: int[][])
+            id      > main
+            decl    > args: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > args
+            block   > {
+                    >   print("Hello, Worl\x{64}!\n")
+                    >   c3po: int = 'x' + 47;
+                    >   r2d2: int = c3po // No Han Solo
+                    > }
+            pcall   > print("Hello, Worl\x{64}!\n")
+            id      > print
+            string_lit> "Hello, Worl\x{64}!\n"
+            assign  > c3po: int = 'x' + 47
+            bexpr   > 'x' + 47
+            binop   > +
+            char_lit> 'x'
+            int_lit > 47
+            decl    > c3po: int
+            int_t   > int
+            id      > c3po
+            assign  > r2d2: int = c3po
+            id      > c3po
+            decl    > r2d2: int
+            int_t   > int
+            id      > r2d2
 
         "#]]
     }
@@ -1467,81 +1769,118 @@ fn ex2() {
                     (assign (targets _ (: i int)) (values (call foo)))
                     (decls (: b (array (array int i))))
                     (assign (targets (index b 0)) (values (array 1 0)))))))
-            program         : src0.eta:1:1..14:2
-            method          : src0.eta:1:1..8:2
-            mdecl           : src0.eta:1:1..1:17
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:18..8:2
-            assign          : src0.eta:2:3..3:4
-            bexpr           : src0.eta:2:15..3:4
-            binop           : src0.eta:2:17..2:18
-            int_lit         : src0.eta:2:15..2:16
-            bexpr           : src0.eta:2:19..3:4
-            binop           : src0.eta:2:30..2:31
-            bexpr           : src0.eta:2:19..2:29
-            binop           : src0.eta:2:25..2:26
-            bexpr           : src0.eta:2:19..2:24
-            binop           : src0.eta:2:21..2:22
-            int_lit         : src0.eta:2:19..2:20
-            int_lit         : src0.eta:2:23..2:24
-            uexpr           : src0.eta:2:27..2:29
-            uop             : src0.eta:2:27..2:28
-            int_lit         : src0.eta:2:28..2:29
-            int_lit         : src0.eta:3:3..3:4
-            decl            : src0.eta:2:3..2:12
-            id expr         : src0.eta:2:3..2:7
-            assign          : src0.eta:3:4..3:36
-            bexpr           : src0.eta:3:17..3:36
-            binop           : src0.eta:3:29..3:30
-            bexpr           : src0.eta:3:17..3:28
-            binop           : src0.eta:3:22..3:23
-            bool_lit        : src0.eta:3:17..3:21
-            bool_lit        : src0.eta:3:24..3:28
-            bool_lit        : src0.eta:3:31..3:36
-            decl            : src0.eta:3:4..3:14
-            id pred         : src0.eta:3:4..3:8
-            if              : src0.eta:4:3..5:20
-            bexpr           : src0.eta:4:7..4:17
-            binop           : src0.eta:4:12..4:14
-            id expr         : src0.eta:4:7..4:11
-            int_lit         : src0.eta:4:15..4:17
-            block           : src0.eta:4:19..4:22
-            assign          : src0.eta:5:8..5:20
-            uexpr           : src0.eta:5:15..5:20
-            uop             : src0.eta:5:15..5:16
-            id pred         : src0.eta:5:16..5:20
-            id pred         : src0.eta:5:8..5:12
-            if              : src0.eta:6:3..6:26
-            id pred         : src0.eta:6:7..6:11
-            block           : src0.eta:6:13..6:26
-            assign          : src0.eta:6:15..6:24
-            int_lit         : src0.eta:6:22..6:24
-            id expr         : src0.eta:6:15..6:19
-            return          : src0.eta:7:3..7:21
-            id pred         : src0.eta:7:10..7:14
-            id expr         : src0.eta:7:16..7:20
-            method          : src0.eta:10:1..14:2
-            mdecl           : src0.eta:10:1..10:6
-            id bar          : src0.eta:10:1..10:4
-            block           : src0.eta:10:7..14:2
-            assign          : src0.eta:11:3..11:20
-            pcall           : src0.eta:11:15..11:20
-            id foo          : src0.eta:11:15..11:18
-            decl            : src0.eta:11:6..11:12
-            id i            : src0.eta:11:6..11:7
-            decls           : src0.eta:12:3..12:14
-            decl            : src0.eta:12:3..12:14
-            arr_t           : src0.eta:12:12..12:14
-            arr_t           : src0.eta:12:9..12:12
-            id i            : src0.eta:12:10..12:11
-            id b            : src0.eta:12:3..12:4
-            assign          : src0.eta:13:3..13:16
-            arr_lit         : src0.eta:13:10..13:16
-            int_lit         : src0.eta:13:11..13:12
-            int_lit         : src0.eta:13:14..13:15
-            expr_idx        : src0.eta:13:3..13:7
-            id b            : src0.eta:13:3..13:4
-            int_lit         : src0.eta:13:5..13:6
+            program > foo(): bool, int {
+                    >   expr: int = 1 - 2 * 3 * -4 *
+                    >   5pred: bool = true & true | false;
+                    > ...
+                    >   b: int[i][]
+                    >   b[0] = {1, 0}
+                    > }
+            method  > foo(): bool, int {
+                    >   expr: int = 1 - 2 * 3 * -4 *
+                    >   5pred: bool = true & true | false;
+                    > ...
+                    >   if (pred) { expr = 59 }
+                    >   return pred, expr;
+                    > }
+            mdecl   > foo(): bool, int
+            id      > foo
+            bool_t  > bool
+            int_t   > int
+            block   > {
+                    >   expr: int = 1 - 2 * 3 * -4 *
+                    >   5pred: bool = true & true | false;
+                    > ...
+                    >   if (pred) { expr = 59 }
+                    >   return pred, expr;
+                    > }
+            assign  > expr: int = 1 - 2 * 3 * -4 *
+                    > 5
+            bexpr   > 1 - 2 * 3 * -4 *
+                    > 5
+            binop   > -
+            int_lit > 1
+            bexpr   > 2 * 3 * -4 *
+                    > 5
+            binop   > *
+            bexpr   > 2 * 3 * -4
+            binop   > *
+            bexpr   > 2 * 3
+            binop   > *
+            int_lit > 2
+            int_lit > 3
+            uexpr   > -4
+            uop     > -
+            int_lit > 4
+            int_lit > 5
+            decl    > expr: int
+            int_t   > int
+            id      > expr
+            assign  > pred: bool = true & true | false
+            bexpr   > true & true | false
+            binop   > |
+            bexpr   > true & true
+            binop   > &
+            bool_lit> true
+            bool_lit> true
+            bool_lit> false
+            decl    > pred: bool
+            bool_t  > bool
+            id      > pred
+            if      > if (expr <= 47) { }
+                    > else pred = !pred
+            bexpr   > expr <= 47
+            binop   > <=
+            id      > expr
+            int_lit > 47
+            block   > { }
+            assign  > pred = !pred
+            uexpr   > !pred
+            uop     > !
+            id      > pred
+            id      > pred
+            if      > if (pred) { expr = 59 }
+            id      > pred
+            block   > { expr = 59 }
+            assign  > expr = 59
+            int_lit > 59
+            id      > expr
+            return  > return pred, expr;
+            id      > pred
+            id      > expr
+            method  > bar() {
+                    >   _, i: int = foo()
+                    >   b: int[i][]
+                    >   b[0] = {1, 0}
+                    > }
+            mdecl   > bar()
+            id      > bar
+            block   > {
+                    >   _, i: int = foo()
+                    >   b: int[i][]
+                    >   b[0] = {1, 0}
+                    > }
+            assign  > _, i: int = foo()
+            pcall   > foo()
+            id      > foo
+            discard > _
+            decl    > i: int
+            int_t   > int
+            id      > i
+            decls   > b: int[i][]
+            decl    > b: int[i][]
+            arr_t   > []
+            arr_t   > [i]
+            int_t   > int
+            id      > i
+            id      > b
+            assign  > b[0] = {1, 0}
+            arr_lit > {1, 0}
+            int_lit > 1
+            int_lit > 0
+            expr_idx> b[0]
+            id      > b
+            int_lit > 0
 
         "#]]
     }
@@ -1567,7 +1906,17 @@ fn ex3() {
                 (error)
                 (error)
                 (error)))
-            program         : src0.eta:1:1..3:39
+            program > +------------------------------------+
+                    > | What a beautiful, invalid program! |
+                    > +------------------------------------+
+            error   > +------------------------------------+
+                    > |
+            error   > What
+            error   > a
+            error   > beautiful,
+            error   > invalid
+            error   > program! |
+                    > +------------------------------------+
 
             Error: unexpected token `+`
                ╭─[ src0.eta:1:1 ]
@@ -1634,24 +1983,37 @@ fn fancy_ids() {
                   (block
                     (assign (targets (: x'_1 int)) (values (+ a_b c'd)))
                     (return x'_1)))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:29
-            id x'y          : src0.eta:1:1..1:4
-            decl            : src0.eta:1:5..1:13
-            id a_b          : src0.eta:1:5..1:8
-            decl            : src0.eta:1:15..1:23
-            id c'd          : src0.eta:1:15..1:18
-            block           : src0.eta:1:30..4:2
-            assign          : src0.eta:2:5..2:26
-            bexpr           : src0.eta:2:17..2:26
-            binop           : src0.eta:2:21..2:22
-            id a_b          : src0.eta:2:17..2:20
-            id c'd          : src0.eta:2:23..2:26
-            decl            : src0.eta:2:5..2:14
-            id x'_1         : src0.eta:2:5..2:9
-            return          : src0.eta:3:5..3:16
-            id x'_1         : src0.eta:3:12..3:16
+            program > x'y(a_b: int, c'd: int): int {
+                    >     x'_1: int = a_b + c'd
+                    >     return x'_1
+                    > }
+            method  > x'y(a_b: int, c'd: int): int {
+                    >     x'_1: int = a_b + c'd
+                    >     return x'_1
+                    > }
+            mdecl   > x'y(a_b: int, c'd: int): int
+            id      > x'y
+            decl    > a_b: int
+            int_t   > int
+            id      > a_b
+            decl    > c'd: int
+            int_t   > int
+            id      > c'd
+            int_t   > int
+            block   > {
+                    >     x'_1: int = a_b + c'd
+                    >     return x'_1
+                    > }
+            assign  > x'_1: int = a_b + c'd
+            bexpr   > a_b + c'd
+            binop   > +
+            id      > a_b
+            id      > c'd
+            decl    > x'_1: int
+            int_t   > int
+            id      > x'_1
+            return  > return x'_1
+            id      > x'_1
 
         "#]]
     }
@@ -1674,50 +2036,62 @@ fn full_precedence() {
                 (method (decl f (params (: a int) (: b int) (: c int) (: d bool) (: e bool)) (returns bool))
                   (block
                     (return (| d (& e (!= (== (< (+ a (* b c)) (- a (/ b c))) d) e))))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:50
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:9
-            id a            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:11..1:17
-            id b            : src0.eta:1:11..1:12
-            decl            : src0.eta:1:19..1:25
-            id c            : src0.eta:1:19..1:20
-            decl            : src0.eta:1:27..1:34
-            id d            : src0.eta:1:27..1:28
-            decl            : src0.eta:1:36..1:43
-            id e            : src0.eta:1:36..1:37
-            block           : src0.eta:1:51..3:2
-            return          : src0.eta:2:5..2:51
-            bexpr           : src0.eta:2:12..2:51
-            binop           : src0.eta:2:14..2:15
-            id d            : src0.eta:2:12..2:13
-            bexpr           : src0.eta:2:16..2:51
-            binop           : src0.eta:2:18..2:19
-            id e            : src0.eta:2:16..2:17
-            bexpr           : src0.eta:2:20..2:51
-            binop           : src0.eta:2:47..2:49
-            bexpr           : src0.eta:2:20..2:46
-            binop           : src0.eta:2:42..2:44
-            bexpr           : src0.eta:2:20..2:41
-            binop           : src0.eta:2:30..2:31
-            bexpr           : src0.eta:2:20..2:29
-            binop           : src0.eta:2:22..2:23
-            id a            : src0.eta:2:20..2:21
-            bexpr           : src0.eta:2:24..2:29
-            binop           : src0.eta:2:26..2:27
-            id b            : src0.eta:2:24..2:25
-            id c            : src0.eta:2:28..2:29
-            bexpr           : src0.eta:2:32..2:41
-            binop           : src0.eta:2:34..2:35
-            id a            : src0.eta:2:32..2:33
-            bexpr           : src0.eta:2:36..2:41
-            binop           : src0.eta:2:38..2:39
-            id b            : src0.eta:2:36..2:37
-            id c            : src0.eta:2:40..2:41
-            id d            : src0.eta:2:45..2:46
-            id e            : src0.eta:2:50..2:51
+            program > f(a: int, b: int, c: int, d: bool, e: bool): bool {
+                    >     return d | e & a + b * c < a - b / c == d != e
+                    > }
+            method  > f(a: int, b: int, c: int, d: bool, e: bool): bool {
+                    >     return d | e & a + b * c < a - b / c == d != e
+                    > }
+            mdecl   > f(a: int, b: int, c: int, d: bool, e: bool): bool
+            id      > f
+            decl    > a: int
+            int_t   > int
+            id      > a
+            decl    > b: int
+            int_t   > int
+            id      > b
+            decl    > c: int
+            int_t   > int
+            id      > c
+            decl    > d: bool
+            bool_t  > bool
+            id      > d
+            decl    > e: bool
+            bool_t  > bool
+            id      > e
+            bool_t  > bool
+            block   > {
+                    >     return d | e & a + b * c < a - b / c == d != e
+                    > }
+            return  > return d | e & a + b * c < a - b / c == d != e
+            bexpr   > d | e & a + b * c < a - b / c == d != e
+            binop   > |
+            id      > d
+            bexpr   > e & a + b * c < a - b / c == d != e
+            binop   > &
+            id      > e
+            bexpr   > a + b * c < a - b / c == d != e
+            binop   > !=
+            bexpr   > a + b * c < a - b / c == d
+            binop   > ==
+            bexpr   > a + b * c < a - b / c
+            binop   > <
+            bexpr   > a + b * c
+            binop   > +
+            id      > a
+            bexpr   > b * c
+            binop   > *
+            id      > b
+            id      > c
+            bexpr   > a - b / c
+            binop   > -
+            id      > a
+            bexpr   > b / c
+            binop   > /
+            id      > b
+            id      > c
+            id      > d
+            id      > e
 
         "#]]
     }
@@ -1744,33 +2118,48 @@ fn funccall_index_rhs() {
                     (assign (targets (: x int)) (values (index (call g) 0)))
                     (assign (targets (: y int)) (values (index (call g 1 2) (call h))))
                     (return (+ x y))))))
-            program         : src0.eta:1:1..5:2
-            method          : src0.eta:1:1..5:2
-            mdecl           : src0.eta:1:1..1:9
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:10..5:2
-            assign          : src0.eta:2:5..2:20
-            expr_idx        : src0.eta:2:14..2:20
-            pcall           : src0.eta:2:14..2:17
-            id g            : src0.eta:2:14..2:15
-            int_lit         : src0.eta:2:18..2:19
-            decl            : src0.eta:2:5..2:11
-            id x            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:26
-            expr_idx        : src0.eta:3:14..3:26
-            pcall           : src0.eta:3:14..3:21
-            id g            : src0.eta:3:14..3:15
-            int_lit         : src0.eta:3:16..3:17
-            int_lit         : src0.eta:3:19..3:20
-            pcall           : src0.eta:3:22..3:25
-            id h            : src0.eta:3:22..3:23
-            decl            : src0.eta:3:5..3:11
-            id y            : src0.eta:3:5..3:6
-            return          : src0.eta:4:5..4:17
-            bexpr           : src0.eta:4:12..4:17
-            binop           : src0.eta:4:14..4:15
-            id x            : src0.eta:4:12..4:13
-            id y            : src0.eta:4:16..4:17
+            program > f(): int {
+                    >     x: int = g()[0]
+                    >     y: int = g(1, 2)[h()]
+                    >     return x + y
+                    > }
+            method  > f(): int {
+                    >     x: int = g()[0]
+                    >     y: int = g(1, 2)[h()]
+                    >     return x + y
+                    > }
+            mdecl   > f(): int
+            id      > f
+            int_t   > int
+            block   > {
+                    >     x: int = g()[0]
+                    >     y: int = g(1, 2)[h()]
+                    >     return x + y
+                    > }
+            assign  > x: int = g()[0]
+            expr_idx> g()[0]
+            pcall   > g()
+            id      > g
+            int_lit > 0
+            decl    > x: int
+            int_t   > int
+            id      > x
+            assign  > y: int = g(1, 2)[h()]
+            expr_idx> g(1, 2)[h()]
+            pcall   > g(1, 2)
+            id      > g
+            int_lit > 1
+            int_lit > 2
+            pcall   > h()
+            id      > h
+            decl    > y: int
+            int_t   > int
+            id      > y
+            return  > return x + y
+            bexpr   > x + y
+            binop   > +
+            id      > x
+            id      > y
 
         "#]]
     }
@@ -1795,28 +2184,38 @@ fn funccall_indexing() {
                   (block
                     (assign (targets (index (call g) 0)) (values 5))
                     (assign (targets (index (call g arg) x)) (values y))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:20
-            id main         : src0.eta:1:1..1:5
-            decl            : src0.eta:1:6..1:19
-            arr_t           : src0.eta:1:17..1:19
-            arr_t           : src0.eta:1:15..1:17
-            id args         : src0.eta:1:6..1:10
-            block           : src0.eta:1:21..4:2
-            assign          : src0.eta:2:5..2:15
-            int_lit         : src0.eta:2:14..2:15
-            expr_idx        : src0.eta:2:5..2:11
-            pcall           : src0.eta:2:5..2:8
-            id g            : src0.eta:2:5..2:6
-            int_lit         : src0.eta:2:9..2:10
-            assign          : src0.eta:3:5..3:18
-            id y            : src0.eta:3:17..3:18
-            expr_idx        : src0.eta:3:5..3:14
-            pcall           : src0.eta:3:5..3:11
-            id g            : src0.eta:3:5..3:6
-            id arg          : src0.eta:3:7..3:10
-            id x            : src0.eta:3:12..3:13
+            program > main(args: int[][]) {
+                    >     g()[0] = 5
+                    >     g(arg)[x] = y
+                    > }
+            method  > main(args: int[][]) {
+                    >     g()[0] = 5
+                    >     g(arg)[x] = y
+                    > }
+            mdecl   > main(args: int[][])
+            id      > main
+            decl    > args: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > args
+            block   > {
+                    >     g()[0] = 5
+                    >     g(arg)[x] = y
+                    > }
+            assign  > g()[0] = 5
+            int_lit > 5
+            expr_idx> g()[0]
+            pcall   > g()
+            id      > g
+            int_lit > 0
+            assign  > g(arg)[x] = y
+            id      > y
+            expr_idx> g(arg)[x]
+            pcall   > g(arg)
+            id      > g
+            id      > arg
+            id      > x
 
         "#]]
     }
@@ -1849,40 +2248,68 @@ fn gcd() {
                           (assign (targets b) (values (- b a)))
                           (assign (targets a) (values (- a b))))))
                     (return b)))))
-            program         : src0.eta:2:1..8:2
-            method          : src0.eta:2:1..8:2
-            mdecl           : src0.eta:2:1..2:22
-            id gcd          : src0.eta:2:1..2:4
-            decl            : src0.eta:2:5..2:10
-            id a            : src0.eta:2:5..2:6
-            decl            : src0.eta:2:12..2:17
-            id b            : src0.eta:2:12..2:13
-            block           : src0.eta:2:23..8:2
-            while           : src0.eta:3:3..6:4
-            bexpr           : src0.eta:3:10..3:16
-            binop           : src0.eta:3:12..3:14
-            id a            : src0.eta:3:10..3:11
-            int_lit         : src0.eta:3:15..3:16
-            block           : src0.eta:3:18..6:4
-            if              : src0.eta:4:5..5:19
-            bexpr           : src0.eta:4:9..4:12
-            binop           : src0.eta:4:10..4:11
-            id a            : src0.eta:4:9..4:10
-            id b            : src0.eta:4:11..4:12
-            assign          : src0.eta:4:14..4:23
-            bexpr           : src0.eta:4:18..4:23
-            binop           : src0.eta:4:20..4:21
-            id b            : src0.eta:4:18..4:19
-            id a            : src0.eta:4:22..4:23
-            id b            : src0.eta:4:14..4:15
-            assign          : src0.eta:5:10..5:19
-            bexpr           : src0.eta:5:14..5:19
-            binop           : src0.eta:5:16..5:17
-            id a            : src0.eta:5:14..5:15
-            id b            : src0.eta:5:18..5:19
-            id a            : src0.eta:5:10..5:11
-            return          : src0.eta:7:3..7:11
-            id b            : src0.eta:7:10..7:11
+            program > gcd(a:int, b:int):int {
+                    >   while (a != 0) {
+                    >     if (a<b) b = b - a
+                    > ...
+                    >   }
+                    >   return b
+                    > }
+            method  > gcd(a:int, b:int):int {
+                    >   while (a != 0) {
+                    >     if (a<b) b = b - a
+                    > ...
+                    >   }
+                    >   return b
+                    > }
+            mdecl   > gcd(a:int, b:int):int
+            id      > gcd
+            decl    > a:int
+            int_t   > int
+            id      > a
+            decl    > b:int
+            int_t   > int
+            id      > b
+            int_t   > int
+            block   > {
+                    >   while (a != 0) {
+                    >     if (a<b) b = b - a
+                    > ...
+                    >   }
+                    >   return b
+                    > }
+            while   > while (a != 0) {
+                    >   if (a<b) b = b - a
+                    >   else a = a - b
+                    > }
+            bexpr   > a != 0
+            binop   > !=
+            id      > a
+            int_lit > 0
+            block   > {
+                    >   if (a<b) b = b - a
+                    >   else a = a - b
+                    > }
+            if      > if (a<b) b = b - a
+                    > else a = a - b
+            bexpr   > a<b
+            binop   > <
+            id      > a
+            id      > b
+            assign  > b = b - a
+            bexpr   > b - a
+            binop   > -
+            id      > b
+            id      > a
+            id      > b
+            assign  > a = a - b
+            bexpr   > a - b
+            binop   > -
+            id      > a
+            id      > b
+            id      > a
+            return  > return b
+            id      > b
 
         "#]]
     }
@@ -1931,64 +2358,91 @@ fn gd_assign01() {
                 (method (decl g1 (params) (returns int))
                   (block
                     (return 0)))))
-            program         : src0.eta:1:1..17:2
-            method          : src0.eta:1:1..11:2
-            mdecl           : src0.eta:1:1..1:26
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:8
-            id x            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:10..1:16
-            id y            : src0.eta:1:10..1:11
-            decl            : src0.eta:1:18..1:25
-            arr_t           : src0.eta:1:23..1:25
-            id z            : src0.eta:1:18..1:19
-            block           : src0.eta:1:27..11:2
-            assign          : src0.eta:2:3..2:8
-            int_lit         : src0.eta:2:7..2:8
-            id x            : src0.eta:2:3..2:4
-            assign          : src0.eta:3:3..3:11
-            bool_lit        : src0.eta:3:7..3:11
-            id y            : src0.eta:3:3..3:4
-            assign          : src0.eta:4:3..4:8
-            id x            : src0.eta:4:7..4:8
-            id x            : src0.eta:4:3..4:4
-            assign          : src0.eta:5:3..5:16
-            arr_lit         : src0.eta:5:7..5:16
-            int_lit         : src0.eta:5:8..5:9
-            int_lit         : src0.eta:5:11..5:12
-            int_lit         : src0.eta:5:14..5:15
-            id z            : src0.eta:5:3..5:4
-            assign          : src0.eta:6:3..6:11
-            pcall           : src0.eta:6:7..6:11
-            id g1           : src0.eta:6:7..6:9
-            id x            : src0.eta:6:3..6:4
-            assign          : src0.eta:7:3..7:11
-            expr_idx        : src0.eta:7:7..7:11
-            id z            : src0.eta:7:7..7:8
-            int_lit         : src0.eta:7:9..7:10
-            id x            : src0.eta:7:3..7:4
-            assign          : src0.eta:8:3..8:9
-            uexpr           : src0.eta:8:7..8:9
-            uop             : src0.eta:8:7..8:8
-            int_lit         : src0.eta:8:8..8:9
-            id x            : src0.eta:8:3..8:4
-            assign          : src0.eta:9:3..9:12
-            bexpr           : src0.eta:9:7..9:12
-            binop           : src0.eta:9:9..9:10
-            int_lit         : src0.eta:9:7..9:8
-            int_lit         : src0.eta:9:11..9:12
-            id x            : src0.eta:9:3..9:4
-            assign          : src0.eta:10:3..10:10
-            int_lit         : src0.eta:10:8..10:9
-            id x            : src0.eta:10:3..10:4
-            gdecl           : src0.eta:13:1..13:8
-            id x            : src0.eta:13:1..13:2
-            method          : src0.eta:15:1..17:2
-            mdecl           : src0.eta:15:1..15:9
-            id g1           : src0.eta:15:1..15:3
-            block           : src0.eta:15:10..17:2
-            return          : src0.eta:16:3..16:11
-            int_lit         : src0.eta:16:10..16:11
+            program > f(x:int, y:bool, z:int[]) {
+                    >   x = 0
+                    >   y = true
+                    > ...
+                    > g1():int {
+                    >   return 0
+                    > }
+            method  > f(x:int, y:bool, z:int[]) {
+                    >   x = 0
+                    >   y = true
+                    > ...
+                    >   x = 0 + 0
+                    >   x = (0)
+                    > }
+            mdecl   > f(x:int, y:bool, z:int[])
+            id      > f
+            decl    > x:int
+            int_t   > int
+            id      > x
+            decl    > y:bool
+            bool_t  > bool
+            id      > y
+            decl    > z:int[]
+            arr_t   > []
+            int_t   > int
+            id      > z
+            block   > {
+                    >   x = 0
+                    >   y = true
+                    > ...
+                    >   x = 0 + 0
+                    >   x = (0)
+                    > }
+            assign  > x = 0
+            int_lit > 0
+            id      > x
+            assign  > y = true
+            bool_lit> true
+            id      > y
+            assign  > x = x
+            id      > x
+            id      > x
+            assign  > z = {1, 2, 3}
+            arr_lit > {1, 2, 3}
+            int_lit > 1
+            int_lit > 2
+            int_lit > 3
+            id      > z
+            assign  > x = g1()
+            pcall   > g1()
+            id      > g1
+            id      > x
+            assign  > x = z[0]
+            expr_idx> z[0]
+            id      > z
+            int_lit > 0
+            id      > x
+            assign  > x = -1
+            uexpr   > -1
+            uop     > -
+            int_lit > 1
+            id      > x
+            assign  > x = 0 + 0
+            bexpr   > 0 + 0
+            binop   > +
+            int_lit > 0
+            int_lit > 0
+            id      > x
+            assign  > x = (0)
+            int_lit > 0
+            id      > x
+            gdecl   > x: int;
+            int_t   > int
+            id      > x
+            method  > g1():int {
+                    >   return 0
+                    > }
+            mdecl   > g1():int
+            id      > g1
+            int_t   > int
+            block   > {
+                    >   return 0
+                    > }
+            return  > return 0
+            int_lit > 0
 
         "#]]
     }
@@ -2034,77 +2488,103 @@ fn gd_assign03() {
                   (block
                     (return 0)))
                 (global booleanboi bool)))
-            program         : src0.eta:1:1..15:18
-            method          : src0.eta:1:1..10:2
-            mdecl           : src0.eta:1:1..1:18
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:10
-            arr_t           : src0.eta:1:8..1:10
-            id x            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:12..1:17
-            id y            : src0.eta:1:12..1:13
-            block           : src0.eta:1:19..10:2
-            assign          : src0.eta:2:3..2:11
-            int_lit         : src0.eta:2:10..2:11
-            expr_idx        : src0.eta:2:3..2:7
-            id x            : src0.eta:2:3..2:4
-            int_lit         : src0.eta:2:5..2:6
-            assign          : src0.eta:3:3..3:11
-            int_lit         : src0.eta:3:10..3:11
-            expr_idx        : src0.eta:3:3..3:7
-            id x            : src0.eta:3:3..3:4
-            id y            : src0.eta:3:5..3:6
-            assign          : src0.eta:4:3..4:20
-            int_lit         : src0.eta:4:19..4:20
-            expr_idx        : src0.eta:4:3..4:16
-            id x            : src0.eta:4:3..4:4
-            expr_idx        : src0.eta:4:5..4:15
-            arr_lit         : src0.eta:4:5..4:12
-            int_lit         : src0.eta:4:6..4:7
-            int_lit         : src0.eta:4:8..4:9
-            int_lit         : src0.eta:4:10..4:11
-            int_lit         : src0.eta:4:13..4:14
-            assign          : src0.eta:5:3..5:13
-            int_lit         : src0.eta:5:12..5:13
-            expr_idx        : src0.eta:5:3..5:9
-            id x            : src0.eta:5:3..5:4
-            pcall           : src0.eta:5:5..5:8
-            id g            : src0.eta:5:5..5:6
-            assign          : src0.eta:6:3..6:14
-            int_lit         : src0.eta:6:13..6:14
-            expr_idx        : src0.eta:6:3..6:10
-            id x            : src0.eta:6:3..6:4
-            expr_idx        : src0.eta:6:5..6:9
-            id x            : src0.eta:6:5..6:6
-            int_lit         : src0.eta:6:7..6:8
-            assign          : src0.eta:7:3..7:12
-            int_lit         : src0.eta:7:11..7:12
-            expr_idx        : src0.eta:7:3..7:8
-            id x            : src0.eta:7:3..7:4
-            uexpr           : src0.eta:7:5..7:7
-            uop             : src0.eta:7:5..7:6
-            int_lit         : src0.eta:7:6..7:7
-            assign          : src0.eta:8:3..8:13
-            int_lit         : src0.eta:8:12..8:13
-            expr_idx        : src0.eta:8:3..8:9
-            id x            : src0.eta:8:3..8:4
-            bexpr           : src0.eta:8:5..8:8
-            binop           : src0.eta:8:6..8:7
-            int_lit         : src0.eta:8:5..8:6
-            int_lit         : src0.eta:8:7..8:8
-            assign          : src0.eta:9:3..9:13
-            int_lit         : src0.eta:9:12..9:13
-            expr_idx        : src0.eta:9:3..9:9
-            id x            : src0.eta:9:3..9:4
-            int_lit         : src0.eta:9:6..9:7
-            method          : src0.eta:12:1..14:2
-            mdecl           : src0.eta:12:1..12:8
-            id g            : src0.eta:12:1..12:2
-            block           : src0.eta:12:9..14:2
-            return          : src0.eta:13:3..13:11
-            int_lit         : src0.eta:13:10..13:11
-            gdecl           : src0.eta:15:1..15:18
-            id booleanboi   : src0.eta:15:1..15:11
+            program > f(x:int[], y:int) {
+                    >   x[0] = 0
+                    >   x[y] = 0
+                    > ...
+                    >   return 0
+                    > }
+                    > booleanboi :bool;
+            method  > f(x:int[], y:int) {
+                    >   x[0] = 0
+                    >   x[y] = 0
+                    > ...
+                    >   x[0+0] = 0
+                    >   x[(0)] = 0
+                    > }
+            mdecl   > f(x:int[], y:int)
+            id      > f
+            decl    > x:int[]
+            arr_t   > []
+            int_t   > int
+            id      > x
+            decl    > y:int
+            int_t   > int
+            id      > y
+            block   > {
+                    >   x[0] = 0
+                    >   x[y] = 0
+                    > ...
+                    >   x[0+0] = 0
+                    >   x[(0)] = 0
+                    > }
+            assign  > x[0] = 0
+            int_lit > 0
+            expr_idx> x[0]
+            id      > x
+            int_lit > 0
+            assign  > x[y] = 0
+            int_lit > 0
+            expr_idx> x[y]
+            id      > x
+            id      > y
+            assign  > x[{1,2,3}[0]] = 0
+            int_lit > 0
+            expr_idx> x[{1,2,3}[0]]
+            id      > x
+            expr_idx> {1,2,3}[0]
+            arr_lit > {1,2,3}
+            int_lit > 1
+            int_lit > 2
+            int_lit > 3
+            int_lit > 0
+            assign  > x[g()] = 0
+            int_lit > 0
+            expr_idx> x[g()]
+            id      > x
+            pcall   > g()
+            id      > g
+            assign  > x[x[0]] = 0
+            int_lit > 0
+            expr_idx> x[x[0]]
+            id      > x
+            expr_idx> x[0]
+            id      > x
+            int_lit > 0
+            assign  > x[-1] = 0
+            int_lit > 0
+            expr_idx> x[-1]
+            id      > x
+            uexpr   > -1
+            uop     > -
+            int_lit > 1
+            assign  > x[0+0] = 0
+            int_lit > 0
+            expr_idx> x[0+0]
+            id      > x
+            bexpr   > 0+0
+            binop   > +
+            int_lit > 0
+            int_lit > 0
+            assign  > x[(0)] = 0
+            int_lit > 0
+            expr_idx> x[(0)]
+            id      > x
+            int_lit > 0
+            method  > g():int {
+                    >   return 0
+                    > }
+            mdecl   > g():int
+            id      > g
+            int_t   > int
+            block   > {
+                    >   return 0
+                    > }
+            return  > return 0
+            int_lit > 0
+            gdecl   > booleanboi :bool;
+            bool_t  > bool
+            id      > booleanboi
 
         "#]]
     }
@@ -2156,120 +2636,152 @@ fn gd_assign04() {
                 (method (decl g2 (params) (returns int))
                   (block
                     (return 0)))))
-            program         : src0.eta:1:1..18:2
-            method          : src0.eta:1:1..10:2
-            mdecl           : src0.eta:1:1..1:27
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:12
-            arr_t           : src0.eta:1:10..1:12
-            arr_t           : src0.eta:1:8..1:10
-            id x            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:14..1:19
-            id y            : src0.eta:1:14..1:15
-            decl            : src0.eta:1:21..1:26
-            id z            : src0.eta:1:21..1:22
-            block           : src0.eta:1:28..10:2
-            assign          : src0.eta:2:3..2:14
-            int_lit         : src0.eta:2:13..2:14
-            expr_idx        : src0.eta:2:3..2:10
-            expr_idx        : src0.eta:2:3..2:7
-            id x            : src0.eta:2:3..2:4
-            int_lit         : src0.eta:2:5..2:6
-            int_lit         : src0.eta:2:8..2:9
-            assign          : src0.eta:3:3..3:14
-            int_lit         : src0.eta:3:13..3:14
-            expr_idx        : src0.eta:3:3..3:10
-            expr_idx        : src0.eta:3:3..3:7
-            id x            : src0.eta:3:3..3:4
-            id y            : src0.eta:3:5..3:6
-            id z            : src0.eta:3:8..3:9
-            assign          : src0.eta:4:3..4:32
-            int_lit         : src0.eta:4:31..4:32
-            expr_idx        : src0.eta:4:3..4:28
-            expr_idx        : src0.eta:4:3..4:16
-            id x            : src0.eta:4:3..4:4
-            expr_idx        : src0.eta:4:5..4:15
-            arr_lit         : src0.eta:4:5..4:12
-            int_lit         : src0.eta:4:6..4:7
-            int_lit         : src0.eta:4:8..4:9
-            int_lit         : src0.eta:4:10..4:11
-            int_lit         : src0.eta:4:13..4:14
-            expr_idx        : src0.eta:4:17..4:27
-            arr_lit         : src0.eta:4:17..4:24
-            int_lit         : src0.eta:4:18..4:19
-            int_lit         : src0.eta:4:20..4:21
-            int_lit         : src0.eta:4:22..4:23
-            int_lit         : src0.eta:4:25..4:26
-            assign          : src0.eta:5:3..5:20
-            int_lit         : src0.eta:5:19..5:20
-            expr_idx        : src0.eta:5:3..5:16
-            expr_idx        : src0.eta:5:3..5:10
-            id x            : src0.eta:5:3..5:4
-            pcall           : src0.eta:5:5..5:9
-            id g1           : src0.eta:5:5..5:7
-            pcall           : src0.eta:5:11..5:15
-            id g2           : src0.eta:5:11..5:13
-            assign          : src0.eta:6:3..6:26
-            int_lit         : src0.eta:6:25..6:26
-            expr_idx        : src0.eta:6:3..6:22
-            expr_idx        : src0.eta:6:3..6:13
-            id x            : src0.eta:6:3..6:4
-            expr_idx        : src0.eta:6:5..6:12
-            expr_idx        : src0.eta:6:5..6:9
-            id x            : src0.eta:6:5..6:6
-            int_lit         : src0.eta:6:7..6:8
-            int_lit         : src0.eta:6:10..6:11
-            expr_idx        : src0.eta:6:14..6:21
-            expr_idx        : src0.eta:6:14..6:18
-            id x            : src0.eta:6:14..6:15
-            int_lit         : src0.eta:6:16..6:17
-            int_lit         : src0.eta:6:19..6:20
-            assign          : src0.eta:7:3..7:16
-            int_lit         : src0.eta:7:15..7:16
-            expr_idx        : src0.eta:7:3..7:12
-            expr_idx        : src0.eta:7:3..7:8
-            id x            : src0.eta:7:3..7:4
-            uexpr           : src0.eta:7:5..7:7
-            uop             : src0.eta:7:5..7:6
-            int_lit         : src0.eta:7:6..7:7
-            uexpr           : src0.eta:7:9..7:11
-            uop             : src0.eta:7:9..7:10
-            int_lit         : src0.eta:7:10..7:11
-            assign          : src0.eta:8:3..8:18
-            int_lit         : src0.eta:8:17..8:18
-            expr_idx        : src0.eta:8:3..8:14
-            expr_idx        : src0.eta:8:3..8:9
-            id x            : src0.eta:8:3..8:4
-            bexpr           : src0.eta:8:5..8:8
-            binop           : src0.eta:8:6..8:7
-            int_lit         : src0.eta:8:5..8:6
-            int_lit         : src0.eta:8:7..8:8
-            bexpr           : src0.eta:8:10..8:13
-            binop           : src0.eta:8:11..8:12
-            int_lit         : src0.eta:8:10..8:11
-            int_lit         : src0.eta:8:12..8:13
-            assign          : src0.eta:9:3..9:18
-            int_lit         : src0.eta:9:17..9:18
-            expr_idx        : src0.eta:9:3..9:14
-            expr_idx        : src0.eta:9:3..9:9
-            id x            : src0.eta:9:3..9:4
-            int_lit         : src0.eta:9:6..9:7
-            int_lit         : src0.eta:9:11..9:12
-            gdecl           : src0.eta:11:1..11:30
-            id heyitsaboolean: src0.eta:11:1..11:15
-            bool_lit        : src0.eta:11:24..11:29
-            method          : src0.eta:12:1..14:2
-            mdecl           : src0.eta:12:1..12:9
-            id g1           : src0.eta:12:1..12:3
-            block           : src0.eta:12:10..14:2
-            return          : src0.eta:13:3..13:11
-            int_lit         : src0.eta:13:10..13:11
-            method          : src0.eta:16:1..18:2
-            mdecl           : src0.eta:16:1..16:9
-            id g2           : src0.eta:16:1..16:3
-            block           : src0.eta:16:10..18:2
-            return          : src0.eta:17:3..17:11
-            int_lit         : src0.eta:17:10..17:11
+            program > f(x:int[][], y:int, z:int) {
+                    >   x[0][1] = 0
+                    >   x[y][z] = 0
+                    > ...
+                    > g2():int {
+                    >   return 0
+                    > }
+            method  > f(x:int[][], y:int, z:int) {
+                    >   x[0][1] = 0
+                    >   x[y][z] = 0
+                    > ...
+                    >   x[0+0][0-0] = 0
+                    >   x[(0)][(1)] = 0
+                    > }
+            mdecl   > f(x:int[][], y:int, z:int)
+            id      > f
+            decl    > x:int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > x
+            decl    > y:int
+            int_t   > int
+            id      > y
+            decl    > z:int
+            int_t   > int
+            id      > z
+            block   > {
+                    >   x[0][1] = 0
+                    >   x[y][z] = 0
+                    > ...
+                    >   x[0+0][0-0] = 0
+                    >   x[(0)][(1)] = 0
+                    > }
+            assign  > x[0][1] = 0
+            int_lit > 0
+            expr_idx> x[0][1]
+            expr_idx> x[0]
+            id      > x
+            int_lit > 0
+            int_lit > 1
+            assign  > x[y][z] = 0
+            int_lit > 0
+            expr_idx> x[y][z]
+            expr_idx> x[y]
+            id      > x
+            id      > y
+            id      > z
+            assign  > x[{1,2,3}[0]][{1,2,3}[1]] = 0
+            int_lit > 0
+            expr_idx> x[{1,2,3}[0]][{1,2,3}[1]]
+            expr_idx> x[{1,2,3}[0]]
+            id      > x
+            expr_idx> {1,2,3}[0]
+            arr_lit > {1,2,3}
+            int_lit > 1
+            int_lit > 2
+            int_lit > 3
+            int_lit > 0
+            expr_idx> {1,2,3}[1]
+            arr_lit > {1,2,3}
+            int_lit > 1
+            int_lit > 2
+            int_lit > 3
+            int_lit > 1
+            assign  > x[g1()][g2()] = 0
+            int_lit > 0
+            expr_idx> x[g1()][g2()]
+            expr_idx> x[g1()]
+            id      > x
+            pcall   > g1()
+            id      > g1
+            pcall   > g2()
+            id      > g2
+            assign  > x[x[0][1]][x[2][3]] = 0
+            int_lit > 0
+            expr_idx> x[x[0][1]][x[2][3]]
+            expr_idx> x[x[0][1]]
+            id      > x
+            expr_idx> x[0][1]
+            expr_idx> x[0]
+            id      > x
+            int_lit > 0
+            int_lit > 1
+            expr_idx> x[2][3]
+            expr_idx> x[2]
+            id      > x
+            int_lit > 2
+            int_lit > 3
+            assign  > x[-1][-2] = 0
+            int_lit > 0
+            expr_idx> x[-1][-2]
+            expr_idx> x[-1]
+            id      > x
+            uexpr   > -1
+            uop     > -
+            int_lit > 1
+            uexpr   > -2
+            uop     > -
+            int_lit > 2
+            assign  > x[0+0][0-0] = 0
+            int_lit > 0
+            expr_idx> x[0+0][0-0]
+            expr_idx> x[0+0]
+            id      > x
+            bexpr   > 0+0
+            binop   > +
+            int_lit > 0
+            int_lit > 0
+            bexpr   > 0-0
+            binop   > -
+            int_lit > 0
+            int_lit > 0
+            assign  > x[(0)][(1)] = 0
+            int_lit > 0
+            expr_idx> x[(0)][(1)]
+            expr_idx> x[(0)]
+            id      > x
+            int_lit > 0
+            int_lit > 1
+            gdecl   > heyitsaboolean :bool = false;
+            bool_t  > bool
+            id      > heyitsaboolean
+            bool_lit> false
+            method  > g1():int {
+                    >   return 0
+                    > }
+            mdecl   > g1():int
+            id      > g1
+            int_t   > int
+            block   > {
+                    >   return 0
+                    > }
+            return  > return 0
+            int_lit > 0
+            method  > g2():int {
+                    >   return 0
+                    > }
+            mdecl   > g2():int
+            id      > g2
+            int_t   > int
+            block   > {
+                    >   return 0
+                    > }
+            return  > return 0
+            int_lit > 0
 
         "#]]
     }
@@ -2329,64 +2841,105 @@ fn gd_block01() {
                     (decls (: x10 int))
                     (decls (: x11 int))
                     (decls (: x12 int))))))
-            program         : src0.eta:1:1..22:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:5
-            id f1           : src0.eta:1:1..1:3
-            block           : src0.eta:1:6..3:2
-            decls           : src0.eta:2:3..2:8
-            decl            : src0.eta:2:3..2:8
-            id x            : src0.eta:2:3..2:4
-            gdecl           : src0.eta:4:1..4:24
-            arr_t           : src0.eta:4:21..4:23
-            id thebigglobarray: src0.eta:4:1..4:16
-            method          : src0.eta:5:1..7:2
-            mdecl           : src0.eta:5:1..5:5
-            id f2           : src0.eta:5:1..5:3
-            block           : src0.eta:5:6..7:2
-            decls           : src0.eta:6:3..6:8
-            decl            : src0.eta:6:3..6:8
-            id x            : src0.eta:6:3..6:4
-            method          : src0.eta:9:1..22:2
-            mdecl           : src0.eta:9:1..9:5
-            id f3           : src0.eta:9:1..9:3
-            block           : src0.eta:9:6..22:2
-            decls           : src0.eta:10:3..10:10
-            decl            : src0.eta:10:3..10:10
-            id x01          : src0.eta:10:3..10:6
-            decls           : src0.eta:11:3..11:10
-            decl            : src0.eta:11:3..11:10
-            id x02          : src0.eta:11:3..11:6
-            decls           : src0.eta:12:3..12:10
-            decl            : src0.eta:12:3..12:10
-            id x03          : src0.eta:12:3..12:6
-            decls           : src0.eta:13:3..13:10
-            decl            : src0.eta:13:3..13:10
-            id x04          : src0.eta:13:3..13:6
-            decls           : src0.eta:14:3..14:10
-            decl            : src0.eta:14:3..14:10
-            id x05          : src0.eta:14:3..14:6
-            decls           : src0.eta:15:3..15:10
-            decl            : src0.eta:15:3..15:10
-            id x06          : src0.eta:15:3..15:6
-            decls           : src0.eta:16:3..16:10
-            decl            : src0.eta:16:3..16:10
-            id x07          : src0.eta:16:3..16:6
-            decls           : src0.eta:17:3..17:10
-            decl            : src0.eta:17:3..17:10
-            id x08          : src0.eta:17:3..17:6
-            decls           : src0.eta:18:3..18:10
-            decl            : src0.eta:18:3..18:10
-            id x09          : src0.eta:18:3..18:6
-            decls           : src0.eta:19:3..19:10
-            decl            : src0.eta:19:3..19:10
-            id x10          : src0.eta:19:3..19:6
-            decls           : src0.eta:20:3..20:10
-            decl            : src0.eta:20:3..20:10
-            id x11          : src0.eta:20:3..20:6
-            decls           : src0.eta:21:3..21:10
-            decl            : src0.eta:21:3..21:10
-            id x12          : src0.eta:21:3..21:6
+            program > f1() {
+                    >   x:int
+                    > }
+                    > ...
+                    >   x11:int;
+                    >   x12:int
+                    > }
+            method  > f1() {
+                    >   x:int
+                    > }
+            mdecl   > f1()
+            id      > f1
+            block   > {
+                    >   x:int
+                    > }
+            decls   > x:int
+            decl    > x:int
+            int_t   > int
+            id      > x
+            gdecl   > thebigglobarray :int[];
+            arr_t   > []
+            int_t   > int
+            id      > thebigglobarray
+            method  > f2() {
+                    >   x:int;
+                    > }
+            mdecl   > f2()
+            id      > f2
+            block   > {
+                    >   x:int;
+                    > }
+            decls   > x:int
+            decl    > x:int
+            int_t   > int
+            id      > x
+            method  > f3() {
+                    >   x01:int;
+                    >   x02:int
+                    > ...
+                    >   x11:int;
+                    >   x12:int
+                    > }
+            mdecl   > f3()
+            id      > f3
+            block   > {
+                    >   x01:int;
+                    >   x02:int
+                    > ...
+                    >   x11:int;
+                    >   x12:int
+                    > }
+            decls   > x01:int
+            decl    > x01:int
+            int_t   > int
+            id      > x01
+            decls   > x02:int
+            decl    > x02:int
+            int_t   > int
+            id      > x02
+            decls   > x03:int
+            decl    > x03:int
+            int_t   > int
+            id      > x03
+            decls   > x04:int
+            decl    > x04:int
+            int_t   > int
+            id      > x04
+            decls   > x05:int
+            decl    > x05:int
+            int_t   > int
+            id      > x05
+            decls   > x06:int
+            decl    > x06:int
+            int_t   > int
+            id      > x06
+            decls   > x07:int
+            decl    > x07:int
+            int_t   > int
+            id      > x07
+            decls   > x08:int
+            decl    > x08:int
+            int_t   > int
+            id      > x08
+            decls   > x09:int
+            decl    > x09:int
+            int_t   > int
+            id      > x09
+            decls   > x10:int
+            decl    > x10:int
+            int_t   > int
+            id      > x10
+            decls   > x11:int
+            decl    > x11:int
+            int_t   > int
+            id      > x11
+            decls   > x12:int
+            decl    > x12:int
+            int_t   > int
+            id      > x12
 
         "#]]
     }
@@ -2508,141 +3061,235 @@ fn gd_block02() {
                     (decls (: x11 int))
                     (decls (: x12 int))
                     (return 0)))))
-            program         : src0.eta:1:1..55:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:10
-            id f1           : src0.eta:1:1..1:3
-            block           : src0.eta:1:11..3:2
-            return          : src0.eta:2:3..2:12
-            int_lit         : src0.eta:2:10..2:11
-            method          : src0.eta:5:1..8:2
-            mdecl           : src0.eta:5:1..5:10
-            id f2           : src0.eta:5:1..5:3
-            block           : src0.eta:5:11..8:2
-            decls           : src0.eta:6:3..6:8
-            decl            : src0.eta:6:3..6:8
-            id x            : src0.eta:6:3..6:4
-            return          : src0.eta:7:3..7:11
-            int_lit         : src0.eta:7:10..7:11
-            gdecl           : src0.eta:9:1..9:35
-            arr_t           : src0.eta:9:32..9:34
-            arr_t           : src0.eta:9:30..9:32
-            arr_t           : src0.eta:9:28..9:30
-            arr_t           : src0.eta:9:26..9:28
-            arr_t           : src0.eta:9:24..9:26
-            arr_t           : src0.eta:9:22..9:24
-            id arrayisquitedeep: src0.eta:9:1..9:17
-            method          : src0.eta:10:1..13:2
-            mdecl           : src0.eta:10:1..10:10
-            id f3           : src0.eta:10:1..10:3
-            block           : src0.eta:10:11..13:2
-            decls           : src0.eta:11:3..11:8
-            decl            : src0.eta:11:3..11:8
-            id x            : src0.eta:11:3..11:4
-            return          : src0.eta:12:3..12:12
-            int_lit         : src0.eta:12:10..12:11
-            method          : src0.eta:15:1..18:2
-            mdecl           : src0.eta:15:1..15:10
-            id f4           : src0.eta:15:1..15:3
-            block           : src0.eta:15:11..18:2
-            decls           : src0.eta:16:3..16:8
-            decl            : src0.eta:16:3..16:8
-            id x            : src0.eta:16:3..16:4
-            return          : src0.eta:17:3..17:11
-            int_lit         : src0.eta:17:10..17:11
-            method          : src0.eta:20:1..23:2
-            mdecl           : src0.eta:20:1..20:10
-            id f5           : src0.eta:20:1..20:3
-            block           : src0.eta:20:11..23:2
-            decls           : src0.eta:21:3..21:8
-            decl            : src0.eta:21:3..21:8
-            id x            : src0.eta:21:3..21:4
-            return          : src0.eta:22:3..22:12
-            int_lit         : src0.eta:22:10..22:11
-            method          : src0.eta:25:1..39:2
-            mdecl           : src0.eta:25:1..25:10
-            id f6           : src0.eta:25:1..25:3
-            block           : src0.eta:25:11..39:2
-            decls           : src0.eta:26:3..26:10
-            decl            : src0.eta:26:3..26:10
-            id x01          : src0.eta:26:3..26:6
-            decls           : src0.eta:27:3..27:10
-            decl            : src0.eta:27:3..27:10
-            id x02          : src0.eta:27:3..27:6
-            decls           : src0.eta:28:3..28:10
-            decl            : src0.eta:28:3..28:10
-            id x03          : src0.eta:28:3..28:6
-            decls           : src0.eta:29:3..29:10
-            decl            : src0.eta:29:3..29:10
-            id x04          : src0.eta:29:3..29:6
-            decls           : src0.eta:30:3..30:10
-            decl            : src0.eta:30:3..30:10
-            id x05          : src0.eta:30:3..30:6
-            decls           : src0.eta:31:3..31:10
-            decl            : src0.eta:31:3..31:10
-            id x06          : src0.eta:31:3..31:6
-            decls           : src0.eta:32:3..32:10
-            decl            : src0.eta:32:3..32:10
-            id x07          : src0.eta:32:3..32:6
-            decls           : src0.eta:33:3..33:10
-            decl            : src0.eta:33:3..33:10
-            id x08          : src0.eta:33:3..33:6
-            decls           : src0.eta:34:3..34:10
-            decl            : src0.eta:34:3..34:10
-            id x09          : src0.eta:34:3..34:6
-            decls           : src0.eta:35:3..35:10
-            decl            : src0.eta:35:3..35:10
-            id x10          : src0.eta:35:3..35:6
-            decls           : src0.eta:36:3..36:10
-            decl            : src0.eta:36:3..36:10
-            id x11          : src0.eta:36:3..36:6
-            decls           : src0.eta:37:3..37:10
-            decl            : src0.eta:37:3..37:10
-            id x12          : src0.eta:37:3..37:6
-            return          : src0.eta:38:3..38:11
-            int_lit         : src0.eta:38:10..38:11
-            method          : src0.eta:41:1..55:2
-            mdecl           : src0.eta:41:1..41:10
-            id f7           : src0.eta:41:1..41:3
-            block           : src0.eta:41:11..55:2
-            decls           : src0.eta:42:3..42:10
-            decl            : src0.eta:42:3..42:10
-            id x01          : src0.eta:42:3..42:6
-            decls           : src0.eta:43:3..43:10
-            decl            : src0.eta:43:3..43:10
-            id x02          : src0.eta:43:3..43:6
-            decls           : src0.eta:44:3..44:10
-            decl            : src0.eta:44:3..44:10
-            id x03          : src0.eta:44:3..44:6
-            decls           : src0.eta:45:3..45:10
-            decl            : src0.eta:45:3..45:10
-            id x04          : src0.eta:45:3..45:6
-            decls           : src0.eta:46:3..46:10
-            decl            : src0.eta:46:3..46:10
-            id x05          : src0.eta:46:3..46:6
-            decls           : src0.eta:47:3..47:10
-            decl            : src0.eta:47:3..47:10
-            id x06          : src0.eta:47:3..47:6
-            decls           : src0.eta:48:3..48:10
-            decl            : src0.eta:48:3..48:10
-            id x07          : src0.eta:48:3..48:6
-            decls           : src0.eta:49:3..49:10
-            decl            : src0.eta:49:3..49:10
-            id x08          : src0.eta:49:3..49:6
-            decls           : src0.eta:50:3..50:10
-            decl            : src0.eta:50:3..50:10
-            id x09          : src0.eta:50:3..50:6
-            decls           : src0.eta:51:3..51:10
-            decl            : src0.eta:51:3..51:10
-            id x10          : src0.eta:51:3..51:6
-            decls           : src0.eta:52:3..52:10
-            decl            : src0.eta:52:3..52:10
-            id x11          : src0.eta:52:3..52:6
-            decls           : src0.eta:53:3..53:10
-            decl            : src0.eta:53:3..53:10
-            id x12          : src0.eta:53:3..53:6
-            return          : src0.eta:54:3..54:12
-            int_lit         : src0.eta:54:10..54:11
+            program > f1(): int {
+                    >   return 0;
+                    > }
+                    > ...
+                    >   x12:int
+                    >   return 0;
+                    > }
+            method  > f1(): int {
+                    >   return 0;
+                    > }
+            mdecl   > f1(): int
+            id      > f1
+            int_t   > int
+            block   > {
+                    >   return 0;
+                    > }
+            return  > return 0;
+            int_lit > 0
+            method  > f2(): int {
+                    >   x:int
+                    >   return 0
+                    > }
+            mdecl   > f2(): int
+            id      > f2
+            int_t   > int
+            block   > {
+                    >   x:int
+                    >   return 0
+                    > }
+            decls   > x:int
+            decl    > x:int
+            int_t   > int
+            id      > x
+            return  > return 0
+            int_lit > 0
+            gdecl   > arrayisquitedeep :int[][][][][][];
+            arr_t   > []
+            arr_t   > []
+            arr_t   > []
+            arr_t   > []
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > arrayisquitedeep
+            method  > f3(): int {
+                    >   x:int
+                    >   return 0;
+                    > }
+            mdecl   > f3(): int
+            id      > f3
+            int_t   > int
+            block   > {
+                    >   x:int
+                    >   return 0;
+                    > }
+            decls   > x:int
+            decl    > x:int
+            int_t   > int
+            id      > x
+            return  > return 0;
+            int_lit > 0
+            method  > f4(): int {
+                    >   x:int;
+                    >   return 0
+                    > }
+            mdecl   > f4(): int
+            id      > f4
+            int_t   > int
+            block   > {
+                    >   x:int;
+                    >   return 0
+                    > }
+            decls   > x:int
+            decl    > x:int
+            int_t   > int
+            id      > x
+            return  > return 0
+            int_lit > 0
+            method  > f5(): int {
+                    >   x:int;
+                    >   return 0;
+                    > }
+            mdecl   > f5(): int
+            id      > f5
+            int_t   > int
+            block   > {
+                    >   x:int;
+                    >   return 0;
+                    > }
+            decls   > x:int
+            decl    > x:int
+            int_t   > int
+            id      > x
+            return  > return 0;
+            int_lit > 0
+            method  > f6(): int {
+                    >   x01:int;
+                    >   x02:int
+                    > ...
+                    >   x12:int
+                    >   return 0
+                    > }
+            mdecl   > f6(): int
+            id      > f6
+            int_t   > int
+            block   > {
+                    >   x01:int;
+                    >   x02:int
+                    > ...
+                    >   x12:int
+                    >   return 0
+                    > }
+            decls   > x01:int
+            decl    > x01:int
+            int_t   > int
+            id      > x01
+            decls   > x02:int
+            decl    > x02:int
+            int_t   > int
+            id      > x02
+            decls   > x03:int
+            decl    > x03:int
+            int_t   > int
+            id      > x03
+            decls   > x04:int
+            decl    > x04:int
+            int_t   > int
+            id      > x04
+            decls   > x05:int
+            decl    > x05:int
+            int_t   > int
+            id      > x05
+            decls   > x06:int
+            decl    > x06:int
+            int_t   > int
+            id      > x06
+            decls   > x07:int
+            decl    > x07:int
+            int_t   > int
+            id      > x07
+            decls   > x08:int
+            decl    > x08:int
+            int_t   > int
+            id      > x08
+            decls   > x09:int
+            decl    > x09:int
+            int_t   > int
+            id      > x09
+            decls   > x10:int
+            decl    > x10:int
+            int_t   > int
+            id      > x10
+            decls   > x11:int
+            decl    > x11:int
+            int_t   > int
+            id      > x11
+            decls   > x12:int
+            decl    > x12:int
+            int_t   > int
+            id      > x12
+            return  > return 0
+            int_lit > 0
+            method  > f7(): int {
+                    >   x01:int;
+                    >   x02:int
+                    > ...
+                    >   x12:int
+                    >   return 0;
+                    > }
+            mdecl   > f7(): int
+            id      > f7
+            int_t   > int
+            block   > {
+                    >   x01:int;
+                    >   x02:int
+                    > ...
+                    >   x12:int
+                    >   return 0;
+                    > }
+            decls   > x01:int
+            decl    > x01:int
+            int_t   > int
+            id      > x01
+            decls   > x02:int
+            decl    > x02:int
+            int_t   > int
+            id      > x02
+            decls   > x03:int
+            decl    > x03:int
+            int_t   > int
+            id      > x03
+            decls   > x04:int
+            decl    > x04:int
+            int_t   > int
+            id      > x04
+            decls   > x05:int
+            decl    > x05:int
+            int_t   > int
+            id      > x05
+            decls   > x06:int
+            decl    > x06:int
+            int_t   > int
+            id      > x06
+            decls   > x07:int
+            decl    > x07:int
+            int_t   > int
+            id      > x07
+            decls   > x08:int
+            decl    > x08:int
+            int_t   > int
+            id      > x08
+            decls   > x09:int
+            decl    > x09:int
+            int_t   > int
+            id      > x09
+            decls   > x10:int
+            decl    > x10:int
+            int_t   > int
+            id      > x10
+            decls   > x11:int
+            decl    > x11:int
+            int_t   > int
+            id      > x11
+            decls   > x12:int
+            decl    > x12:int
+            int_t   > int
+            id      > x12
+            return  > return 0;
+            int_lit > 0
 
         "#]]
     }
@@ -2694,19 +3341,32 @@ fn gd_globlarrinit1() {
                 (method (decl foo (params (: x int)) (returns int))
                   (block
                     (return x)))))
-            program         : src0.eta:1:1..6:2
-            gdecl           : src0.eta:1:1..1:11
-            arr_t           : src0.eta:1:7..1:10
-            int_lit         : src0.eta:1:8..1:9
-            id x            : src0.eta:1:1..1:2
-            method          : src0.eta:3:1..6:2
-            mdecl           : src0.eta:3:1..3:17
-            id foo          : src0.eta:3:1..3:4
-            decl            : src0.eta:3:5..3:11
-            id x            : src0.eta:3:5..3:6
-            block           : src0.eta:4:1..6:2
-            return          : src0.eta:5:4..5:13
-            id x            : src0.eta:5:11..5:12
+            program > x :int[4];
+                    > 
+                    > foo(x :int) :int
+                    > {
+                    >    return x;
+                    > }
+            gdecl   > x :int[4];
+            arr_t   > [4]
+            int_t   > int
+            int_lit > 4
+            id      > x
+            method  > foo(x :int) :int
+                    > {
+                    >    return x;
+                    > }
+            mdecl   > foo(x :int) :int
+            id      > foo
+            decl    > x :int
+            int_t   > int
+            id      > x
+            int_t   > int
+            block   > {
+                    >    return x;
+                    > }
+            return  > return x;
+            id      > x
 
         "#]]
     }
@@ -2784,49 +3444,73 @@ fn global_vars() {
                 (global n int)
                 (global flag2 bool true)
                 (global m int)))
-            program         : src0.eta:1:1..20:8
-            gdecl           : src0.eta:1:1..1:16
-            id count        : src0.eta:1:1..1:6
-            int_lit         : src0.eta:1:14..1:16
-            gdecl           : src0.eta:2:1..2:18
-            id flag         : src0.eta:2:1..2:5
-            bool_lit        : src0.eta:2:14..2:18
-            gdecl           : src0.eta:3:1..3:12
-            arr_t           : src0.eta:3:10..3:12
-            id data         : src0.eta:3:1..3:5
-            gdecl           : src0.eta:4:1..4:7
-            id n            : src0.eta:4:1..4:2
-            gdecl           : src0.eta:6:1..6:20
-            id flag2        : src0.eta:6:1..6:6
-            bool_lit        : src0.eta:6:15..6:19
-            gdecl           : src0.eta:7:1..7:8
-            id m            : src0.eta:7:1..7:2
-            method          : src0.eta:9:1..12:2
-            mdecl           : src0.eta:9:1..9:8
-            id reset        : src0.eta:9:1..9:6
-            block           : src0.eta:9:9..12:2
-            assign          : src0.eta:10:5..10:14
-            int_lit         : src0.eta:10:13..10:14
-            id count        : src0.eta:10:5..10:10
-            assign          : src0.eta:11:5..11:17
-            bool_lit        : src0.eta:11:12..11:17
-            id flag         : src0.eta:11:5..11:9
-            gdecl           : src0.eta:14:1..14:16
-            id count        : src0.eta:14:1..14:6
-            int_lit         : src0.eta:14:14..14:16
-            gdecl           : src0.eta:15:1..15:18
-            id flag         : src0.eta:15:1..15:5
-            bool_lit        : src0.eta:15:14..15:18
-            gdecl           : src0.eta:16:1..16:12
-            arr_t           : src0.eta:16:10..16:12
-            id data         : src0.eta:16:1..16:5
-            gdecl           : src0.eta:17:1..17:7
-            id n            : src0.eta:17:1..17:2
-            gdecl           : src0.eta:19:1..19:20
-            id flag2        : src0.eta:19:1..19:6
-            bool_lit        : src0.eta:19:15..19:19
-            gdecl           : src0.eta:20:1..20:8
-            id m            : src0.eta:20:1..20:2
+            program > count: int = 42
+                    > flag: bool = true
+                    > data: int[]
+                    > ...
+                    > 
+                    > flag2: bool = true;
+                    > m: int;
+            gdecl   > count: int = 42
+            int_t   > int
+            id      > count
+            int_lit > 42
+            gdecl   > flag: bool = true
+            bool_t  > bool
+            id      > flag
+            bool_lit> true
+            gdecl   > data: int[]
+            arr_t   > []
+            int_t   > int
+            id      > data
+            gdecl   > n: int
+            int_t   > int
+            id      > n
+            gdecl   > flag2: bool = true;
+            bool_t  > bool
+            id      > flag2
+            bool_lit> true
+            gdecl   > m: int;
+            int_t   > int
+            id      > m
+            method  > reset() {
+                    >     count = 0
+                    >     flag = false
+                    > }
+            mdecl   > reset()
+            id      > reset
+            block   > {
+                    >     count = 0
+                    >     flag = false
+                    > }
+            assign  > count = 0
+            int_lit > 0
+            id      > count
+            assign  > flag = false
+            bool_lit> false
+            id      > flag
+            gdecl   > count: int = 42
+            int_t   > int
+            id      > count
+            int_lit > 42
+            gdecl   > flag: bool = true
+            bool_t  > bool
+            id      > flag
+            bool_lit> true
+            gdecl   > data: int[]
+            arr_t   > []
+            int_t   > int
+            id      > data
+            gdecl   > n: int
+            int_t   > int
+            id      > n
+            gdecl   > flag2: bool = true;
+            bool_t  > bool
+            id      > flag2
+            bool_lit> true
+            gdecl   > m: int;
+            int_t   > int
+            id      > m
 
         "#]]
     }
@@ -2855,24 +3539,31 @@ fn globals_interleaved() {
                 (method (decl g (params) (returns))
                   (block))
                 (global z bool true)))
-            program         : src0.eta:1:1..5:15
-            gdecl           : src0.eta:1:1..1:11
-            id x            : src0.eta:1:1..1:2
-            int_lit         : src0.eta:1:10..1:11
-            method          : src0.eta:2:1..2:7
-            mdecl           : src0.eta:2:1..2:4
-            id f            : src0.eta:2:1..2:2
-            block           : src0.eta:2:5..2:7
-            gdecl           : src0.eta:3:1..3:11
-            id y            : src0.eta:3:1..3:2
-            int_lit         : src0.eta:3:10..3:11
-            method          : src0.eta:4:1..4:7
-            mdecl           : src0.eta:4:1..4:4
-            id g            : src0.eta:4:1..4:2
-            block           : src0.eta:4:5..4:7
-            gdecl           : src0.eta:5:1..5:15
-            id z            : src0.eta:5:1..5:2
-            bool_lit        : src0.eta:5:11..5:15
+            program > x: int = 1
+                    > f() {}
+                    > y: int = 2
+                    > g() {}
+                    > z: bool = true
+            gdecl   > x: int = 1
+            int_t   > int
+            id      > x
+            int_lit > 1
+            method  > f() {}
+            mdecl   > f()
+            id      > f
+            block   > {}
+            gdecl   > y: int = 2
+            int_t   > int
+            id      > y
+            int_lit > 2
+            method  > g() {}
+            mdecl   > g()
+            id      > g
+            block   > {}
+            gdecl   > z: bool = true
+            bool_t  > bool
+            id      > z
+            bool_lit> true
 
         "#]]
     }
@@ -2899,32 +3590,50 @@ fn high_mult_mod() {
                     (assign (targets (: h int)) (values (*>> a b)))
                     (assign (targets (: m int)) (values (% a b)))
                     (return h m)))))
-            program         : src0.eta:1:1..5:2
-            method          : src0.eta:1:1..5:2
-            mdecl           : src0.eta:1:1..1:30
-            id ops          : src0.eta:1:1..1:4
-            decl            : src0.eta:1:5..1:11
-            id a            : src0.eta:1:5..1:6
-            decl            : src0.eta:1:13..1:19
-            id b            : src0.eta:1:13..1:14
-            block           : src0.eta:1:31..5:2
-            assign          : src0.eta:2:5..2:21
-            bexpr           : src0.eta:2:14..2:21
-            binop           : src0.eta:2:16..2:19
-            id a            : src0.eta:2:14..2:15
-            id b            : src0.eta:2:20..2:21
-            decl            : src0.eta:2:5..2:11
-            id h            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:19
-            bexpr           : src0.eta:3:14..3:19
-            binop           : src0.eta:3:16..3:17
-            id a            : src0.eta:3:14..3:15
-            id b            : src0.eta:3:18..3:19
-            decl            : src0.eta:3:5..3:11
-            id m            : src0.eta:3:5..3:6
-            return          : src0.eta:4:5..4:16
-            id h            : src0.eta:4:12..4:13
-            id m            : src0.eta:4:15..4:16
+            program > ops(a: int, b: int): int, int {
+                    >     h: int = a *>> b
+                    >     m: int = a % b
+                    >     return h, m
+                    > }
+            method  > ops(a: int, b: int): int, int {
+                    >     h: int = a *>> b
+                    >     m: int = a % b
+                    >     return h, m
+                    > }
+            mdecl   > ops(a: int, b: int): int, int
+            id      > ops
+            decl    > a: int
+            int_t   > int
+            id      > a
+            decl    > b: int
+            int_t   > int
+            id      > b
+            int_t   > int
+            int_t   > int
+            block   > {
+                    >     h: int = a *>> b
+                    >     m: int = a % b
+                    >     return h, m
+                    > }
+            assign  > h: int = a *>> b
+            bexpr   > a *>> b
+            binop   > *>>
+            id      > a
+            id      > b
+            decl    > h: int
+            int_t   > int
+            id      > h
+            assign  > m: int = a % b
+            bexpr   > a % b
+            binop   > %
+            id      > a
+            id      > b
+            decl    > m: int
+            int_t   > int
+            id      > m
+            return  > return h, m
+            id      > h
+            id      > m
 
         "#]]
     }
@@ -2951,32 +3660,42 @@ fn if_no_parens() {
                       (assign (targets x) (values (- x 1))))
                     (if (== x 0)
                       (assign (targets x) (values 0)))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:10
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:9
-            id x            : src0.eta:1:3..1:4
-            block           : src0.eta:1:11..4:2
-            if              : src0.eta:2:5..2:23
-            bexpr           : src0.eta:2:8..2:13
-            binop           : src0.eta:2:10..2:11
-            id x            : src0.eta:2:8..2:9
-            int_lit         : src0.eta:2:12..2:13
-            assign          : src0.eta:2:14..2:23
-            bexpr           : src0.eta:2:18..2:23
-            binop           : src0.eta:2:20..2:21
-            id x            : src0.eta:2:18..2:19
-            int_lit         : src0.eta:2:22..2:23
-            id x            : src0.eta:2:14..2:15
-            if              : src0.eta:3:5..3:20
-            bexpr           : src0.eta:3:8..3:14
-            binop           : src0.eta:3:10..3:12
-            id x            : src0.eta:3:8..3:9
-            int_lit         : src0.eta:3:13..3:14
-            assign          : src0.eta:3:15..3:20
-            int_lit         : src0.eta:3:19..3:20
-            id x            : src0.eta:3:15..3:16
+            program > f(x: int) {
+                    >     if x > 0 x = x - 1
+                    >     if x == 0 x = 0
+                    > }
+            method  > f(x: int) {
+                    >     if x > 0 x = x - 1
+                    >     if x == 0 x = 0
+                    > }
+            mdecl   > f(x: int)
+            id      > f
+            decl    > x: int
+            int_t   > int
+            id      > x
+            block   > {
+                    >     if x > 0 x = x - 1
+                    >     if x == 0 x = 0
+                    > }
+            if      > if x > 0 x = x - 1
+            bexpr   > x > 0
+            binop   > >
+            id      > x
+            int_lit > 0
+            assign  > x = x - 1
+            bexpr   > x - 1
+            binop   > -
+            id      > x
+            int_lit > 1
+            id      > x
+            if      > if x == 0 x = 0
+            bexpr   > x == 0
+            binop   > ==
+            id      > x
+            int_lit > 0
+            assign  > x = 0
+            int_lit > 0
+            id      > x
 
         "#]]
     }
@@ -3025,88 +3744,143 @@ fn insertionsort() {
                                 (assign (targets (index a (- j 1))) (values swap))))
                             (assign (targets j) (values (- j 1)))))
                         (assign (targets i) (values (+ i 1)))))))))
-            program         : src0.eta:1:1..16:2
-            method          : src0.eta:1:1..16:2
-            mdecl           : src0.eta:1:1..1:15
-            id sort         : src0.eta:1:1..1:5
-            decl            : src0.eta:1:6..1:14
-            arr_t           : src0.eta:1:12..1:14
-            id a            : src0.eta:1:6..1:7
-            block           : src0.eta:1:16..16:2
-            assign          : src0.eta:2:3..2:12
-            int_lit         : src0.eta:2:11..2:12
-            decl            : src0.eta:2:3..2:8
-            id i            : src0.eta:2:3..2:4
-            assign          : src0.eta:3:3..3:20
-            length          : src0.eta:3:11..3:20
-            id a            : src0.eta:3:18..3:19
-            decl            : src0.eta:3:3..3:8
-            id n            : src0.eta:3:3..3:4
-            while           : src0.eta:4:3..15:4
-            bexpr           : src0.eta:4:10..4:15
-            binop           : src0.eta:4:12..4:13
-            id i            : src0.eta:4:10..4:11
-            id n            : src0.eta:4:14..4:15
-            block           : src0.eta:4:17..15:4
-            assign          : src0.eta:5:7..5:16
-            id i            : src0.eta:5:15..5:16
-            decl            : src0.eta:5:7..5:12
-            id j            : src0.eta:5:7..5:8
-            while           : src0.eta:6:7..13:8
-            bexpr           : src0.eta:6:14..6:19
-            binop           : src0.eta:6:16..6:17
-            id j            : src0.eta:6:14..6:15
-            int_lit         : src0.eta:6:18..6:19
-            block           : src0.eta:6:21..13:8
-            if              : src0.eta:7:9..11:10
-            bexpr           : src0.eta:7:13..7:26
-            binop           : src0.eta:7:20..7:21
-            expr_idx        : src0.eta:7:13..7:19
-            id a            : src0.eta:7:13..7:14
-            bexpr           : src0.eta:7:15..7:18
-            binop           : src0.eta:7:16..7:17
-            id j            : src0.eta:7:15..7:16
-            int_lit         : src0.eta:7:17..7:18
-            expr_idx        : src0.eta:7:22..7:26
-            id a            : src0.eta:7:22..7:23
-            id j            : src0.eta:7:24..7:25
-            block           : src0.eta:7:28..11:10
-            assign          : src0.eta:8:13..8:28
-            expr_idx        : src0.eta:8:24..8:28
-            id a            : src0.eta:8:24..8:25
-            id j            : src0.eta:8:26..8:27
-            decl            : src0.eta:8:13..8:21
-            id swap         : src0.eta:8:13..8:17
-            assign          : src0.eta:9:13..9:26
-            expr_idx        : src0.eta:9:20..9:26
-            id a            : src0.eta:9:20..9:21
-            bexpr           : src0.eta:9:22..9:25
-            binop           : src0.eta:9:23..9:24
-            id j            : src0.eta:9:22..9:23
-            int_lit         : src0.eta:9:24..9:25
-            expr_idx        : src0.eta:9:13..9:17
-            id a            : src0.eta:9:13..9:14
-            id j            : src0.eta:9:15..9:16
-            assign          : src0.eta:10:13..10:26
-            id swap         : src0.eta:10:22..10:26
-            expr_idx        : src0.eta:10:13..10:19
-            id a            : src0.eta:10:13..10:14
-            bexpr           : src0.eta:10:15..10:18
-            binop           : src0.eta:10:16..10:17
-            id j            : src0.eta:10:15..10:16
-            int_lit         : src0.eta:10:17..10:18
-            assign          : src0.eta:12:9..12:16
-            bexpr           : src0.eta:12:13..12:16
-            binop           : src0.eta:12:14..12:15
-            id j            : src0.eta:12:13..12:14
-            int_lit         : src0.eta:12:15..12:16
-            id j            : src0.eta:12:9..12:10
-            assign          : src0.eta:14:7..14:14
-            bexpr           : src0.eta:14:11..14:14
-            binop           : src0.eta:14:12..14:13
-            id i            : src0.eta:14:11..14:12
-            int_lit         : src0.eta:14:13..14:14
-            id i            : src0.eta:14:7..14:8
+            program > sort(a: int[]) {
+                    >   i:int = 0
+                    >   n:int = length(a)
+                    > ...
+                    >       i = i+1
+                    >   }
+                    > }
+            method  > sort(a: int[]) {
+                    >   i:int = 0
+                    >   n:int = length(a)
+                    > ...
+                    >       i = i+1
+                    >   }
+                    > }
+            mdecl   > sort(a: int[])
+            id      > sort
+            decl    > a: int[]
+            arr_t   > []
+            int_t   > int
+            id      > a
+            block   > {
+                    >   i:int = 0
+                    >   n:int = length(a)
+                    > ...
+                    >       i = i+1
+                    >   }
+                    > }
+            assign  > i:int = 0
+            int_lit > 0
+            decl    > i:int
+            int_t   > int
+            id      > i
+            assign  > n:int = length(a)
+            length  > length(a)
+            id      > a
+            decl    > n:int
+            int_t   > int
+            id      > n
+            while   > while (i < n) {
+                    >     j:int = i
+                    >     while (j > 0) {
+                    > ...
+                    >     }
+                    >     i = i+1
+                    > }
+            bexpr   > i < n
+            binop   > <
+            id      > i
+            id      > n
+            block   > {
+                    >     j:int = i
+                    >     while (j > 0) {
+                    > ...
+                    >     }
+                    >     i = i+1
+                    > }
+            assign  > j:int = i
+            id      > i
+            decl    > j:int
+            int_t   > int
+            id      > j
+            while   > while (j > 0) {
+                    >   if (a[j-1] > a[j]) {
+                    >       swap:int = a[j]
+                    > ...
+                    >   }
+                    >   j = j-1
+                    > }
+            bexpr   > j > 0
+            binop   > >
+            id      > j
+            int_lit > 0
+            block   > {
+                    >   if (a[j-1] > a[j]) {
+                    >       swap:int = a[j]
+                    > ...
+                    >   }
+                    >   j = j-1
+                    > }
+            if      > if (a[j-1] > a[j]) {
+                    >     swap:int = a[j]
+                    >     a[j] = a[j-1]
+                    >     a[j-1] = swap
+                    > }
+            bexpr   > a[j-1] > a[j]
+            binop   > >
+            expr_idx> a[j-1]
+            id      > a
+            bexpr   > j-1
+            binop   > -
+            id      > j
+            int_lit > 1
+            expr_idx> a[j]
+            id      > a
+            id      > j
+            block   > {
+                    >     swap:int = a[j]
+                    >     a[j] = a[j-1]
+                    >     a[j-1] = swap
+                    > }
+            assign  > swap:int = a[j]
+            expr_idx> a[j]
+            id      > a
+            id      > j
+            decl    > swap:int
+            int_t   > int
+            id      > swap
+            assign  > a[j] = a[j-1]
+            expr_idx> a[j-1]
+            id      > a
+            bexpr   > j-1
+            binop   > -
+            id      > j
+            int_lit > 1
+            expr_idx> a[j]
+            id      > a
+            id      > j
+            assign  > a[j-1] = swap
+            id      > swap
+            expr_idx> a[j-1]
+            id      > a
+            bexpr   > j-1
+            binop   > -
+            id      > j
+            int_lit > 1
+            assign  > j = j-1
+            bexpr   > j-1
+            binop   > -
+            id      > j
+            int_lit > 1
+            id      > j
+            assign  > i = i+1
+            bexpr   > i+1
+            binop   > +
+            id      > i
+            int_lit > 1
+            id      > i
 
         "#]]
     }
@@ -3134,24 +3908,34 @@ fn io() {
               (decl readln (params) (returns (array int)))
               (decl getchar (params) (returns int))
               (decl eof (params) (returns bool)))
-            interface       : src0.eti:3:1..8:13
-            mdecl           : src0.eti:3:1..3:18
-            id print        : src0.eti:3:1..3:6
-            decl            : src0.eti:3:7..3:17
-            arr_t           : src0.eti:3:15..3:17
-            id str          : src0.eti:3:7..3:10
-            mdecl           : src0.eti:4:1..4:20
-            id println      : src0.eti:4:1..4:8
-            decl            : src0.eti:4:9..4:19
-            arr_t           : src0.eti:4:17..4:19
-            id str          : src0.eti:4:9..4:12
-            mdecl           : src0.eti:5:1..5:17
-            id readln       : src0.eti:5:1..5:7
-            arr_t           : src0.eti:5:15..5:17
-            mdecl           : src0.eti:6:1..6:16
-            id getchar      : src0.eti:6:1..6:8
-            mdecl           : src0.eti:8:1..8:13
-            id eof          : src0.eti:8:1..8:4
+            interfce> print(str: int[])     // Print a string to standard output.
+                    > println(str: int[])   // Print a string to standard output, followed by a newline.
+                    > readln() : int[]      // Read from standard input until a newline.
+                    > getchar() : int       // Read a single character from standard input.
+                    >                       // Returns -1 if the end of input has been reached.
+                    > eof() : bool
+            mdecl   > print(str: int[])
+            id      > print
+            decl    > str: int[]
+            arr_t   > []
+            int_t   > int
+            id      > str
+            mdecl   > println(str: int[])
+            id      > println
+            decl    > str: int[]
+            arr_t   > []
+            int_t   > int
+            id      > str
+            mdecl   > readln() : int[]
+            id      > readln
+            arr_t   > []
+            int_t   > int
+            mdecl   > getchar() : int
+            id      > getchar
+            int_t   > int
+            mdecl   > eof() : bool
+            id      > eof
+            bool_t  > bool
 
         "#]]
     }
@@ -3174,19 +3958,26 @@ fn length_array() {
                 (method (decl main (params (: args (array (array int)))) (returns))
                   (block
                     (assign (targets x) (values (length arr)))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:20
-            id main         : src0.eta:1:1..1:5
-            decl            : src0.eta:1:6..1:19
-            arr_t           : src0.eta:1:17..1:19
-            arr_t           : src0.eta:1:15..1:17
-            id args         : src0.eta:1:6..1:10
-            block           : src0.eta:1:21..3:2
-            assign          : src0.eta:2:5..2:20
-            length          : src0.eta:2:9..2:20
-            id arr          : src0.eta:2:16..2:19
-            id x            : src0.eta:2:5..2:6
+            program > main(args: int[][]) {
+                    >     x = length(arr)
+                    > }
+            method  > main(args: int[][]) {
+                    >     x = length(arr)
+                    > }
+            mdecl   > main(args: int[][])
+            id      > main
+            decl    > args: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > args
+            block   > {
+                    >     x = length(arr)
+                    > }
+            assign  > x = length(arr)
+            length  > length(arr)
+            id      > arr
+            id      > x
 
         "#]]
     }
@@ -3246,65 +4037,87 @@ fn mdarrays() {
                     (assign (targets (index c 1)) (values (index b 1)))
                     (assign (targets (index c 2)) (values (index b 2)))
                     (assign (targets (: d (array (array int)))) (values (array (array 1 0) (array 0 1))))))))
-            program         : src0.eta:1:1..8:2
-            method          : src0.eta:1:1..8:2
-            mdecl           : src0.eta:1:1..1:6
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:7..8:2
-            decls           : src0.eta:2:5..2:15
-            decl            : src0.eta:2:5..2:15
-            arr_t           : src0.eta:2:13..2:15
-            arr_t           : src0.eta:2:11..2:13
-            id a            : src0.eta:2:5..2:6
-            decls           : src0.eta:3:5..3:17
-            decl            : src0.eta:3:5..3:17
-            arr_t           : src0.eta:3:14..3:17
-            arr_t           : src0.eta:3:11..3:14
-            int_lit         : src0.eta:3:12..3:13
-            int_lit         : src0.eta:3:15..3:16
-            id b            : src0.eta:3:5..3:6
-            assign          : src0.eta:4:5..4:10
-            id b            : src0.eta:4:9..4:10
-            id a            : src0.eta:4:5..4:6
-            decls           : src0.eta:5:5..5:16
-            decl            : src0.eta:5:5..5:16
-            arr_t           : src0.eta:5:14..5:16
-            arr_t           : src0.eta:5:11..5:14
-            int_lit         : src0.eta:5:12..5:13
-            id c            : src0.eta:5:5..5:6
-            assign          : src0.eta:6:5..6:16
-            expr_idx        : src0.eta:6:12..6:16
-            id b            : src0.eta:6:12..6:13
-            int_lit         : src0.eta:6:14..6:15
-            expr_idx        : src0.eta:6:5..6:9
-            id c            : src0.eta:6:5..6:6
-            int_lit         : src0.eta:6:7..6:8
-            assign          : src0.eta:6:18..6:29
-            expr_idx        : src0.eta:6:25..6:29
-            id b            : src0.eta:6:25..6:26
-            int_lit         : src0.eta:6:27..6:28
-            expr_idx        : src0.eta:6:18..6:22
-            id c            : src0.eta:6:18..6:19
-            int_lit         : src0.eta:6:20..6:21
-            assign          : src0.eta:6:31..6:42
-            expr_idx        : src0.eta:6:38..6:42
-            id b            : src0.eta:6:38..6:39
-            int_lit         : src0.eta:6:40..6:41
-            expr_idx        : src0.eta:6:31..6:35
-            id c            : src0.eta:6:31..6:32
-            int_lit         : src0.eta:6:33..6:34
-            assign          : src0.eta:7:5..7:34
-            arr_lit         : src0.eta:7:18..7:34
-            arr_lit         : src0.eta:7:19..7:25
-            int_lit         : src0.eta:7:20..7:21
-            int_lit         : src0.eta:7:23..7:24
-            arr_lit         : src0.eta:7:27..7:33
-            int_lit         : src0.eta:7:28..7:29
-            int_lit         : src0.eta:7:31..7:32
-            decl            : src0.eta:7:5..7:15
-            arr_t           : src0.eta:7:13..7:15
-            arr_t           : src0.eta:7:11..7:13
-            id d            : src0.eta:7:5..7:6
+            program > foo() {
+                    >     a: int[][]
+                    >     b: int[3][4]
+                    > ...
+                    >     c[0] = b[0]; c[1] = b[1]; c[2] = b[2]
+                    >     d: int[][] = {{1, 0}, {0, 1}}
+                    > }
+            method  > foo() {
+                    >     a: int[][]
+                    >     b: int[3][4]
+                    > ...
+                    >     c[0] = b[0]; c[1] = b[1]; c[2] = b[2]
+                    >     d: int[][] = {{1, 0}, {0, 1}}
+                    > }
+            mdecl   > foo()
+            id      > foo
+            block   > {
+                    >     a: int[][]
+                    >     b: int[3][4]
+                    > ...
+                    >     c[0] = b[0]; c[1] = b[1]; c[2] = b[2]
+                    >     d: int[][] = {{1, 0}, {0, 1}}
+                    > }
+            decls   > a: int[][]
+            decl    > a: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > a
+            decls   > b: int[3][4]
+            decl    > b: int[3][4]
+            arr_t   > [4]
+            arr_t   > [3]
+            int_t   > int
+            int_lit > 3
+            int_lit > 4
+            id      > b
+            assign  > a = b
+            id      > b
+            id      > a
+            decls   > c: int[3][]
+            decl    > c: int[3][]
+            arr_t   > []
+            arr_t   > [3]
+            int_t   > int
+            int_lit > 3
+            id      > c
+            assign  > c[0] = b[0]
+            expr_idx> b[0]
+            id      > b
+            int_lit > 0
+            expr_idx> c[0]
+            id      > c
+            int_lit > 0
+            assign  > c[1] = b[1]
+            expr_idx> b[1]
+            id      > b
+            int_lit > 1
+            expr_idx> c[1]
+            id      > c
+            int_lit > 1
+            assign  > c[2] = b[2]
+            expr_idx> b[2]
+            id      > b
+            int_lit > 2
+            expr_idx> c[2]
+            id      > c
+            int_lit > 2
+            assign  > d: int[][] = {{1, 0}, {0, 1}}
+            arr_lit > {{1, 0}, {0, 1}}
+            arr_lit > {1, 0}
+            int_lit > 1
+            int_lit > 0
+            arr_lit > {0, 1}
+            int_lit > 0
+            int_lit > 1
+            decl    > d: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > d
 
         "#]]
     }
@@ -3331,31 +4144,49 @@ fn multi_return() {
                     (assign (targets (: a int)) (values (+ x 1)))
                     (assign (targets (: b int)) (values (+ x 2)))
                     (return x a b)))))
-            program         : src0.eta:1:1..5:2
-            method          : src0.eta:1:1..5:2
-            mdecl           : src0.eta:1:1..1:30
-            id triple       : src0.eta:1:1..1:7
-            decl            : src0.eta:1:8..1:14
-            id x            : src0.eta:1:8..1:9
-            block           : src0.eta:1:31..5:2
-            assign          : src0.eta:2:5..2:19
-            bexpr           : src0.eta:2:14..2:19
-            binop           : src0.eta:2:16..2:17
-            id x            : src0.eta:2:14..2:15
-            int_lit         : src0.eta:2:18..2:19
-            decl            : src0.eta:2:5..2:11
-            id a            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:19
-            bexpr           : src0.eta:3:14..3:19
-            binop           : src0.eta:3:16..3:17
-            id x            : src0.eta:3:14..3:15
-            int_lit         : src0.eta:3:18..3:19
-            decl            : src0.eta:3:5..3:11
-            id b            : src0.eta:3:5..3:6
-            return          : src0.eta:4:5..4:19
-            id x            : src0.eta:4:12..4:13
-            id a            : src0.eta:4:15..4:16
-            id b            : src0.eta:4:18..4:19
+            program > triple(x: int): int, int, int {
+                    >     a: int = x + 1
+                    >     b: int = x + 2
+                    >     return x, a, b
+                    > }
+            method  > triple(x: int): int, int, int {
+                    >     a: int = x + 1
+                    >     b: int = x + 2
+                    >     return x, a, b
+                    > }
+            mdecl   > triple(x: int): int, int, int
+            id      > triple
+            decl    > x: int
+            int_t   > int
+            id      > x
+            int_t   > int
+            int_t   > int
+            int_t   > int
+            block   > {
+                    >     a: int = x + 1
+                    >     b: int = x + 2
+                    >     return x, a, b
+                    > }
+            assign  > a: int = x + 1
+            bexpr   > x + 1
+            binop   > +
+            id      > x
+            int_lit > 1
+            decl    > a: int
+            int_t   > int
+            id      > a
+            assign  > b: int = x + 2
+            bexpr   > x + 2
+            binop   > +
+            id      > x
+            int_lit > 2
+            decl    > b: int
+            int_t   > int
+            id      > b
+            return  > return x, a, b
+            id      > x
+            id      > a
+            id      > b
 
         "#]]
     }
@@ -3383,24 +4214,34 @@ fn multi_use() {
                 (method (decl main (params (: args (array (array int)))) (returns))
                   (block
                     (call println (call unparseInt 42))))))
-            program         : src0.eta:1:1..6:2
-            use             : src0.eta:1:1..1:7
-            id io           : src0.eta:1:5..1:7
-            use             : src0.eta:2:1..2:10
-            id conv         : src0.eta:2:5..2:9
-            method          : src0.eta:4:1..6:2
-            mdecl           : src0.eta:4:1..4:20
-            id main         : src0.eta:4:1..4:5
-            decl            : src0.eta:4:6..4:19
-            arr_t           : src0.eta:4:17..4:19
-            arr_t           : src0.eta:4:15..4:17
-            id args         : src0.eta:4:6..4:10
-            block           : src0.eta:4:21..6:2
-            pcall           : src0.eta:5:5..5:28
-            id println      : src0.eta:5:5..5:12
-            pcall           : src0.eta:5:13..5:27
-            id unparseInt   : src0.eta:5:13..5:23
-            int_lit         : src0.eta:5:24..5:26
+            program > use io
+                    > use conv;
+                    > 
+                    > main(args: int[][]) {
+                    >     println(unparseInt(42))
+                    > }
+            use     > use io
+            id      > io
+            use     > use conv;
+            id      > conv
+            method  > main(args: int[][]) {
+                    >     println(unparseInt(42))
+                    > }
+            mdecl   > main(args: int[][])
+            id      > main
+            decl    > args: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > args
+            block   > {
+                    >     println(unparseInt(42))
+                    > }
+            pcall   > println(unparseInt(42))
+            id      > println
+            pcall   > unparseInt(42)
+            id      > unparseInt
+            int_lit > 42
 
         "#]]
     }
@@ -3425,30 +4266,44 @@ fn multi_var_decls() {
                   (block
                     (assign (targets (: x int) z (: y int)) (values 1 2))
                     (assign (targets (: a int) (: b bool)) (values 3 true))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:20
-            id main         : src0.eta:1:1..1:5
-            decl            : src0.eta:1:6..1:19
-            arr_t           : src0.eta:1:17..1:19
-            arr_t           : src0.eta:1:15..1:17
-            id args         : src0.eta:1:6..1:10
-            block           : src0.eta:1:21..4:2
-            assign          : src0.eta:2:5..2:27
-            int_lit         : src0.eta:2:23..2:24
-            int_lit         : src0.eta:2:26..2:27
-            decl            : src0.eta:2:5..2:10
-            id x            : src0.eta:2:5..2:6
-            id z            : src0.eta:2:12..2:13
-            decl            : src0.eta:2:15..2:20
-            id y            : src0.eta:2:15..2:16
-            assign          : src0.eta:3:5..3:28
-            int_lit         : src0.eta:3:21..3:22
-            bool_lit        : src0.eta:3:24..3:28
-            decl            : src0.eta:3:5..3:10
-            id a            : src0.eta:3:5..3:6
-            decl            : src0.eta:3:12..3:18
-            id b            : src0.eta:3:12..3:13
+            program > main(args: int[][]) {
+                    >     x:int, z, y:int = 1, 2
+                    >     a:int, b:bool = 3, true
+                    > }
+            method  > main(args: int[][]) {
+                    >     x:int, z, y:int = 1, 2
+                    >     a:int, b:bool = 3, true
+                    > }
+            mdecl   > main(args: int[][])
+            id      > main
+            decl    > args: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > args
+            block   > {
+                    >     x:int, z, y:int = 1, 2
+                    >     a:int, b:bool = 3, true
+                    > }
+            assign  > x:int, z, y:int = 1, 2
+            int_lit > 1
+            int_lit > 2
+            decl    > x:int
+            int_t   > int
+            id      > x
+            id      > z
+            decl    > y:int
+            int_t   > int
+            id      > y
+            assign  > a:int, b:bool = 3, true
+            int_lit > 3
+            bool_lit> true
+            decl    > a:int
+            int_t   > int
+            id      > a
+            decl    > b:bool
+            bool_t  > bool
+            id      > b
 
         "#]]
     }
@@ -3473,17 +4328,30 @@ fn multi_wildcard() {
                   (block
                     (assign (targets _ _ _) (values (call g)))
                     (assign (targets _) (values (call h)))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:6
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:7..4:2
-            assign          : src0.eta:2:5..2:18
-            pcall           : src0.eta:2:15..2:18
-            id g            : src0.eta:2:15..2:16
-            assign          : src0.eta:3:5..3:12
-            pcall           : src0.eta:3:9..3:12
-            id h            : src0.eta:3:9..3:10
+            program > foo() {
+                    >     _, _, _ = g()
+                    >     _ = h()
+                    > }
+            method  > foo() {
+                    >     _, _, _ = g()
+                    >     _ = h()
+                    > }
+            mdecl   > foo()
+            id      > foo
+            block   > {
+                    >     _, _, _ = g()
+                    >     _ = h()
+                    > }
+            assign  > _, _, _ = g()
+            pcall   > g()
+            id      > g
+            discard > _
+            discard > _
+            discard > _
+            assign  > _ = h()
+            pcall   > h()
+            id      > h
+            discard > _
 
         "#]]
     }
@@ -3507,17 +4375,21 @@ fn negative_global() {
                 (global x int -9223372036854775808)
                 (method (decl f (params) (returns))
                   (block))))
-            program         : src0.eta:1:1..3:7
-            gdecl           : src0.eta:1:1..1:12
-            id n            : src0.eta:1:1..1:2
-            int_lit         : src0.eta:1:11..1:12
-            gdecl           : src0.eta:2:1..2:30
-            id x            : src0.eta:2:1..2:2
-            int_lit         : src0.eta:2:11..2:30
-            method          : src0.eta:3:1..3:7
-            mdecl           : src0.eta:3:1..3:4
-            id f            : src0.eta:3:1..3:2
-            block           : src0.eta:3:5..3:7
+            program > n: int = -1
+                    > x: int = -9223372036854775808
+                    > f() {}
+            gdecl   > n: int = -1
+            int_t   > int
+            id      > n
+            int_lit > 1
+            gdecl   > x: int = -9223372036854775808
+            int_t   > int
+            id      > x
+            int_lit > 9223372036854775808
+            method  > f() {}
+            mdecl   > f()
+            id      > f
+            block   > {}
 
         "#]]
     }
@@ -3547,26 +4419,49 @@ fn nested_blocks() {
                     (block
                       (assign (targets (: y int)) (values 2))
                       (assign (targets x) (values (+ x y))))))))
-            program         : src0.eta:1:1..7:2
-            method          : src0.eta:1:1..7:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..7:2
-            assign          : src0.eta:2:5..2:15
-            int_lit         : src0.eta:2:14..2:15
-            decl            : src0.eta:2:5..2:11
-            id x            : src0.eta:2:5..2:6
-            block           : src0.eta:3:5..6:6
-            assign          : src0.eta:4:9..4:19
-            int_lit         : src0.eta:4:18..4:19
-            decl            : src0.eta:4:9..4:15
-            id y            : src0.eta:4:9..4:10
-            assign          : src0.eta:5:9..5:18
-            bexpr           : src0.eta:5:13..5:18
-            binop           : src0.eta:5:15..5:16
-            id x            : src0.eta:5:13..5:14
-            id y            : src0.eta:5:17..5:18
-            id x            : src0.eta:5:9..5:10
+            program > f() {
+                    >     x: int = 1
+                    >     {
+                    > ...
+                    >         x = x + y
+                    >     }
+                    > }
+            method  > f() {
+                    >     x: int = 1
+                    >     {
+                    > ...
+                    >         x = x + y
+                    >     }
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     x: int = 1
+                    >     {
+                    > ...
+                    >         x = x + y
+                    >     }
+                    > }
+            assign  > x: int = 1
+            int_lit > 1
+            decl    > x: int
+            int_t   > int
+            id      > x
+            block   > {
+                    >     y: int = 2
+                    >     x = x + y
+                    > }
+            assign  > y: int = 2
+            int_lit > 2
+            decl    > y: int
+            int_t   > int
+            id      > y
+            assign  > x = x + y
+            bexpr   > x + y
+            binop   > +
+            id      > x
+            id      > y
+            id      > x
 
         "#]]
     }
@@ -3593,15 +4488,24 @@ fn nested_empty_blocks() {
                     (block
                       (block
                         (block)))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..4:2
-            block           : src0.eta:2:5..2:7
-            block           : src0.eta:3:5..3:11
-            block           : src0.eta:3:6..3:10
-            block           : src0.eta:3:7..3:9
+            program > f() {
+                    >     {}
+                    >     {{{}}}
+                    > }
+            method  > f() {
+                    >     {}
+                    >     {{{}}}
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     {}
+                    >     {{{}}}
+                    > }
+            block   > {}
+            block   > {{{}}}
+            block   > {{}}
+            block   > {}
 
         "#]]
     }
@@ -3624,14 +4528,20 @@ fn no_type_decl() {
                 (method (decl f (params) (returns))
                   (block
                     (assign (targets x) (values 5))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
-            assign          : src0.eta:2:5..2:10
-            int_lit         : src0.eta:2:9..2:10
-            id x            : src0.eta:2:5..2:6
+            program > f() {
+                    >     x = 5
+                    > }
+            method  > f() {
+                    >     x = 5
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     x = 5
+                    > }
+            assign  > x = 5
+            int_lit > 5
+            id      > x
 
         "#]]
     }
@@ -3652,13 +4562,16 @@ fn only_globals() {
               (defs
                 (global x int 1)
                 (global y bool false)))
-            program         : src0.eta:1:1..2:16
-            gdecl           : src0.eta:1:1..1:11
-            id x            : src0.eta:1:1..1:2
-            int_lit         : src0.eta:1:10..1:11
-            gdecl           : src0.eta:2:1..2:16
-            id y            : src0.eta:2:1..2:2
-            bool_lit        : src0.eta:2:11..2:16
+            program > x: int = 1
+                    > y: bool = false
+            gdecl   > x: int = 1
+            int_t   > int
+            id      > x
+            int_lit > 1
+            gdecl   > y: bool = false
+            bool_t  > bool
+            id      > y
+            bool_lit> false
 
         "#]]
     }
@@ -3683,30 +4596,43 @@ fn paren_expr() {
                   (block
                     (assign (targets (: c int)) (values (* (+ a b) (- a b))))
                     (return c)))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:23
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:9
-            id a            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:11..1:17
-            id b            : src0.eta:1:11..1:12
-            block           : src0.eta:1:24..4:2
-            assign          : src0.eta:2:5..2:31
-            bexpr           : src0.eta:2:14..2:31
-            binop           : src0.eta:2:22..2:23
-            bexpr           : src0.eta:2:15..2:20
-            binop           : src0.eta:2:17..2:18
-            id a            : src0.eta:2:15..2:16
-            id b            : src0.eta:2:19..2:20
-            bexpr           : src0.eta:2:25..2:30
-            binop           : src0.eta:2:27..2:28
-            id a            : src0.eta:2:25..2:26
-            id b            : src0.eta:2:29..2:30
-            decl            : src0.eta:2:5..2:11
-            id c            : src0.eta:2:5..2:6
-            return          : src0.eta:3:5..3:13
-            id c            : src0.eta:3:12..3:13
+            program > f(a: int, b: int): int {
+                    >     c: int = (a + b) * (a - b)
+                    >     return c
+                    > }
+            method  > f(a: int, b: int): int {
+                    >     c: int = (a + b) * (a - b)
+                    >     return c
+                    > }
+            mdecl   > f(a: int, b: int): int
+            id      > f
+            decl    > a: int
+            int_t   > int
+            id      > a
+            decl    > b: int
+            int_t   > int
+            id      > b
+            int_t   > int
+            block   > {
+                    >     c: int = (a + b) * (a - b)
+                    >     return c
+                    > }
+            assign  > c: int = (a + b) * (a - b)
+            bexpr   > (a + b) * (a - b)
+            binop   > *
+            bexpr   > a + b
+            binop   > +
+            id      > a
+            id      > b
+            bexpr   > a - b
+            binop   > -
+            id      > a
+            id      > b
+            decl    > c: int
+            int_t   > int
+            id      > c
+            return  > return c
+            id      > c
 
         "#]]
     }
@@ -3729,13 +4655,19 @@ fn proc_return_value() {
                 (method (decl f (params) (returns))
                   (block
                     (return 1)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
-            return          : src0.eta:2:5..2:13
-            int_lit         : src0.eta:2:12..2:13
+            program > f() {
+                    >     return 1
+                    > }
+            method  > f() {
+                    >     return 1
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     return 1
+                    > }
+            return  > return 1
+            int_lit > 1
 
         "#]]
     }
@@ -3760,17 +4692,27 @@ fn procedure() {
                   (block
                     (assign (targets x) (values 0))
                     (return)))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:18
-            id doNothing    : src0.eta:1:1..1:10
-            decl            : src0.eta:1:11..1:17
-            id x            : src0.eta:1:11..1:12
-            block           : src0.eta:1:19..4:2
-            assign          : src0.eta:2:5..2:10
-            int_lit         : src0.eta:2:9..2:10
-            id x            : src0.eta:2:5..2:6
-            return          : src0.eta:3:5..4:1
+            program > doNothing(x: int) {
+                    >     x = 0
+                    >     return
+                    > }
+            method  > doNothing(x: int) {
+                    >     x = 0
+                    >     return
+                    > }
+            mdecl   > doNothing(x: int)
+            id      > doNothing
+            decl    > x: int
+            int_t   > int
+            id      > x
+            block   > {
+                    >     x = 0
+                    >     return
+                    > }
+            assign  > x = 0
+            int_lit > 0
+            id      > x
+            return  > return
 
         "#]]
     }
@@ -3799,54 +4741,74 @@ fn ratadd() {
                     (assign (targets (: g int)) (values (call gcd q1 q2)))
                     (assign (targets (: p3 int)) (values (+ (* p1 (/ q2 g)) (* p2 (/ q1 g)))))
                     (return p3 (* (/ q1 g) q2))))))
-            program         : src0.eta:3:1..7:2
-            method          : src0.eta:3:1..7:2
-            mdecl           : src0.eta:3:1..3:50
-            id ratadd       : src0.eta:3:1..3:7
-            decl            : src0.eta:3:8..3:14
-            id p1           : src0.eta:3:8..3:10
-            decl            : src0.eta:3:16..3:22
-            id q1           : src0.eta:3:16..3:18
-            decl            : src0.eta:3:24..3:30
-            id p2           : src0.eta:3:24..3:26
-            decl            : src0.eta:3:32..3:38
-            id q2           : src0.eta:3:32..3:34
-            block           : src0.eta:3:51..7:2
-            assign          : src0.eta:4:5..4:23
-            pcall           : src0.eta:4:13..4:23
-            id gcd          : src0.eta:4:13..4:16
-            id q1           : src0.eta:4:17..4:19
-            id q2           : src0.eta:4:20..4:22
-            decl            : src0.eta:4:5..4:10
-            id g            : src0.eta:4:5..4:6
-            assign          : src0.eta:5:5..5:35
-            bexpr           : src0.eta:5:14..5:35
-            binop           : src0.eta:5:24..5:25
-            bexpr           : src0.eta:5:14..5:23
-            binop           : src0.eta:5:16..5:17
-            id p1           : src0.eta:5:14..5:16
-            bexpr           : src0.eta:5:18..5:22
-            binop           : src0.eta:5:20..5:21
-            id q2           : src0.eta:5:18..5:20
-            id g            : src0.eta:5:21..5:22
-            bexpr           : src0.eta:5:26..5:35
-            binop           : src0.eta:5:28..5:29
-            id p2           : src0.eta:5:26..5:28
-            bexpr           : src0.eta:5:30..5:34
-            binop           : src0.eta:5:32..5:33
-            id q1           : src0.eta:5:30..5:32
-            id g            : src0.eta:5:33..5:34
-            decl            : src0.eta:5:5..5:11
-            id p3           : src0.eta:5:5..5:7
-            return          : src0.eta:6:5..6:23
-            id p3           : src0.eta:6:12..6:14
-            bexpr           : src0.eta:6:16..6:23
-            binop           : src0.eta:6:20..6:21
-            bexpr           : src0.eta:6:16..6:20
-            binop           : src0.eta:6:18..6:19
-            id q1           : src0.eta:6:16..6:18
-            id g            : src0.eta:6:19..6:20
-            id q2           : src0.eta:6:21..6:23
+            program > ratadd(p1:int, q1:int, p2:int, q2:int) : int, int {
+                    >     g:int = gcd(q1,q2)
+                    >     p3:int = p1*(q2/g) + p2*(q1/g)
+                    >     return p3, q1/g*q2
+                    > }
+            method  > ratadd(p1:int, q1:int, p2:int, q2:int) : int, int {
+                    >     g:int = gcd(q1,q2)
+                    >     p3:int = p1*(q2/g) + p2*(q1/g)
+                    >     return p3, q1/g*q2
+                    > }
+            mdecl   > ratadd(p1:int, q1:int, p2:int, q2:int) : int, int
+            id      > ratadd
+            decl    > p1:int
+            int_t   > int
+            id      > p1
+            decl    > q1:int
+            int_t   > int
+            id      > q1
+            decl    > p2:int
+            int_t   > int
+            id      > p2
+            decl    > q2:int
+            int_t   > int
+            id      > q2
+            int_t   > int
+            int_t   > int
+            block   > {
+                    >     g:int = gcd(q1,q2)
+                    >     p3:int = p1*(q2/g) + p2*(q1/g)
+                    >     return p3, q1/g*q2
+                    > }
+            assign  > g:int = gcd(q1,q2)
+            pcall   > gcd(q1,q2)
+            id      > gcd
+            id      > q1
+            id      > q2
+            decl    > g:int
+            int_t   > int
+            id      > g
+            assign  > p3:int = p1*(q2/g) + p2*(q1/g)
+            bexpr   > p1*(q2/g) + p2*(q1/g)
+            binop   > +
+            bexpr   > p1*(q2/g)
+            binop   > *
+            id      > p1
+            bexpr   > q2/g
+            binop   > /
+            id      > q2
+            id      > g
+            bexpr   > p2*(q1/g)
+            binop   > *
+            id      > p2
+            bexpr   > q1/g
+            binop   > /
+            id      > q1
+            id      > g
+            decl    > p3:int
+            int_t   > int
+            id      > p3
+            return  > return p3, q1/g*q2
+            id      > p3
+            bexpr   > q1/g*q2
+            binop   > *
+            bexpr   > q1/g
+            binop   > /
+            id      > q1
+            id      > g
+            id      > q2
 
         "#]]
     }
@@ -3871,31 +4833,44 @@ fn ratadduse() {
                   (block
                     (assign (targets (: p int) (: q int)) (values (call ratadd 2 5 1 3)))
                     (assign (targets _ (: q' int)) (values (call ratadd 1 2 1 3)))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:6
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:7..4:2
-            assign          : src0.eta:2:5..2:38
-            pcall           : src0.eta:2:20..2:38
-            id ratadd       : src0.eta:2:20..2:26
-            int_lit         : src0.eta:2:27..2:28
-            int_lit         : src0.eta:2:30..2:31
-            int_lit         : src0.eta:2:33..2:34
-            int_lit         : src0.eta:2:36..2:37
-            decl            : src0.eta:2:5..2:10
-            id p            : src0.eta:2:5..2:6
-            decl            : src0.eta:2:12..2:17
-            id q            : src0.eta:2:12..2:13
-            assign          : src0.eta:3:5..3:35
-            pcall           : src0.eta:3:17..3:35
-            id ratadd       : src0.eta:3:17..3:23
-            int_lit         : src0.eta:3:24..3:25
-            int_lit         : src0.eta:3:27..3:28
-            int_lit         : src0.eta:3:30..3:31
-            int_lit         : src0.eta:3:33..3:34
-            decl            : src0.eta:3:8..3:14
-            id q'           : src0.eta:3:8..3:10
+            program > foo() {
+                    >     p:int, q:int = ratadd(2, 5, 1, 3)
+                    >     _, q':int = ratadd(1, 2, 1, 3)
+                    > }
+            method  > foo() {
+                    >     p:int, q:int = ratadd(2, 5, 1, 3)
+                    >     _, q':int = ratadd(1, 2, 1, 3)
+                    > }
+            mdecl   > foo()
+            id      > foo
+            block   > {
+                    >     p:int, q:int = ratadd(2, 5, 1, 3)
+                    >     _, q':int = ratadd(1, 2, 1, 3)
+                    > }
+            assign  > p:int, q:int = ratadd(2, 5, 1, 3)
+            pcall   > ratadd(2, 5, 1, 3)
+            id      > ratadd
+            int_lit > 2
+            int_lit > 5
+            int_lit > 1
+            int_lit > 3
+            decl    > p:int
+            int_t   > int
+            id      > p
+            decl    > q:int
+            int_t   > int
+            id      > q
+            assign  > _, q':int = ratadd(1, 2, 1, 3)
+            pcall   > ratadd(1, 2, 1, 3)
+            id      > ratadd
+            int_lit > 1
+            int_lit > 2
+            int_lit > 1
+            int_lit > 3
+            discard > _
+            decl    > q':int
+            int_t   > int
+            id      > q'
 
         "#]]
     }
@@ -3922,14 +4897,27 @@ fn referr_block01() {
                     (error)
                     (error)
                     (error)))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..4:2
-            decls           : src0.eta:2:3..2:8
-            decl            : src0.eta:2:3..2:8
-            id x            : src0.eta:2:3..2:4
+            program > f() {
+                    >   x:int;
+                    >   x;=;2
+                    > }
+            method  > f() {
+                    >   x:int;
+                    >   x;=;2
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >   x:int;
+                    >   x;=;2
+                    > }
+            decls   > x:int
+            decl    > x:int
+            int_t   > int
+            id      > x
+            error   > x
+            error   > =
+            error   > 2
 
             Error: unexpected token `;`
                ╭─[ src0.eta:3:4 ]
@@ -4014,14 +5002,21 @@ fn referr_vardecl01() {
                 (method (decl f (params) (returns))
                   (block
                     (decls (: x (error)))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
-            decls           : src0.eta:2:3..2:14
-            decl            : src0.eta:2:3..2:14
-            id x            : src0.eta:2:3..2:4
+            program > f() {
+                    >   x:bool[][1]
+                    > }
+            method  > f() {
+                    >   x:bool[][1]
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >   x:bool[][1]
+                    > }
+            decls   > x:bool[][1]
+            decl    > x:bool[][1]
+            error   > bool[][1]
+            id      > x
 
             Error: unexpected token `1`
                ╭─[ src0.eta:2:12 ]
@@ -4051,14 +5046,21 @@ fn referr_vardecl02() {
                 (method (decl f (params) (returns))
                   (block
                     (decls (: x (error)))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
-            decls           : src0.eta:2:3..2:16
-            decl            : src0.eta:2:3..2:16
-            id x            : src0.eta:2:3..2:4
+            program > f() {
+                    >   x:bool[][1][]
+                    > }
+            method  > f() {
+                    >   x:bool[][1][]
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >   x:bool[][1][]
+                    > }
+            decls   > x:bool[][1][]
+            decl    > x:bool[][1][]
+            error   > bool[][1][]
+            id      > x
 
             Error: unexpected token `1`
                ╭─[ src0.eta:2:12 ]
@@ -4096,20 +5098,37 @@ fn referr_vardecl03() {
                 (method (decl g (params) (returns int))
                   (block
                     (return 0)))))
-            program         : src0.eta:1:1..7:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
-            assign          : src0.eta:2:4..2:11
-            pcall           : src0.eta:2:8..2:11
-            id g            : src0.eta:2:8..2:9
-            method          : src0.eta:5:1..7:2
-            mdecl           : src0.eta:5:1..5:8
-            id g            : src0.eta:5:1..5:2
-            block           : src0.eta:5:9..7:2
-            return          : src0.eta:6:3..6:11
-            int_lit         : src0.eta:6:10..6:11
+            program > f() {
+                    >   __ = g()
+                    > }
+                    > ...
+                    > g():int {
+                    >   return 0
+                    > }
+            method  > f() {
+                    >   __ = g()
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >   __ = g()
+                    > }
+            error   > _
+            assign  > _ = g()
+            pcall   > g()
+            id      > g
+            discard > _
+            method  > g():int {
+                    >   return 0
+                    > }
+            mdecl   > g():int
+            id      > g
+            int_t   > int
+            block   > {
+                    >   return 0
+                    > }
+            return  > return 0
+            int_lit > 0
 
             Error: unexpected token `_`
                ╭─[ src0.eta:2:4 ]
@@ -4139,15 +5158,23 @@ fn return_only_block() {
                 (method (decl identity (params (: x int)) (returns int))
                   (block
                     (return x)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:22
-            id identity     : src0.eta:1:1..1:9
-            decl            : src0.eta:1:10..1:16
-            id x            : src0.eta:1:10..1:11
-            block           : src0.eta:1:23..3:2
-            return          : src0.eta:2:5..2:13
-            id x            : src0.eta:2:12..2:13
+            program > identity(x: int): int {
+                    >     return x
+                    > }
+            method  > identity(x: int): int {
+                    >     return x
+                    > }
+            mdecl   > identity(x: int): int
+            id      > identity
+            decl    > x: int
+            int_t   > int
+            id      > x
+            int_t   > int
+            block   > {
+                    >     return x
+                    > }
+            return  > return x
+            id      > x
 
         "#]]
     }
@@ -4170,20 +5197,27 @@ fn sized_array_with_init() {
                 (method (decl f (params) (returns))
                   (block
                     (assign (targets (: a (array int 3))) (values (array 1 2 3)))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..3:2
-            assign          : src0.eta:2:5..2:26
-            arr_lit         : src0.eta:2:17..2:26
-            int_lit         : src0.eta:2:18..2:19
-            int_lit         : src0.eta:2:21..2:22
-            int_lit         : src0.eta:2:24..2:25
-            decl            : src0.eta:2:5..2:14
-            arr_t           : src0.eta:2:11..2:14
-            int_lit         : src0.eta:2:12..2:13
-            id a            : src0.eta:2:5..2:6
+            program > f() {
+                    >     a: int[3] = {1, 2, 3}
+                    > }
+            method  > f() {
+                    >     a: int[3] = {1, 2, 3}
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     a: int[3] = {1, 2, 3}
+                    > }
+            assign  > a: int[3] = {1, 2, 3}
+            arr_lit > {1, 2, 3}
+            int_lit > 1
+            int_lit > 2
+            int_lit > 3
+            decl    > a: int[3]
+            arr_t   > [3]
+            int_t   > int
+            int_lit > 3
+            id      > a
 
         "#]]
     }
@@ -4212,31 +5246,51 @@ fn spec1() {
                     (decls (: z int))
                     (assign (targets (: b bool) (: i int)) (values (call f x)))
                     (assign (targets (: s (array int))) (values Spur(8)))))))
-            program         : src0.eta:1:1..6:2
-            method          : src0.eta:1:1..6:2
-            mdecl           : src0.eta:1:1..1:6
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:7..6:2
-            assign          : src0.eta:2:5..2:14
-            int_lit         : src0.eta:2:13..2:14
-            decl            : src0.eta:2:5..2:10
-            id x            : src0.eta:2:5..2:6
-            decls           : src0.eta:3:5..3:10
-            decl            : src0.eta:3:5..3:10
-            id z            : src0.eta:3:5..3:6
-            assign          : src0.eta:4:5..4:26
-            pcall           : src0.eta:4:22..4:26
-            id f            : src0.eta:4:22..4:23
-            id x            : src0.eta:4:24..4:25
-            decl            : src0.eta:4:5..4:12
-            id b            : src0.eta:4:5..4:6
-            decl            : src0.eta:4:14..4:19
-            id i            : src0.eta:4:14..4:15
-            assign          : src0.eta:5:5..5:23
-            string_lit      : src0.eta:5:16..5:23
-            decl            : src0.eta:5:5..5:13
-            arr_t           : src0.eta:5:11..5:13
-            id s            : src0.eta:5:5..5:6
+            program > foo() {
+                    >     x:int = 2;
+                    >     z:int;
+                    >     b: bool, i:int = f(x);
+                    >     s: int[] = "Hello";
+                    > }
+            method  > foo() {
+                    >     x:int = 2;
+                    >     z:int;
+                    >     b: bool, i:int = f(x);
+                    >     s: int[] = "Hello";
+                    > }
+            mdecl   > foo()
+            id      > foo
+            block   > {
+                    >     x:int = 2;
+                    >     z:int;
+                    >     b: bool, i:int = f(x);
+                    >     s: int[] = "Hello";
+                    > }
+            assign  > x:int = 2
+            int_lit > 2
+            decl    > x:int
+            int_t   > int
+            id      > x
+            decls   > z:int
+            decl    > z:int
+            int_t   > int
+            id      > z
+            assign  > b: bool, i:int = f(x)
+            pcall   > f(x)
+            id      > f
+            id      > x
+            decl    > b: bool
+            bool_t  > bool
+            id      > b
+            decl    > i:int
+            int_t   > int
+            id      > i
+            assign  > s: int[] = "Hello"
+            string_lit> "Hello"
+            decl    > s: int[]
+            arr_t   > []
+            int_t   > int
+            id      > s
 
         "#]]
     }
@@ -4263,28 +5317,40 @@ fn spec2() {
                     (assign (targets x) (values (+ x 1)))
                     (assign (targets s) (values (array 1 2 3)))
                     (assign (targets b) (values (! b)))))))
-            program         : src0.eta:1:1..5:2
-            method          : src0.eta:1:1..5:2
-            mdecl           : src0.eta:1:1..1:6
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:7..5:2
-            assign          : src0.eta:2:3..2:12
-            bexpr           : src0.eta:2:7..2:12
-            binop           : src0.eta:2:9..2:10
-            id x            : src0.eta:2:7..2:8
-            int_lit         : src0.eta:2:11..2:12
-            id x            : src0.eta:2:3..2:4
-            assign          : src0.eta:3:3..3:16
-            arr_lit         : src0.eta:3:7..3:16
-            int_lit         : src0.eta:3:8..3:9
-            int_lit         : src0.eta:3:11..3:12
-            int_lit         : src0.eta:3:14..3:15
-            id s            : src0.eta:3:3..3:4
-            assign          : src0.eta:4:3..4:9
-            uexpr           : src0.eta:4:7..4:9
-            uop             : src0.eta:4:7..4:8
-            id b            : src0.eta:4:8..4:9
-            id b            : src0.eta:4:3..4:4
+            program > foo() {
+                    >   x = x + 1
+                    >   s = {1, 2, 3}
+                    >   b = !b
+                    > }
+            method  > foo() {
+                    >   x = x + 1
+                    >   s = {1, 2, 3}
+                    >   b = !b
+                    > }
+            mdecl   > foo()
+            id      > foo
+            block   > {
+                    >   x = x + 1
+                    >   s = {1, 2, 3}
+                    >   b = !b
+                    > }
+            assign  > x = x + 1
+            bexpr   > x + 1
+            binop   > +
+            id      > x
+            int_lit > 1
+            id      > x
+            assign  > s = {1, 2, 3}
+            arr_lit > {1, 2, 3}
+            int_lit > 1
+            int_lit > 2
+            int_lit > 3
+            id      > s
+            assign  > b = !b
+            uexpr   > !b
+            uop     > !
+            id      > b
+            id      > b
 
         "#]]
     }
@@ -4307,21 +5373,28 @@ fn spec3() {
                 (method (decl foo (params) (returns))
                   (block
                     (assign (targets (: s (array int))) (values (+ Spur(3) (array 13 10))))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:6
-            id foo          : src0.eta:1:1..1:4
-            block           : src0.eta:1:7..3:2
-            assign          : src0.eta:2:5..2:34
-            bexpr           : src0.eta:2:16..2:34
-            binop           : src0.eta:2:24..2:25
-            string_lit      : src0.eta:2:16..2:23
-            arr_lit         : src0.eta:2:26..2:34
-            int_lit         : src0.eta:2:27..2:29
-            int_lit         : src0.eta:2:31..2:33
-            decl            : src0.eta:2:5..2:13
-            arr_t           : src0.eta:2:11..2:13
-            id s            : src0.eta:2:5..2:6
+            program > foo() {
+                    >     s: int[] = "Hello" + {13, 10}
+                    > }
+            method  > foo() {
+                    >     s: int[] = "Hello" + {13, 10}
+                    > }
+            mdecl   > foo()
+            id      > foo
+            block   > {
+                    >     s: int[] = "Hello" + {13, 10}
+                    > }
+            assign  > s: int[] = "Hello" + {13, 10}
+            bexpr   > "Hello" + {13, 10}
+            binop   > +
+            string_lit> "Hello"
+            arr_lit > {13, 10}
+            int_lit > 13
+            int_lit > 10
+            decl    > s: int[]
+            arr_t   > []
+            int_t   > int
+            id      > s
 
         "#]]
     }
@@ -4346,19 +5419,30 @@ fn string_index() {
                   (block
                     (assign (targets (: x int)) (values (index Spur(3) 0)))
                     (return x)))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:9
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:10..4:2
-            assign          : src0.eta:2:5..2:24
-            expr_idx        : src0.eta:2:14..2:24
-            string_lit      : src0.eta:2:14..2:21
-            int_lit         : src0.eta:2:22..2:23
-            decl            : src0.eta:2:5..2:11
-            id x            : src0.eta:2:5..2:6
-            return          : src0.eta:3:5..3:13
-            id x            : src0.eta:3:12..3:13
+            program > f(): int {
+                    >     x: int = "Hello"[0]
+                    >     return x
+                    > }
+            method  > f(): int {
+                    >     x: int = "Hello"[0]
+                    >     return x
+                    > }
+            mdecl   > f(): int
+            id      > f
+            int_t   > int
+            block   > {
+                    >     x: int = "Hello"[0]
+                    >     return x
+                    > }
+            assign  > x: int = "Hello"[0]
+            expr_idx> "Hello"[0]
+            string_lit> "Hello"
+            int_lit > 0
+            decl    > x: int
+            int_t   > int
+            id      > x
+            return  > return x
+            id      > x
 
         "#]]
     }
@@ -4385,26 +5469,40 @@ fn swap_assign() {
                     (assign (targets (: a int)) (values 1))
                     (assign (targets (: b int)) (values 2))
                     (assign (targets a b) (values (call swap a b)))))))
-            program         : src0.eta:1:1..5:2
-            method          : src0.eta:1:1..5:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..5:2
-            assign          : src0.eta:2:5..2:15
-            int_lit         : src0.eta:2:14..2:15
-            decl            : src0.eta:2:5..2:11
-            id a            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:15
-            int_lit         : src0.eta:3:14..3:15
-            decl            : src0.eta:3:5..3:11
-            id b            : src0.eta:3:5..3:6
-            assign          : src0.eta:4:5..4:22
-            pcall           : src0.eta:4:12..4:22
-            id swap         : src0.eta:4:12..4:16
-            id a            : src0.eta:4:17..4:18
-            id b            : src0.eta:4:20..4:21
-            id a            : src0.eta:4:5..4:6
-            id b            : src0.eta:4:8..4:9
+            program > f() {
+                    >     a: int = 1
+                    >     b: int = 2
+                    >     a, b = swap(a, b)
+                    > }
+            method  > f() {
+                    >     a: int = 1
+                    >     b: int = 2
+                    >     a, b = swap(a, b)
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     a: int = 1
+                    >     b: int = 2
+                    >     a, b = swap(a, b)
+                    > }
+            assign  > a: int = 1
+            int_lit > 1
+            decl    > a: int
+            int_t   > int
+            id      > a
+            assign  > b: int = 2
+            int_lit > 2
+            decl    > b: int
+            int_t   > int
+            id      > b
+            assign  > a, b = swap(a, b)
+            pcall   > swap(a, b)
+            id      > swap
+            id      > a
+            id      > b
+            id      > a
+            id      > b
 
         "#]]
     }
@@ -4429,25 +5527,36 @@ fn trailing_comma() {
                   (block
                     (assign (targets (: a (array int))) (values (array 2)))
                     (assign (targets (: b (array int))) (values (array 1 2 3)))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:4
-            id f            : src0.eta:1:1..1:2
-            block           : src0.eta:1:5..4:2
-            assign          : src0.eta:2:5..2:20
-            arr_lit         : src0.eta:2:16..2:20
-            int_lit         : src0.eta:2:17..2:18
-            decl            : src0.eta:2:5..2:13
-            arr_t           : src0.eta:2:11..2:13
-            id a            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:26
-            arr_lit         : src0.eta:3:16..3:26
-            int_lit         : src0.eta:3:17..3:18
-            int_lit         : src0.eta:3:20..3:21
-            int_lit         : src0.eta:3:23..3:24
-            decl            : src0.eta:3:5..3:13
-            arr_t           : src0.eta:3:11..3:13
-            id b            : src0.eta:3:5..3:6
+            program > f() {
+                    >     a: int[] = {2,}
+                    >     b: int[] = {1, 2, 3,}
+                    > }
+            method  > f() {
+                    >     a: int[] = {2,}
+                    >     b: int[] = {1, 2, 3,}
+                    > }
+            mdecl   > f()
+            id      > f
+            block   > {
+                    >     a: int[] = {2,}
+                    >     b: int[] = {1, 2, 3,}
+                    > }
+            assign  > a: int[] = {2,}
+            arr_lit > {2,}
+            int_lit > 2
+            decl    > a: int[]
+            arr_t   > []
+            int_t   > int
+            id      > a
+            assign  > b: int[] = {1, 2, 3,}
+            arr_lit > {1, 2, 3,}
+            int_lit > 1
+            int_lit > 2
+            int_lit > 3
+            decl    > b: int[]
+            arr_t   > []
+            int_t   > int
+            id      > b
 
         "#]]
     }
@@ -4470,30 +5579,40 @@ fn triple_unary() {
                 (method (decl f (params (: x int) (: b bool)) (returns int bool))
                   (block
                     (return (- (- (- x))) (! (! (! b))))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:30
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:9
-            id x            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:11..1:18
-            id b            : src0.eta:1:11..1:12
-            block           : src0.eta:1:31..3:2
-            return          : src0.eta:2:5..2:22
-            uexpr           : src0.eta:2:12..2:16
-            uop             : src0.eta:2:12..2:13
-            uexpr           : src0.eta:2:13..2:16
-            uop             : src0.eta:2:13..2:14
-            uexpr           : src0.eta:2:14..2:16
-            uop             : src0.eta:2:14..2:15
-            id x            : src0.eta:2:15..2:16
-            uexpr           : src0.eta:2:18..2:22
-            uop             : src0.eta:2:18..2:19
-            uexpr           : src0.eta:2:19..2:22
-            uop             : src0.eta:2:19..2:20
-            uexpr           : src0.eta:2:20..2:22
-            uop             : src0.eta:2:20..2:21
-            id b            : src0.eta:2:21..2:22
+            program > f(x: int, b: bool): int, bool {
+                    >     return ---x, !!!b
+                    > }
+            method  > f(x: int, b: bool): int, bool {
+                    >     return ---x, !!!b
+                    > }
+            mdecl   > f(x: int, b: bool): int, bool
+            id      > f
+            decl    > x: int
+            int_t   > int
+            id      > x
+            decl    > b: bool
+            bool_t  > bool
+            id      > b
+            int_t   > int
+            bool_t  > bool
+            block   > {
+                    >     return ---x, !!!b
+                    > }
+            return  > return ---x, !!!b
+            uexpr   > ---x
+            uop     > -
+            uexpr   > --x
+            uop     > -
+            uexpr   > -x
+            uop     > -
+            id      > x
+            uexpr   > !!!b
+            uop     > !
+            uexpr   > !!b
+            uop     > !
+            uexpr   > !b
+            uop     > !
+            id      > b
 
         "#]]
     }
@@ -4518,31 +5637,44 @@ fn unary_chain() {
                   (block
                     (assign (targets (: y int)) (values (- (- x))))
                     (assign (targets (: c bool)) (values (! (! b))))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:19
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:9
-            id x            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:11..1:18
-            id b            : src0.eta:1:11..1:12
-            block           : src0.eta:1:20..4:2
-            assign          : src0.eta:2:5..2:18
-            uexpr           : src0.eta:2:14..2:18
-            uop             : src0.eta:2:14..2:15
-            uexpr           : src0.eta:2:16..2:18
-            uop             : src0.eta:2:16..2:17
-            id x            : src0.eta:2:17..2:18
-            decl            : src0.eta:2:5..2:11
-            id y            : src0.eta:2:5..2:6
-            assign          : src0.eta:3:5..3:18
-            uexpr           : src0.eta:3:15..3:18
-            uop             : src0.eta:3:15..3:16
-            uexpr           : src0.eta:3:16..3:18
-            uop             : src0.eta:3:16..3:17
-            id b            : src0.eta:3:17..3:18
-            decl            : src0.eta:3:5..3:12
-            id c            : src0.eta:3:5..3:6
+            program > f(x: int, b: bool) {
+                    >     y: int = - -x
+                    >     c: bool = !!b
+                    > }
+            method  > f(x: int, b: bool) {
+                    >     y: int = - -x
+                    >     c: bool = !!b
+                    > }
+            mdecl   > f(x: int, b: bool)
+            id      > f
+            decl    > x: int
+            int_t   > int
+            id      > x
+            decl    > b: bool
+            bool_t  > bool
+            id      > b
+            block   > {
+                    >     y: int = - -x
+                    >     c: bool = !!b
+                    > }
+            assign  > y: int = - -x
+            uexpr   > - -x
+            uop     > -
+            uexpr   > -x
+            uop     > -
+            id      > x
+            decl    > y: int
+            int_t   > int
+            id      > y
+            assign  > c: bool = !!b
+            uexpr   > !!b
+            uop     > !
+            uexpr   > !b
+            uop     > !
+            id      > b
+            decl    > c: bool
+            bool_t  > bool
+            id      > c
 
         "#]]
     }
@@ -4595,81 +5727,113 @@ fn unary_minus() {
                   (block
                     (assign (targets x) (values (! true)))
                     (assign (targets x) (values (! false)))))))
-            program         : src0.eta:1:1..19:2
-            method          : src0.eta:1:1..10:2
-            mdecl           : src0.eta:1:1..1:18
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:8
-            id x            : src0.eta:1:3..1:4
-            decl            : src0.eta:1:10..1:17
-            arr_t           : src0.eta:1:15..1:17
-            id y            : src0.eta:1:10..1:11
-            block           : src0.eta:1:19..10:2
-            assign          : src0.eta:2:3..2:9
-            uexpr           : src0.eta:2:7..2:9
-            uop             : src0.eta:2:7..2:8
-            int_lit         : src0.eta:2:8..2:9
-            id x            : src0.eta:2:3..2:4
-            assign          : src0.eta:3:3..3:11
-            uexpr           : src0.eta:3:7..3:11
-            uop             : src0.eta:3:7..3:8
-            char_lit        : src0.eta:3:8..3:11
-            id x            : src0.eta:3:3..3:4
-            assign          : src0.eta:4:3..4:9
-            uexpr           : src0.eta:4:7..4:9
-            uop             : src0.eta:4:7..4:8
-            id x            : src0.eta:4:8..4:9
-            id x            : src0.eta:4:3..4:4
-            assign          : src0.eta:5:3..5:11
-            uexpr           : src0.eta:5:7..5:11
-            uop             : src0.eta:5:7..5:8
-            pcall           : src0.eta:5:8..5:11
-            id i            : src0.eta:5:8..5:9
-            id x            : src0.eta:5:3..5:4
-            assign          : src0.eta:6:3..6:12
-            uexpr           : src0.eta:6:7..6:12
-            uop             : src0.eta:6:7..6:8
-            expr_idx        : src0.eta:6:8..6:12
-            id y            : src0.eta:6:8..6:9
-            int_lit         : src0.eta:6:10..6:11
-            id x            : src0.eta:6:3..6:4
-            assign          : src0.eta:7:3..7:11
-            uexpr           : src0.eta:7:7..7:11
-            uop             : src0.eta:7:7..7:8
-            uexpr           : src0.eta:7:9..7:11
-            uop             : src0.eta:7:9..7:10
-            int_lit         : src0.eta:7:10..7:11
-            id x            : src0.eta:7:3..7:4
-            assign          : src0.eta:8:3..8:10
-            int_lit         : src0.eta:8:8..8:9
-            id x            : src0.eta:8:3..8:4
-            assign          : src0.eta:9:3..9:27
-            uexpr           : src0.eta:9:7..9:27
-            uop             : src0.eta:9:7..9:8
-            int_lit         : src0.eta:9:8..9:27
-            id x            : src0.eta:9:3..9:4
-            method          : src0.eta:12:1..14:2
-            mdecl           : src0.eta:12:1..12:9
-            id i            : src0.eta:12:1..12:2
-            block           : src0.eta:12:10..14:2
-            return          : src0.eta:13:3..13:11
-            int_lit         : src0.eta:13:10..13:11
-            method          : src0.eta:16:1..19:2
-            mdecl           : src0.eta:16:1..16:10
-            id g            : src0.eta:16:1..16:2
-            decl            : src0.eta:16:3..16:9
-            id x            : src0.eta:16:3..16:4
-            block           : src0.eta:16:11..19:2
-            assign          : src0.eta:17:3..17:12
-            uexpr           : src0.eta:17:7..17:12
-            uop             : src0.eta:17:7..17:8
-            bool_lit        : src0.eta:17:8..17:12
-            id x            : src0.eta:17:3..17:4
-            assign          : src0.eta:18:3..18:13
-            uexpr           : src0.eta:18:7..18:13
-            uop             : src0.eta:18:7..18:8
-            bool_lit        : src0.eta:18:8..18:13
-            id x            : src0.eta:18:3..18:4
+            program > f(x:int, y:int[]) {
+                    >   x = -0
+                    >   x = -'a'
+                    > ...
+                    >   x = !true
+                    >   x = !false
+                    > }
+            method  > f(x:int, y:int[]) {
+                    >   x = -0
+                    >   x = -'a'
+                    > ...
+                    >   x = (0)
+                    >   x = -9223372036854775808
+                    > }
+            mdecl   > f(x:int, y:int[])
+            id      > f
+            decl    > x:int
+            int_t   > int
+            id      > x
+            decl    > y:int[]
+            arr_t   > []
+            int_t   > int
+            id      > y
+            block   > {
+                    >   x = -0
+                    >   x = -'a'
+                    > ...
+                    >   x = (0)
+                    >   x = -9223372036854775808
+                    > }
+            assign  > x = -0
+            uexpr   > -0
+            uop     > -
+            int_lit > 0
+            id      > x
+            assign  > x = -'a'
+            uexpr   > -'a'
+            uop     > -
+            char_lit> 'a'
+            id      > x
+            assign  > x = -x
+            uexpr   > -x
+            uop     > -
+            id      > x
+            id      > x
+            assign  > x = -i()
+            uexpr   > -i()
+            uop     > -
+            pcall   > i()
+            id      > i
+            id      > x
+            assign  > x = -y[0]
+            uexpr   > -y[0]
+            uop     > -
+            expr_idx> y[0]
+            id      > y
+            int_lit > 0
+            id      > x
+            assign  > x = - -1
+            uexpr   > - -1
+            uop     > -
+            uexpr   > -1
+            uop     > -
+            int_lit > 1
+            id      > x
+            assign  > x = (0)
+            int_lit > 0
+            id      > x
+            assign  > x = -9223372036854775808
+            uexpr   > -9223372036854775808
+            uop     > -
+            int_lit > 9223372036854775808
+            id      > x
+            method  > i(): int {
+                    >   return 0
+                    > }
+            mdecl   > i(): int
+            id      > i
+            int_t   > int
+            block   > {
+                    >   return 0
+                    > }
+            return  > return 0
+            int_lit > 0
+            method  > g(x:bool) {
+                    >   x = !true
+                    >   x = !false
+                    > }
+            mdecl   > g(x:bool)
+            id      > g
+            decl    > x:bool
+            bool_t  > bool
+            id      > x
+            block   > {
+                    >   x = !true
+                    >   x = !false
+                    > }
+            assign  > x = !true
+            uexpr   > !true
+            uop     > !
+            bool_lit> true
+            id      > x
+            assign  > x = !false
+            uexpr   > !false
+            uop     > !
+            bool_lit> false
+            id      > x
 
         "#]]
     }
@@ -4694,21 +5858,33 @@ fn var_decls() {
                   (block
                     (decls (: b bool))
                     (decls (: n int))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:20
-            id main         : src0.eta:1:1..1:5
-            decl            : src0.eta:1:6..1:19
-            arr_t           : src0.eta:1:17..1:19
-            arr_t           : src0.eta:1:15..1:17
-            id args         : src0.eta:1:6..1:10
-            block           : src0.eta:1:21..4:2
-            decls           : src0.eta:2:5..2:12
-            decl            : src0.eta:2:5..2:12
-            id b            : src0.eta:2:5..2:6
-            decls           : src0.eta:3:5..3:11
-            decl            : src0.eta:3:5..3:11
-            id n            : src0.eta:3:5..3:6
+            program > main(args: int[][]) {
+                    >     b: bool
+                    >     n: int
+                    > }
+            method  > main(args: int[][]) {
+                    >     b: bool
+                    >     n: int
+                    > }
+            mdecl   > main(args: int[][])
+            id      > main
+            decl    > args: int[][]
+            arr_t   > []
+            arr_t   > []
+            int_t   > int
+            id      > args
+            block   > {
+                    >     b: bool
+                    >     n: int
+                    > }
+            decls   > b: bool
+            decl    > b: bool
+            bool_t  > bool
+            id      > b
+            decls   > n: int
+            decl    > n: int
+            int_t   > int
+            id      > n
 
         "#]]
     }
@@ -4734,35 +5910,42 @@ fn while_dangling() {
                       (if (> x 5)
                         (assign (targets x) (values (- x 2)))
                         (assign (targets x) (values (- x 1)))))))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:10
-            id f            : src0.eta:1:1..1:2
-            decl            : src0.eta:1:3..1:9
-            id x            : src0.eta:1:3..1:4
-            block           : src0.eta:1:11..3:2
-            while           : src0.eta:2:5..2:50
-            bexpr           : src0.eta:2:11..2:16
-            binop           : src0.eta:2:13..2:14
-            id x            : src0.eta:2:11..2:12
-            int_lit         : src0.eta:2:15..2:16
-            if              : src0.eta:2:17..2:50
-            bexpr           : src0.eta:2:20..2:25
-            binop           : src0.eta:2:22..2:23
-            id x            : src0.eta:2:20..2:21
-            int_lit         : src0.eta:2:24..2:25
-            assign          : src0.eta:2:26..2:35
-            bexpr           : src0.eta:2:30..2:35
-            binop           : src0.eta:2:32..2:33
-            id x            : src0.eta:2:30..2:31
-            int_lit         : src0.eta:2:34..2:35
-            id x            : src0.eta:2:26..2:27
-            assign          : src0.eta:2:41..2:50
-            bexpr           : src0.eta:2:45..2:50
-            binop           : src0.eta:2:47..2:48
-            id x            : src0.eta:2:45..2:46
-            int_lit         : src0.eta:2:49..2:50
-            id x            : src0.eta:2:41..2:42
+            program > f(x: int) {
+                    >     while x > 0 if x > 5 x = x - 2 else x = x - 1
+                    > }
+            method  > f(x: int) {
+                    >     while x > 0 if x > 5 x = x - 2 else x = x - 1
+                    > }
+            mdecl   > f(x: int)
+            id      > f
+            decl    > x: int
+            int_t   > int
+            id      > x
+            block   > {
+                    >     while x > 0 if x > 5 x = x - 2 else x = x - 1
+                    > }
+            while   > while x > 0 if x > 5 x = x - 2 else x = x - 1
+            bexpr   > x > 0
+            binop   > >
+            id      > x
+            int_lit > 0
+            if      > if x > 5 x = x - 2 else x = x - 1
+            bexpr   > x > 5
+            binop   > >
+            id      > x
+            int_lit > 5
+            assign  > x = x - 2
+            bexpr   > x - 2
+            binop   > -
+            id      > x
+            int_lit > 2
+            id      > x
+            assign  > x = x - 1
+            bexpr   > x - 1
+            binop   > -
+            id      > x
+            int_lit > 1
+            id      > x
 
         "#]]
     }
@@ -4787,24 +5970,35 @@ fn while_no_braces() {
                   (block
                     (while (> n 0)
                       (assign (targets n) (values (- n 1))))))))
-            program         : src0.eta:1:1..4:2
-            method          : src0.eta:1:1..4:2
-            mdecl           : src0.eta:1:1..1:18
-            id countdown    : src0.eta:1:1..1:10
-            decl            : src0.eta:1:11..1:17
-            id n            : src0.eta:1:11..1:12
-            block           : src0.eta:1:19..4:2
-            while           : src0.eta:2:5..3:18
-            bexpr           : src0.eta:2:11..2:16
-            binop           : src0.eta:2:13..2:14
-            id n            : src0.eta:2:11..2:12
-            int_lit         : src0.eta:2:15..2:16
-            assign          : src0.eta:3:9..3:18
-            bexpr           : src0.eta:3:13..3:18
-            binop           : src0.eta:3:15..3:16
-            id n            : src0.eta:3:13..3:14
-            int_lit         : src0.eta:3:17..3:18
-            id n            : src0.eta:3:9..3:10
+            program > countdown(n: int) {
+                    >     while n > 0
+                    >         n = n - 1
+                    > }
+            method  > countdown(n: int) {
+                    >     while n > 0
+                    >         n = n - 1
+                    > }
+            mdecl   > countdown(n: int)
+            id      > countdown
+            decl    > n: int
+            int_t   > int
+            id      > n
+            block   > {
+                    >     while n > 0
+                    >         n = n - 1
+                    > }
+            while   > while n > 0
+                    > n = n - 1
+            bexpr   > n > 0
+            binop   > >
+            id      > n
+            int_lit > 0
+            assign  > n = n - 1
+            bexpr   > n - 1
+            binop   > -
+            id      > n
+            int_lit > 1
+            id      > n
 
         "#]]
     }
@@ -4827,12 +6021,18 @@ fn return_nothing() {
                 (method (decl main (params) (returns))
                   (block
                     (return)))))
-            program         : src0.eta:1:1..3:2
-            method          : src0.eta:1:1..3:2
-            mdecl           : src0.eta:1:1..1:7
-            id main         : src0.eta:1:1..1:5
-            block           : src0.eta:1:8..3:2
-            return          : src0.eta:2:5..3:1
+            program > main() {
+                    >     return
+                    > }
+            method  > main() {
+                    >     return
+                    > }
+            mdecl   > main()
+            id      > main
+            block   > {
+                    >     return
+                    > }
+            return  > return
 
         "#]]
     }
@@ -4853,9 +6053,11 @@ fn garbage_definition_recovery() {
                 (use io))
               (defs
                 (error)))
-            program         : src0.eta:1:1..2:4
-            use             : src0.eta:1:1..1:7
-            id io           : src0.eta:1:5..1:7
+            program > use io
+                    > )))
+            use     > use io
+            id      > io
+            error   > )))
 
             Error: unexpected token `)`
                ╭─[ src0.eta:2:1 ]
@@ -4885,13 +6087,16 @@ fn method_trailing_junk_recovery() {
                   (block
                     (return 0)))
                 (error)))
-            program         : src0.eta:1:1..2:4
-            method          : src0.eta:1:1..1:24
-            mdecl           : src0.eta:1:1..1:11
-            id size         : src0.eta:1:1..1:5
-            block           : src0.eta:1:12..1:24
-            return          : src0.eta:1:14..1:22
-            int_lit         : src0.eta:1:21..1:22
+            program > size():int { return 0 }
+                    > }}}
+            method  > size():int { return 0 }
+            mdecl   > size():int
+            id      > size
+            int_t   > int
+            block   > { return 0 }
+            return  > return 0
+            int_lit > 0
+            error   > }}}
 
             Error: unexpected token `}`
                ╭─[ src0.eta:2:1 ]
@@ -4919,11 +6124,12 @@ fn malformed_statement_recovery() {
                 (method (decl main (params) (returns))
                   (block
                     (error)))))
-            program         : src0.eta:1:1..1:15
-            method          : src0.eta:1:1..1:15
-            mdecl           : src0.eta:1:1..1:7
-            id main         : src0.eta:1:1..1:5
-            block           : src0.eta:1:8..1:15
+            program > main() { + + }
+            method  > main() { + + }
+            mdecl   > main()
+            id      > main
+            block   > { + + }
+            error   > + +
 
             Error: unexpected token `+`
                ╭─[ src0.eta:1:10 ]
@@ -4951,14 +6157,16 @@ fn missing_rhs_recovery() {
                 (method (decl main (params) (returns))
                   (block
                     (assign (targets (: x int)) (values (error)))))))
-            program         : src0.eta:1:1..1:19
-            method          : src0.eta:1:1..1:19
-            mdecl           : src0.eta:1:1..1:7
-            id main         : src0.eta:1:1..1:5
-            block           : src0.eta:1:8..1:19
-            assign          : src0.eta:1:10..1:18
-            decl            : src0.eta:1:10..1:15
-            id x            : src0.eta:1:10..1:11
+            program > main() { x:int = }
+            method  > main() { x:int = }
+            mdecl   > main()
+            id      > main
+            block   > { x:int = }
+            assign  > x:int = 
+            error   >  
+            decl    > x:int
+            int_t   > int
+            id      > x
 
             Error: unexpected token `}`
                ╭─[ src0.eta:1:18 ]
@@ -4986,19 +6194,21 @@ fn dangling_binop_recovery() {
                 (method (decl main (params) (returns))
                   (block
                     (assign (targets (: x int)) (values (index a (+ 3 (error)))))))))
-            program         : src0.eta:1:1..1:27
-            method          : src0.eta:1:1..1:27
-            mdecl           : src0.eta:1:1..1:7
-            id main         : src0.eta:1:1..1:5
-            block           : src0.eta:1:8..1:27
-            assign          : src0.eta:1:10..1:25
-            expr_idx        : src0.eta:1:18..1:25
-            id a            : src0.eta:1:18..1:19
-            bexpr           : src0.eta:1:20..1:24
-            binop           : src0.eta:1:22..1:23
-            int_lit         : src0.eta:1:20..1:21
-            decl            : src0.eta:1:10..1:15
-            id x            : src0.eta:1:10..1:11
+            program > main() { x:int = a[3 + ] }
+            method  > main() { x:int = a[3 + ] }
+            mdecl   > main()
+            id      > main
+            block   > { x:int = a[3 + ] }
+            assign  > x:int = a[3 + ]
+            expr_idx> a[3 + ]
+            id      > a
+            bexpr   > 3 + 
+            binop   > +
+            int_lit > 3
+            error   >  
+            decl    > x:int
+            int_t   > int
+            id      > x
 
             Error: unexpected token `]`
                ╭─[ src0.eta:1:24 ]

@@ -1,68 +1,128 @@
+use std::fmt::Write;
+use std::borrow::Cow;
 use std::fmt;
-use std::ops::ControlFlow;
+use std::ops::{ControlFlow};
 
-use etac_source::Span;
+use etac_source::{SourceMap, Span};
 
 use crate::ast::*;
 use crate::visit::Visitor;
 use crate::walk::Walkable;
 
-pub struct SpanPrinter<'ast, 'sym, ResT: etac_intern::Resolver, NodeT> {
-    span_fmt: Box<dyn Fn(Span) -> String + 'ast>,
-    symbols: &'sym ResT,
-    ty: &'ast NodeT,
+pub struct SpanPrinter<'ast, 'sm, NodeT> {
+    node: &'ast NodeT,
+    sm: &'sm SourceMap,
 }
 
-impl<'ast, 'sym, ResT: etac_intern::Resolver, NodeT> SpanPrinter<'ast, 'sym, ResT, NodeT> {
-    pub const PADDING: usize = 16;
-    pub fn new(node: &'ast NodeT, symbols: &'sym ResT, span_fmt: impl Fn(Span) -> String + 'ast) -> Self {
+impl<'ast, 'sm, NodeT> SpanPrinter<'ast, 'sm, NodeT> {
+    pub const SPAN_ELIPSE_AT_CHAR_NUM: usize = 120;
+    pub const SPAN_ELIPSE_AT_LINE_NUM: usize = 6;
+    pub fn new(node: &'ast NodeT, sm: &'sm SourceMap) -> Self {
         SpanPrinter {
-            span_fmt: Box::new(span_fmt),
-            symbols,
-            ty: node,
+            node,
+            sm,
         }
     }
 }
 
-impl<'ast, 'sym, ResT: etac_intern::Resolver> std::fmt::Display for SpanPrinter<'ast, 'sym, ResT, Program> {
+impl<'ast, 'sm> std::fmt::Display for SpanPrinter<'ast, 'sm, Program> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         SpanPrinterWriter {
             out: f,
             printer: self
-        }.visit_program(self.ty).continue_ok()
+        }.visit_program(self.node).continue_ok()
     }
 }
 
-impl<'ast, 'sym, ResT: etac_intern::Resolver> std::fmt::Display for SpanPrinter<'ast, 'sym, ResT, Interface> {
+impl<'ast, 'sm> std::fmt::Display for SpanPrinter<'ast, 'sm, Interface> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         SpanPrinterWriter {
             out: f,
             printer: self
-        }.visit_interface(self.ty).continue_ok()
+        }.visit_interface(self.node).continue_ok()
     }
 }
 
-struct SpanPrinterWriter<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> {
+struct SpanPrinterWriter<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> {
     out: &'fmt mut fmt::Formatter<'buf>,
-    printer: &'prt SpanPrinter<'ast, 'sym, ResT, NodeT>
+    printer: &'prt SpanPrinter<'ast, 'sm, NodeT>
 }
 
-impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> SpanPrinterWriter<'ast, 'sym, 'buf, 'prt, 'fmt, ResT, NodeT> {
+impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> SpanPrinterWriter<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> {
     fn write(&mut self, tag: &str, span: &Span) -> ControlFlow<fmt::Error> {
-        match writeln!(
-            self.out,
-            "{:<width$}: {}",
-            tag,
-            (self.printer.span_fmt)(*span),
-            width = SpanPrinter::<'ast, 'sym, ResT, NodeT>::PADDING
-        ) {
-            Ok(()) => ControlFlow::Continue(()),
-            Err(e) => ControlFlow::Break(e),
+        let seac = SpanPrinter::<'ast, 'sm, NodeT>::SPAN_ELIPSE_AT_CHAR_NUM;
+        let seal = SpanPrinter::<'ast, 'sm, NodeT>::SPAN_ELIPSE_AT_LINE_NUM;
+
+        let raw = self.printer.sm.slice(*span);
+        let s = Self::dedent(raw);
+        let s = Self::elipse_lines(&s, seal);
+
+        let mut lines = s.lines();
+        Self::into_cf(writeln!(self.out, "{tag:<width$}> {}", Self::elipse_line(lines.next().unwrap_or_default(), seac), width = 8))?;
+        for line in lines {
+            Self::into_cf(writeln!(self.out, "        > {}", Self::elipse_line(line, seac)))?;
+        }
+        ControlFlow::Continue(())
+    }
+
+    fn elipse_lines<'s>(str: &'s str, limit: usize) -> Cow<'s, str> {
+        let half = (limit / 2).max(1);
+        let head = str.match_indices('\n').nth(half - 1).map(|(i, _)| i);
+        let tail = str.rmatch_indices('\n').nth(half - 1).map(|(i, _)| i + 1);
+        match (head, tail) {
+            (Some(h), Some(t)) if t > h + 1 => {
+                Cow::Owned(format!("{}\n...\n{}", &str[..h], &str[t..]))
+            }
+            _ => Cow::Borrowed(str),
+        }
+    }
+
+    fn elipse_line<'s>(line: &'s str, limit: usize) -> Cow<'s, str> {
+        if line.len() > limit {
+            let half = limit / 2;
+            let head = line.floor_char_boundary(half);
+            let tail = line.ceil_char_boundary(line.len() - half);
+            Cow::Owned(format!("{}...{}", &line[..head], &line[tail..]))
+        } else {
+            Cow::Borrowed(line)
+        }
+    }
+
+    fn dedent(s: &str) -> Cow<'_, str> {
+        let common = s
+            .lines()
+            .skip(1)
+            .filter(|l| !l.trim().is_empty())
+            .map(|l| l.len() - l.trim_start().len())
+            .min()
+            .unwrap_or(0);
+
+        if common == 0 {
+            return Cow::Borrowed(s);
+        }
+
+        let mut out = String::with_capacity(s.len());
+        for (i, line) in s.lines().enumerate() {
+            if i > 0 {
+                out.push('\n');
+                // blank lines may be shorter than `common`
+                out.push_str(&line[common.min(line.len())..]);
+            } else {
+                out.push_str(line);
+            }
+        }
+        Cow::Owned(out)
+    }
+
+    fn into_cf<O, E>(res: Result<O, E>) -> ControlFlow<E, O> {
+        match res {
+            Ok(ok) => ControlFlow::Continue(ok),
+            Err(err) => ControlFlow::Break(err),
         }
     }
 }
 
-impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'ast> for SpanPrinterWriter<'ast, 'sym, 'buf, 'prt, 'fmt, ResT, NodeT> {
+impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> Visitor<'ast> for SpanPrinterWriter<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> {
     type Result = ControlFlow<fmt::Error>;
 
     fn visit_program(&mut self, n: &'ast Program) -> Self::Result {
@@ -73,7 +133,7 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
 
     fn visit_interface(&mut self, n: &'ast Interface) -> Self::Result {
         let Interface { span, .. } = n;
-        self.write("interface", span)?;
+        self.write("interfce", span)?;
         n.walk(self)
     }
 
@@ -157,8 +217,8 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
     }
 
     fn visit_ident(&mut self, n: &'ast Ident) -> Self::Result {
-        let Ident { span, sym, .. } = n;
-        self.write(format!("id {}", self.printer.symbols.resolve(sym)).as_str(), span)?;
+        let Ident { span, .. } = n;
+        self.write("id", span)?;
         n.walk(self)
     }
 
@@ -225,6 +285,28 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
     fn visit_bin_op(&mut self, n: &'ast BinOp) -> Self::Result {
         let BinOp { span, .. } = n;
         self.write("binop", span)?;
+        n.walk(self)
+    }
+
+    fn visit_type_kind(&mut self, n: &'ast TypeKind) -> Self::Result {
+        match n {
+            TypeKind::Int(span) => self.write("int_t", span),
+            TypeKind::Bool(span) => self.write("bool_t", span),
+            _ => ControlFlow::Continue(()),
+        }?;
+        n.walk(self)
+    }
+
+    fn visit_target_kind(&mut self, n: &'ast TargetKind) -> Self::Result {
+        match n {
+            TargetKind::Discard(span) => self.write("discard", span),
+            _ => ControlFlow::Continue(()),
+        }?;
+        n.walk(self)
+    }
+
+    fn visit_error(&mut self, n: &'ast Error) -> Self::Result {
+        self.write("error", &n.0)?;
         n.walk(self)
     }
  }

@@ -101,6 +101,11 @@ impl SourceMap {
             end: (el as u32 + 1, ec as u32 + 1),   // ariadne is 0 indexed
         }
     }
+
+    pub fn slice(&self, span: Span) -> &str {
+        let (f, ls) = self.local_span(span);
+        &self.get_source(f).source[ls.start..ls.end]
+    }
 }
 
 impl<'sm> ariadne::Cache<FileId<'sm>> for &SourceMap {

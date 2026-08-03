@@ -33,6 +33,7 @@ id-arena 		= "2.3.0"
 by_address		= "1.2.1"
 lasso 			= "0.7"
 rustc-hash 		= "2"
+indenter		= { version = "0.3.4", features = ["std"] }
 
 # internal
 etac	      		= { path = "compiler/etac"}
