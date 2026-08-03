@@ -59,8 +59,8 @@ pub enum RawToken {
     #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.extras.1.get_or_intern(lex.slice()))]
     Identifier(Symbol),
 
-    #[regex(r"-?[1-9][0-9]*|0", crate::parse_int)]
-    Integer(i64),
+    #[regex(r"[1-9][0-9]*|0", crate::parse_int)]
+    Integer(u64),
 
     // Brackets and braces
     #[token("(")]
@@ -113,46 +113,22 @@ pub enum RawToken {
     Lor,
 }
 
-pub struct TokenDisplay<'a, F> 
-where
-    F: Fn(&Symbol) -> &'a str {
+pub struct TokenDisplay<R: etac_intern::Resolver> {
     tok: RawToken,
-    resolver: F,
+    resolver: R,
 }
 
-impl<'a, F: Fn(&Symbol) -> &'a str> TokenDisplay<'a, F> {
-    pub fn new(tok: RawToken, resolver: F) -> Self {
+impl<R: etac_intern::Resolver> TokenDisplay<R> {
+    pub fn new(tok: RawToken, resolver: R) -> Self {
         TokenDisplay { tok, resolver }
     }
 }
 
-pub fn display_with_interner<'a>(
-    tok: RawToken,
-    interner: &'a EtacInterner,
-) -> TokenDisplay<'a, impl Fn(&Symbol) -> &'a str + 'a> {
-    TokenDisplay::new(tok, move |s| interner.resolve(s))
-}
-
-pub fn display_with_intern_reader<'a>(
-    tok: RawToken,
-    ireader: &'a EtacInterner,
-) -> TokenDisplay<'a, impl Fn(&Symbol) -> &'a str + 'a> {
-    TokenDisplay::new(tok, move |s| ireader.resolve(s))
-}
-
-impl<'a, F: Fn(&Symbol) -> &'a str> Display for TokenDisplay<'a, F> {
+impl<R: etac_intern::Resolver> Display for TokenDisplay<R> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match &self.tok {
-            RawToken::StrLiteral(sym) => write!(f, "string {}", (self.resolver)(sym).escape_default().collect::<String>().replace("\\u{", "\\x{")),
-            RawToken::Identifier(sym) => write!(f, "id {}", (self.resolver)(sym)),
-            other                     => write!(f, "{}", other)
-        }
-    }
-}
-
-impl Display for RawToken {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
+            RawToken::StrLiteral(sym) => write!(f, "\"{}\"", self.resolver.resolve(sym).escape_default().collect::<String>().replace("\\u{", "\\x{")),
+            RawToken::Identifier(sym) => write!(f, "{}", self.resolver.resolve(sym)),
             RawToken::KeywordUse => write!(f, "use"),
             RawToken::KeywordLength => write!(f, "length"),
             RawToken::KeywordWhile => write!(f, "while"),
@@ -167,10 +143,8 @@ impl Display for RawToken {
             RawToken::Assign => write!(f, "="),
             RawToken::Comma => write!(f, ","),
             RawToken::BoolLiteral(b) => write!(f, "{b}"),
-            RawToken::CharLiteral(c) => write!(f, "character {}", c.escape_default().collect::<String>().replace("\\u{", "\\x{")),
-            RawToken::StrLiteral(s) => write!(f, "string Sym({})", s.into_inner()),
-            RawToken::Identifier(s) => write!(f, "id Sym({})", s.into_inner()),
-            RawToken::Integer(n) => write!(f, "integer {n}"),
+            RawToken::CharLiteral(c) => write!(f, "'{}'", c.escape_default().collect::<String>().replace("\\u{", "\\x{")),
+            RawToken::Integer(n) => write!(f, "{n}"),
             RawToken::LParen => write!(f, "("),
             RawToken::RParen => write!(f, ")"),
             RawToken::LBracket => write!(f, "["),
@@ -192,6 +166,7 @@ impl Display for RawToken {
             RawToken::RelOpLe => write!(f, "<="),
             RawToken::Land => write!(f, "&"),
             RawToken::Lor => write!(f, "|"),
+
         }
     }
 }

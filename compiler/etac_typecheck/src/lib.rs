@@ -15,7 +15,7 @@ use etac_types_derive::EtaType;
 
 macro_rules! delegate_typecheck {
     ($ast_node:tt.$field:ident { $($variant:ident),+ $(,)? }) => {
-        paste::paste! {
+        pastey::paste! {
             #[derive(Debug, Clone, EtaType)]
             pub enum [<$ast_node Type>] {
                 $($variant(<$variant as Typecheck>::Ty)),+

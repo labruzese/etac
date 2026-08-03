@@ -73,11 +73,11 @@ extern {
         "&"       => RawToken::Land,
         "|"       => RawToken::Lor,
 
-        "boollit" => RawToken::BoolLiteral(<bool>),
-        "charlit" => RawToken::CharLiteral(<char>),
-        "strlit"  => RawToken::StrLiteral(<Symbol>),
-        "ident"   => RawToken::Identifier(<Symbol>),
-        "intlit"  => RawToken::Integer(<i64>),
+        "bool literal" => RawToken::BoolLiteral(<bool>),
+        "char literal" => RawToken::CharLiteral(<char>),
+        "string literal"  => RawToken::StrLiteral(<Symbol>),
+        "identifier"   => RawToken::Identifier(<Symbol>),
+        "int literal"  => RawToken::Integer(<u64>),
     }
 }
 
@@ -103,7 +103,7 @@ pub Program: Program = {
     ),
     <uses:Use*> <definitions:DefinitionKind+> <l:@L> <u:Use> <r:@R> <mul:Use*> =>? Err(
 	etac_error! {
-	    state.dcx, l..r, "Use statements must go above all defintions";
+	    state.dcx, l..r, "Use statements must go above all definitions";
 	    primary: "Use not allowed here";
 	    note: "Try moving this use to the top of the file";
 	}.into()
@@ -128,12 +128,12 @@ Use: Use = {
 DefinitionKind: DefinitionKind = {
     Method    	=> DefinitionKind::Method(<>),
     GlobDecl 	=> DefinitionKind::GlobDecl(<>),
-    Error	=> DefinitionKind::Error(<>)
+    Error	=> DefinitionKind::Error(Error(<>))
 }
 
 InterfaceItemKind: InterfaceItemKind = {
     MethodDecl	=> InterfaceItemKind::MethodDecl(<>),
-    Error 	=> InterfaceItemKind::Error(<>),
+    Error 	=> InterfaceItemKind::Error(Error(<>)),
 }
 
 MethodDecl: MethodDecl = {
@@ -150,12 +150,18 @@ Method: Method = {
 
 MethodBodyKind: MethodBodyKind = {
     Block => MethodBodyKind::Block(<>),
-    Error => MethodBodyKind::Error(<>),
+    Error => MethodBodyKind::Error(Error(<>)),
 }
 
 GlobDecl: GlobDecl = {
-    <l:@L> <id:Ident> ":" <typ:GlobDeclTypeKind> <val:("=" <LitKind>)?> ";"? <r:@R> =>
-	GlobDecl { span: (l..r).into(), id, typ, val },
+    <l:@L> <id:Ident> ":" <typ:TypeKind> <init_l:@L> <val:("=" <GlobDeclValue>)?> <init_r:@R> ";"? <r:@R> =>?
+	match typ {
+	    TypeKind::Array(_) if val.is_some() => Err(etac_error! { state.dcx, 
+		    init_l..init_r, "global arrays can't be initialized at the point of declaration";
+		    primary: "initialization happens here"
+		}.into()),
+	    ref allowed => Ok(GlobDecl { span: (l..r).into(), id, typ, val }),
+	},
 }
 
 // -- statements -- 
@@ -163,7 +169,7 @@ GlobDecl: GlobDecl = {
 StmtKind: StmtKind = {
     Stmt_Open,
     Stmt_Closed,
-    <l:@L> <e:!> <r:@R> => { state.lalrpop_errs.push(e); StmtKind::Error((l..r).into()) }
+    <l:@L> <e:!> <r:@R> => { state.lalrpop_errs.push(e); StmtKind::Error(Error((l..r).into())) }
 }
 
 IfStmt: IfStmt = {
@@ -263,16 +269,14 @@ WhileStmt_Closed: WhileStmt = {
 TypeKind: TypeKind = {
     TypeSized,
     TypeUnsized,
-    <l:@L> <e:!> <r:@R> => { state.lalrpop_errs.push(e); TypeKind::Error((l..r).into()) }
+    <l:@L> <e:!> <r:@R> => { state.lalrpop_errs.push(e); TypeKind::Error(Error((l..r).into())) }
 }
 
-GlobDeclTypeKind: TypeKind = {
+GlobDeclTypeKind_Sized: TypeKind = {
     TypeUnsized,
-    <l:@L> <_t:TypeSized> <r:@R> =>? Err(etac_error! {
-	state.dcx, l..r, "global arrays can't be initialized at the point of declaration";
-	primary: "initialization happens here"
-    }.into()),
+
 }
+
 
 TypeUnsized: TypeKind = {
     <base:TypeUnsized> <l:@L> <udim:UnsizedDim> <r:@R> => 
@@ -322,7 +326,7 @@ LValueExprs: ExprKind = {
 // ---- expressions ----
 
 Ident: Ident = {
-    <l:@L> <sym:"ident"> <r:@R> => Ident { span: (l..r).into(), sym },
+    <l:@L> <sym:"identifier"> <r:@R> => Ident { span: (l..r).into(), sym },
 }
 
 ProcCall: ProcCall = {
@@ -333,26 +337,31 @@ LengthCall: LengthCall = {
     <l:@L> "length" "(" <array:ExprKind> ")" <r:@R> => LengthCall { span: (l..r).into(), param: Box::new(array) },
 }
 
+GlobDeclValue: GlobDeclValue = {
+    LitKind 						=> GlobDeclValue::Literal(<>),
+    <l:@L> <op:UOp<UnaryMinus>> <value:IntLit> <r:@R> 	=> GlobDeclValue::Neg { span: (l..r).into(), value },
+}
+
 LitKind: LitKind = {
-    IntLit,
-    BoolLit,
-    CharLit,
+    IntLit  => LitKind::Int(<>),
+    BoolLit => LitKind::Bool(<>),
+    CharLit => LitKind::Char(<>),
     ArrayLitKind => LitKind::Array(<>)
 }
 
-IntLit:  LitKind = { <l:@L> <value:"intlit">  <r:@R> => LitKind::Int  { span: (l..r).into(), value } }
-BoolLit: LitKind = { <l:@L> <value:"boollit"> <r:@R> => LitKind::Bool { span: (l..r).into(), value } }
-CharLit: LitKind = { <l:@L> <value:"charlit"> <r:@R> => LitKind::Char { span: (l..r).into(), value } }
+BoolLit: BoolLit = { <l:@L> <value:"bool literal"> <r:@R> => BoolLit { span: (l..r).into(), value } }
+CharLit: CharLit = { <l:@L> <value:"char literal"> <r:@R> => CharLit { span: (l..r).into(), value } }
+IntLit:  IntLit  = { <l:@L> <value:"int literal">  <r:@R> => IntLit  { span: (l..r).into(), value } }
 
 ArrayLitKind: ArrayLitKind = {
     StringLit => ArrayLitKind::String(<>),
     ArrayLit => ArrayLitKind::Array(<>),
 }
 StringLit: StringLit = { 
-    <l:@L> <value:"strlit"> <r:@R> => StringLit { span: (l..r).into(), value },
+    <l:@L> <value:"string literal"> <r:@R> => StringLit { span: (l..r).into(), value },
 }
 ArrayLit: ArrayLit = { 
-    <l:@L> "[" <elems:CommaTrailing<ExprKind>> "]" <r:@R> => ArrayLit { span: (l..r).into(), value: elems },
+    <l:@L> "{" <elems:CommaTrailing<ExprKind>> "}" <r:@R> => ArrayLit { span: (l..r).into(), value: elems },
 }
 
 ExprIndex<ExprKindSubset>: ExprIndex = {
@@ -362,20 +371,20 @@ ExprIndex<ExprKindSubset>: ExprIndex = {
 PrimaryExprs: ExprKind = {
     LitKind    => ExprKind::Lit(<>),
     Ident      => ExprKind::Id(<>),
+    Error      => ExprKind::Error(Error(<>)),
     ProcCall   => ExprKind::Call(<>),
     LengthCall => ExprKind::Length(<>),
     "(" <e:ExprKind> ")" => e,
     ExprIndex<PrimaryExprs> => ExprKind::Index(<>),
-    Error      => ExprKind::Error(<>),
-};
+}
 
 ExprKind: ExprKind = {
     #[precedence(level="0")]
     PrimaryExprs,
 
-    #[precedence(level="1")] #[assoc(side="right")]
+    #[precedence(level="1")]
     <l:@L> 
-	<op:UOp<PL1>> 
+	<op:UOp<PL1>>
 	<operand:ExprKind> 
     <r:@R> => ExprKind::Unary(UnaryExpr { span: (l..r).into(), op, operand: Box::new(operand) }),
 
@@ -435,34 +444,45 @@ UOp<UOpKind>: UOp = {
 }
 
 // -- operator bindings --
-
-PL1: UOpKind = {
+#[inline]
+UnaryMinus: UOpKind = {
     "-" 	=> UOpKind::Neg,
+}
+
+#[inline]
+PL1: UOpKind = {
+    UnaryMinus,
     "!" 	=> UOpKind::Not,
 }
+#[inline]
 PL2: BinOpKind = {
     "*" 	=> BinOpKind::Mul,
     "*>>" 	=> BinOpKind::HighMul,
     "/" 	=> BinOpKind::Div,
     "%" 	=> BinOpKind::Mod,
 }
+#[inline]
 PL3: BinOpKind = {
     "+" 	=> BinOpKind::Add,
     "-" 	=> BinOpKind::Sub,
 }
+#[inline]
 PL4: BinOpKind = {
     "<" 	=> BinOpKind::Lt,
     "<=" 	=> BinOpKind::Le,
     ">" 	=> BinOpKind::Gt,
     ">=" 	=> BinOpKind::Ge,
 }
+#[inline]
 PL5: BinOpKind = {
     "==" 	=> BinOpKind::Eq,
     "!=" 	=> BinOpKind::Neq,
 }
+#[inline]
 PL6: BinOpKind = {
     "&" 	=> BinOpKind::LAnd,
 }
+#[inline]
 PL7: BinOpKind = {
     "|" 	=> BinOpKind::LOr,
 }

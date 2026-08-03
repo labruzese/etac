@@ -71,6 +71,10 @@ impl DiagCtx {
         self.err_count() > 0
     }
 
+    pub fn has_diagnostics(&self) -> bool {
+        !self.diagnostics.is_empty()
+    }
+
     pub fn emit_diagnostics(mut self, source_map: &SourceMap) {
         for diag in self.diagnostics.into_vec().drain(..) {
             self.emitter.emit(source_map, *diag);

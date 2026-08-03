@@ -11,7 +11,7 @@ etac_errors.workspace 	= true
 equivalent.workspace 	= true
 etac_types_derive.workspace = true
 smallvec.workspace = true
-paste.workspace = true
+pastey.workspace = true
 
 [lints]
 workspace = true

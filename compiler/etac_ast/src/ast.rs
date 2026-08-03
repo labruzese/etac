@@ -2,6 +2,7 @@ use etac_intern::Symbol;
 use etac_source::Span;
 
 // Top level
+pub struct Error(pub Span);
 
 pub struct Program {
     pub span: Span,
@@ -11,7 +12,7 @@ pub struct Program {
 
 pub struct Interface {
     pub span: Span,
-    pub items: Vec<InterfaceItemKind>
+    pub items: Vec<InterfaceItemKind>,
 }
 
 pub struct Use {
@@ -24,19 +25,19 @@ pub struct Use {
 pub enum DefinitionKind {
     Method(Method),
     GlobDecl(GlobDecl),
-    Error(Span),
+    Error(Error),
 }
 
 pub enum InterfaceItemKind {
     MethodDecl(MethodDecl),
-    Error(Span),
+    Error(Error),
 }
 
 pub struct MethodDecl {
     pub span: Span,
     pub id: Ident,
     pub params: Vec<Decl>,
-    pub ret_types: Vec<TypeKind>
+    pub ret_types: Vec<TypeKind>,
 }
 
 pub struct Method {
@@ -47,15 +48,16 @@ pub struct Method {
 
 pub enum MethodBodyKind {
     Block(Block),
-    Error(Span),
+    Error(Error),
 }
 
 pub struct GlobDecl {
     pub span: Span,
     pub id: Ident,
     pub typ: TypeKind,
-    pub val: Option<LitKind>
+    pub val: Option<GlobDeclValue>,
 }
+
 
 // Statements
 
@@ -67,7 +69,7 @@ pub enum StmtKind {
     Return(ReturnStmt),
     Call(ProcCall),
     Block(Block),
-    Error(Span),
+    Error(Error),
 }
 
 pub struct AssignStmt {
@@ -78,20 +80,20 @@ pub struct AssignStmt {
 
 pub struct MultiDeclStmt {
     pub span: Span,
-    pub decls: Vec<Decl>
+    pub decls: Vec<Decl>,
 }
 
 pub struct Decl {
     pub span: Span,
     pub id: Ident,
-    pub typ: TypeKind
+    pub typ: TypeKind,
 }
 
 pub struct IfStmt {
     pub span: Span,
     pub cond: Box<ExprKind>,
     pub then_branch: Box<StmtKind>,
-    pub else_branch: Option<Box<StmtKind>>
+    pub else_branch: Option<Box<StmtKind>>,
 }
 
 pub struct WhileStmt {
@@ -108,14 +110,13 @@ pub struct ReturnStmt {
 pub struct ProcCall {
     pub span: Span,
     pub id: Ident,
-    pub args: Vec<ExprKind>
+    pub args: Vec<ExprKind>,
 }
 
 pub struct Block {
     pub span: Span,
-    pub stmts: Vec<StmtKind>
+    pub stmts: Vec<StmtKind>,
 }
-
 
 // Types
 
@@ -123,13 +124,13 @@ pub enum TypeKind {
     Array(ArrType),
     Int(Span),
     Bool(Span),
-    Error(Span),
+    Error(Error),
 }
 
-pub struct ArrType { 
+pub struct ArrType {
     pub span: Span,
     pub of: Box<TypeKind>,
-    pub size: Option<Box<ExprKind>> 
+    pub size: Option<Box<ExprKind>>,
 }
 
 // Targets & LValues
@@ -146,7 +147,6 @@ pub enum LValueKind {
     Index(ExprIndex),
 }
 
-
 // ---- Expressions ----
 
 pub enum ExprKind {
@@ -157,7 +157,7 @@ pub enum ExprKind {
     Length(LengthCall),
     Unary(UnaryExpr),
     Binary(BinaryExpr),
-    Error(Span),
+    Error(Error),
 }
 
 pub struct Ident {
@@ -165,11 +165,31 @@ pub struct Ident {
     pub sym: Symbol,
 }
 
+pub enum GlobDeclValue {
+    Literal(LitKind),
+    Neg { span: Span, value: IntLit },
+}
+
 pub enum LitKind {
-    Int { span: Span, value: i64 },
-    Bool { span: Span, value: bool },
-    Char { span: Span, value: char },
+    Int(IntLit),
+    Bool(BoolLit),
+    Char(CharLit),
     Array(ArrayLitKind),
+}
+
+pub struct IntLit {
+    pub span: Span,
+    pub value: u64,
+}
+
+pub struct BoolLit {
+    pub span: Span,
+    pub value: bool,
+}
+
+pub struct CharLit {
+    pub span: Span,
+    pub value: char,
 }
 
 pub enum ArrayLitKind {
@@ -177,9 +197,15 @@ pub enum ArrayLitKind {
     Array(ArrayLit),
 }
 
-pub struct StringLit{ pub span: Span, pub value: Symbol }
+pub struct StringLit {
+    pub span: Span,
+    pub value: Symbol,
+}
 
-pub struct ArrayLit{ pub span: Span, pub value: Vec<ExprKind> }
+pub struct ArrayLit {
+    pub span: Span,
+    pub value: Vec<ExprKind>,
+}
 
 pub struct ExprIndex {
     pub span: Span,

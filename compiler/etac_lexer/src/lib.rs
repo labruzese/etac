@@ -69,8 +69,8 @@ impl<'src, 'dcx> Iterator for EtaLexer<'src, 'dcx> {
 
 // -- lexing callbacks -- 
 
-fn parse_int(lex: &mut LogosLexer<'_>) -> Result<i64, InternalLexerError> {
-    lex.slice().parse::<i64>().map_err(|err: ParseIntError| {
+fn parse_int(lex: &mut LogosLexer<'_>) -> Result<u64, InternalLexerError> {
+    lex.slice().parse::<u64>().map_err(|err: ParseIntError| {
         let (msg, prim) = match err.kind() {
             std::num::IntErrorKind::PosOverflow => (
                 "this integer literal is too large to be stored in any Eta type",

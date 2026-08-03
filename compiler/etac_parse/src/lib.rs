@@ -6,7 +6,7 @@ use etac_errors::{
 }; 
 use etac_lexer::{
     EtaLexer, 
-    token::RawToken
+    token::{RawToken, TokenDisplay}
 };
 
 use crate::{
@@ -43,9 +43,10 @@ where
     LalrpopParseFn: Fn(&LalrpopParser, &mut ParseState<'dcx>, &mut EtaLexer<'src, 'dcx>) -> Result<Out, LalrpopFailure<'dcx>> 
 {
     let parse = parse_inner(&parser, &mut pstate, &mut lexer);
+    let symbols = lexer.into_interner_mut();
     let mut recovered = false;
     for e in pstate.lalrpop_errs {
-        let diag = to_diag(pstate.dcx, e.error);
+        let diag = to_diag(pstate.dcx, symbols, e.error);
         if diag.level() == etac_errors::Level::Error {
             recovered = true
         }
@@ -55,11 +56,10 @@ where
         (Ok(ast),false) => Parsed::Ok(ast),
         (Ok(ast),true) => Parsed::Recovered(ast),
         (Err(fatal), _) => {
-            pstate.etac_errs.push(to_diag(pstate.dcx, fatal));
+            pstate.etac_errs.push(to_diag(pstate.dcx, symbols, fatal));
             Parsed::Failed
         }
     };
-    let symbols = lexer.into_interner_mut();
     let diags = pstate.etac_errs;
     ParseResult {
         parse: parsed,
@@ -69,12 +69,13 @@ where
 }
 
 /// syntax:
-/// ```rust
+/// `
 /// impl_iparser! { 
 ///     parser: grammar::Parser,
 ///     output: OutputTy,
 /// }
-/// ```
+/// `
+///
 /// *note*: parser needs to be qualified (ex: `path::Parser`)
 ///
 /// writes the following:
@@ -133,6 +134,7 @@ impl_iparser! {
 /// LALRPOP error to [`Diag`]
 fn to_diag<'dcx>(
     diagc: &'dcx DiagCtx,
+    res: &impl etac_intern::Resolver,
     err: ParseError<u32, RawToken, Diag<'dcx>>,
 ) -> Diag<'dcx> {
     use ParseError::*;
@@ -144,19 +146,19 @@ fn to_diag<'dcx>(
             expected,
         } => {
             etac_error! {
-                diagc, Span::new(s, e), "Unexpected token {}", t;
+                diagc, Span::new(s, e), "unexpected token `{}`", TokenDisplay::new(t, res);
                 primary: "{}", format_expected(&expected)
             }
         }
         UnrecognizedEof { location, expected } => {
             etac_error! {
-                diagc, Span::new(location, location), "Unexpected end of file";
+                diagc, Span::new(location, location), "unexpected end of file";
                 primary: "{}", format_expected(&expected)
             }
         }
         ExtraToken { token: (s, t, e) } => {
             etac_error! {
-                diagc, Span::new(s, e), "Extra token {} after program", t;
+                diagc, Span::new(s, e), "extra token `{}`", TokenDisplay::new(t, res);
                 primary: "unexpected"
             }
         }
