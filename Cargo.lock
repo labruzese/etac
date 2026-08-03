@@ -463,19 +463,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "etac_typecheck"
-version = "0.1.0"
-dependencies = [
- "equivalent",
- "etac_ast",
- "etac_cache",
- "etac_errors",
- "etac_types_derive",
- "pastey",
- "smallvec",
-]
-
-[[package]]
 name = "etac_types_derive"
 version = "0.1.0"
 dependencies = [
