@@ -1,4 +1,3 @@
-use std::fmt::Write;
 use std::borrow::Cow;
 use std::fmt;
 use std::ops::{ControlFlow};

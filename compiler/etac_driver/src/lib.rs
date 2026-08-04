@@ -28,8 +28,8 @@ type Result<T> = std::result::Result<T, ErrorGuaranteed>;
 type CompilationResult = std::result::Result<CompilationSuccess, CompilationFailure>;
 
 struct ParseOneSuccess<'src, Out> {
-    out: Out,
-    interner: &'src mut EtacInterner,
+    _out: Out,
+    _interner: &'src mut EtacInterner,
 }
 
 fn parse_one<'src, 'dcx, P>(
@@ -54,8 +54,8 @@ where
 
     match parse {
         Parsed::Ok(tree) => Ok(ParseOneSuccess {
-            out: tree,
-            interner: symbols,
+            _out: tree,
+            _interner: symbols,
         }),
         Parsed::Recovered(tree) => {
             let _g = diags
@@ -64,8 +64,8 @@ where
                 .reduce(|_, g| identity(g))
                 .expect("recovered tree must have at least one diagnostic");
             Ok(ParseOneSuccess {
-                out: tree,
-                interner: symbols,
+                _out: tree,
+                _interner: symbols,
             })
         }
         Parsed::Failed => {
@@ -101,12 +101,12 @@ pub fn run(flags: &Flags) -> CompilationResult {
     for file in files {
         match file {
             File::Program(id) => {
-                if let Ok(ParseOneSuccess{ out, interner }) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id, etac_parse::ProgramParser::new(&dcx)) {
+                if let Ok(ParseOneSuccess{ _out: _, _interner: _ }) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id, etac_parse::ProgramParser::new(&dcx)) {
                     
                 }
             }
             File::Interface(id) => {
-                if let Ok(ParseOneSuccess{ out, interner }) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id, etac_parse::InterfaceParser::new(&dcx)) {
+                if let Ok(ParseOneSuccess{ _out: _, _interner: _ }) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id, etac_parse::InterfaceParser::new(&dcx)) {
                     
                 }
             }
