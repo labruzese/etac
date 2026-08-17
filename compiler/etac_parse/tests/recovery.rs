@@ -25,24 +25,24 @@ fn sized_dimension_after_unsized() {
                 (method (decl f (params) (returns))
                   (block
                     (decls (: a (array (array int) 3)))))))
-            program > f() {
-                    >     a: int[][3]
-                    > }
-            method  > f() {
-                    >     a: int[][3]
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    >     a: int[][3]
-                    > }
-            decls   > a: int[][3]
-            decl    > a: int[][3]
-            arr_t   > int[][3]
-            arr_t   > int[]
-            int_t   > int
-            int_lit > 3
-            id      > a
+            program   > f() {
+                      >     a: int[][3]
+                      > }
+            method    > f() {
+                      >     a: int[][3]
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     a: int[][3]
+                      > }
+            decls     > a: int[][3]
+            decl      > a: int[][3]
+            arr_t     > int[][3]
+            arr_t     > int[]
+            int_t     > int
+            int_lit   > 3
+            id        > a
 
             Error: an array size cannot follow an unsized dimension
                ╭─[ src0.eta:2:13 ]
@@ -53,7 +53,7 @@ fn sized_dimension_after_unsized() {
                │              │   
                │              ╰─── this dimension is sized
                │ 
-               │ Note: sizes come first: `int[3][]`, never `int[][3]`
+               │ Note: sizes must always come first: [] does not have a size so [size] doesn't know how to allocate
             ───╯
         "#]]
     }
@@ -78,20 +78,20 @@ fn assign_to_non_lvalue() {
                 (method (decl f (params) (returns))
                   (block
                     (assign (targets _) (values 3))))))
-            program > f() {
-                    >     g() + 1 = 3
-                    > }
-            method  > f() {
-                    >     g() + 1 = 3
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    >     g() + 1 = 3
-                    > }
-            assign  > g() + 1 = 3
-            int_lit > 3
-            discard > g() + 1
+            program   > f() {
+                      >     g() + 1 = 3
+                      > }
+            method    > f() {
+                      >     g() + 1 = 3
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     g() + 1 = 3
+                      > }
+            assign    > g() + 1 = 3
+            int_lit   > 3
+            discard   > g() + 1
 
             Error: cannot assign to a binary expression
                ╭─[ src0.eta:2:5 ]
@@ -123,19 +123,19 @@ fn unclosed_block_points_at_the_opener() {
                 (method (decl f (params) (returns))
                   (block
                     (assign (targets (: x int)) (values 1))))))
-            program > f() {
-                    > x: int = 1
-            method  > f() {
-                    > x: int = 1
-            mdecl   > f()
-            id      > f
-            block   > {
-                    > x: int = 1
-            assign  > x: int = 1
-            int_lit > 1
-            decl    > x: int
-            int_t   > int
-            id      > x
+            program   > f() {
+                      > x: int = 1
+            method    > f() {
+                      > x: int = 1
+            mdecl     > f()
+            id        > f
+            block     > {
+                      > x: int = 1
+            assign    > x: int = 1
+            int_lit   > 1
+            decl      > x: int
+            int_t     > int
+            id        > x
 
             Error: unclosed block
                ╭─[ src0.eta:1:5 ]
@@ -168,22 +168,22 @@ fn missing_comma_keeps_the_list_together() {
                 (method (decl f (params) (returns))
                   (block
                     (call g 1 2 3)))))
-            program > f() {
-                    >     g(1 2, 3)
-                    > }
-            method  > f() {
-                    >     g(1 2, 3)
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    >     g(1 2, 3)
-                    > }
-            pcall   > g(1 2, 3)
-            id      > g
-            int_lit > 1
-            int_lit > 2
-            int_lit > 3
+            program   > f() {
+                      >     g(1 2, 3)
+                      > }
+            method    > f() {
+                      >     g(1 2, 3)
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     g(1 2, 3)
+                      > }
+            pcall     > g(1 2, 3)
+            id        > g
+            int_lit   > 1
+            int_lit   > 2
+            int_lit   > 3
 
             Error: expected `,`, found an integer literal
                ╭─[ src0.eta:2:9 ]
@@ -214,21 +214,21 @@ fn stray_comma_in_argument_list() {
                 (method (decl f (params) (returns))
                   (block
                     (call g 1 2)))))
-            program > f() {
-                    >     g(1,, 2)
-                    > }
-            method  > f() {
-                    >     g(1,, 2)
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    >     g(1,, 2)
-                    > }
-            pcall   > g(1,, 2)
-            id      > g
-            int_lit > 1
-            int_lit > 2
+            program   > f() {
+                      >     g(1,, 2)
+                      > }
+            method    > f() {
+                      >     g(1,, 2)
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     g(1,, 2)
+                      > }
+            pcall     > g(1,, 2)
+            id        > g
+            int_lit   > 1
+            int_lit   > 2
 
             Error: expected an expression, found `,`
                ╭─[ src0.eta:2:9 ]
@@ -262,28 +262,28 @@ fn statement_after_return() {
                   (block
                     (return 1)
                     (assign (targets (: x int)) (values 2))))))
-            program > f(): int {
-                    >     return 1
-                    >     x: int = 2
-                    > }
-            method  > f(): int {
-                    >     return 1
-                    >     x: int = 2
-                    > }
-            mdecl   > f(): int
-            id      > f
-            int_t   > int
-            block   > {
-                    >     return 1
-                    >     x: int = 2
-                    > }
-            return  > return 1
-            int_lit > 1
-            assign  > x: int = 2
-            int_lit > 2
-            decl    > x: int
-            int_t   > int
-            id      > x
+            program   > f(): int {
+                      >     return 1
+                      >     x: int = 2
+                      > }
+            method    > f(): int {
+                      >     return 1
+                      >     x: int = 2
+                      > }
+            mdecl     > f(): int
+            id        > f
+            int_t     > int
+            block     > {
+                      >     return 1
+                      >     x: int = 2
+                      > }
+            return    > return 1
+            int_lit   > 1
+            assign    > x: int = 2
+            int_lit   > 2
+            decl      > x: int
+            int_t     > int
+            id        > x
 
             Error: this statement is unreachable
                ╭─[ src0.eta:3:5 ]
@@ -320,16 +320,16 @@ fn body_in_interface() {
             (interface
               (decl f (params) (returns int))
               (decl g (params) (returns bool)))
-            interfce> f(): int {
-                    >     return 1
-                    > }
-                    > g(): bool
-            mdecl   > f(): int
-            id      > f
-            int_t   > int
-            mdecl   > g(): bool
-            id      > g
-            bool_t  > bool
+            interfce  > f(): int {
+                      >     return 1
+                      > }
+                      > g(): bool
+            mdecl     > f(): int
+            id        > f
+            int_t     > int
+            mdecl     > g(): bool
+            id        > g
+            bool_t    > bool
 
             Error: a method in an interface cannot have a body
                ╭─[ src0.eti:1:10 ]
@@ -346,7 +346,7 @@ fn body_in_interface() {
                │ ────┬───  
                │     ╰───── declared here
                │ 
-               │ Note: interfaces declare methods; `.eta` files implement them
+               │ Note: interfaces can only declare methods; only `.eta` files can implement them
             ───╯
         "#]]
     }
@@ -371,20 +371,20 @@ fn missing_method_body() {
                   (error))
                 (method (decl g (params) (returns))
                   (block))))
-            program > f(): int
-                    > g() {
-                    > }
-            method  > f(): int
-            mdecl   > f(): int
-            id      > f
-            int_t   > int
-            error   > 
-            method  > g() {
-                    > }
-            mdecl   > g()
-            id      > g
-            block   > {
-                    > }
+            program   > f(): int
+                      > g() {
+                      > }
+            method    > f(): int
+            mdecl     > f(): int
+            id        > f
+            int_t     > int
+            error     > 
+            method    > g() {
+                      > }
+            mdecl     > g()
+            id        > g
+            block     > {
+                      > }
 
             Error: this method has no body
                ╭─[ src0.eta:1:9 ]
@@ -395,7 +395,7 @@ fn missing_method_body() {
                │         │ 
                │         ╰─ expected `{`
                │ 
-               │ Note: only interface (`.eti`) files declare methods without a body
+               │ Note: only interface (`.eti`) files declare methods without a body.
             ───╯
         "#]]
     }
@@ -423,25 +423,25 @@ fn use_after_definition() {
                   (block))
                 (method (decl g (params) (returns))
                   (block))))
-            program > f() {
-                    > }
-                    > use io
-                    > g() {
-                    > }
-            use     > use io
-            id      > io
-            method  > f() {
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    > }
-            method  > g() {
-                    > }
-            mdecl   > g()
-            id      > g
-            block   > {
-                    > }
+            program   > f() {
+                      > }
+                      > use io
+                      > g() {
+                      > }
+            use       > use io
+            id        > io
+            method    > f() {
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      > }
+            method    > g() {
+                      > }
+            mdecl     > g()
+            id        > g
+            block     > {
+                      > }
 
             Error: `use` must come before every definition
                ╭─[ src0.eta:3:1 ]
@@ -475,20 +475,20 @@ fn sized_global_array() {
                 (global x (array int 4))
                 (method (decl f (params) (returns))
                   (block))))
-            program > x: int[4]
-                    > f() {
-                    > }
-            gdecl   > x: int[4]
-            arr_t   > int[4]
-            int_t   > int
-            int_lit > 4
-            id      > x
-            method  > f() {
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    > }
+            program   > x: int[4]
+                      > f() {
+                      > }
+            gdecl     > x: int[4]
+            arr_t     > int[4]
+            int_t     > int
+            int_lit   > 4
+            id        > x
+            method    > f() {
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      > }
 
             Error: a global array cannot be given a size
                ╭─[ src0.eta:1:7 ]
@@ -518,8 +518,8 @@ fn prose_is_one_diagnostic() {
               (uses)
               (defs
                 (error)))
-            program > what a beautiful, invalid program!
-            error   > what a beautiful, invalid program!
+            program   > what a beautiful, invalid program!
+            error     > what a beautiful, invalid program!
 
             Error: expected a method or global definition, found an identifier
                ╭─[ src0.eta:1:1 ]
@@ -553,24 +553,24 @@ fn junk_inside_a_call_stays_inside_it() {
                   (block
                     (call g)
                     (call h)))))
-            program > f() {
-                    >     g(] )
-                    >     h()
-                    > }
-            method  > f() {
-                    >     g(] )
-                    >     h()
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    >     g(] )
-                    >     h()
-                    > }
-            pcall   > g(] )
-            id      > g
-            pcall   > h()
-            id      > h
+            program   > f() {
+                      >     g(] )
+                      >     h()
+                      > }
+            method    > f() {
+                      >     g(] )
+                      >     h()
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     g(] )
+                      >     h()
+                      > }
+            pcall     > g(] )
+            id        > g
+            pcall     > h()
+            id        > h
 
             Error: expected an expression, found `]`
                ╭─[ src0.eta:2:7 ]
@@ -605,32 +605,32 @@ fn if_with_no_condition() {
                     (if (error)
                       (block
                         (call g)))))))
-            program > f() {
-                    >     if {
-                    >         g()
-                    >     }
-                    > }
-            method  > f() {
-                    >     if {
-                    >         g()
-                    >     }
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    >     if {
-                    >         g()
-                    >     }
-                    > }
-            if      > if {
-                    >     g()
-                    > }
-            error   > 
-            block   > {
-                    >     g()
-                    > }
-            pcall   > g()
-            id      > g
+            program   > f() {
+                      >     if {
+                      >         g()
+                      >     }
+                      > }
+            method    > f() {
+                      >     if {
+                      >         g()
+                      >     }
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     if {
+                      >         g()
+                      >     }
+                      > }
+            if        > if {
+                      >     g()
+                      > }
+            error     > 
+            block     > {
+                      >     g()
+                      > }
+            pcall     > g()
+            id        > g
 
             Error: expected an expression, found `{`
                ╭─[ src0.eta:2:8 ]
@@ -664,31 +664,31 @@ fn dangling_else_binds_innermost() {
                       (if b
                         (call g)
                         (call h)))))))
-            program > f(a: bool, b: bool) {
-                    >     if a if b g() else h()
-                    > }
-            method  > f(a: bool, b: bool) {
-                    >     if a if b g() else h()
-                    > }
-            mdecl   > f(a: bool, b: bool)
-            id      > f
-            decl    > a: bool
-            bool_t  > bool
-            id      > a
-            decl    > b: bool
-            bool_t  > bool
-            id      > b
-            block   > {
-                    >     if a if b g() else h()
-                    > }
-            if      > if a if b g() else h()
-            id      > a
-            if      > if b g() else h()
-            id      > b
-            pcall   > g()
-            id      > g
-            pcall   > h()
-            id      > h
+            program   > f(a: bool, b: bool) {
+                      >     if a if b g() else h()
+                      > }
+            method    > f(a: bool, b: bool) {
+                      >     if a if b g() else h()
+                      > }
+            mdecl     > f(a: bool, b: bool)
+            id        > f
+            decl      > a: bool
+            bool_t    > bool
+            id        > a
+            decl      > b: bool
+            bool_t    > bool
+            id        > b
+            block     > {
+                      >     if a if b g() else h()
+                      > }
+            if        > if a if b g() else h()
+            id        > a
+            if        > if b g() else h()
+            id        > b
+            pcall     > g()
+            id        > g
+            pcall     > h()
+            id        > h
 
         "#]]
     }
@@ -712,18 +712,18 @@ fn bare_discard() {
                 (method (decl f (params) (returns))
                   (block
                     (error)))))
-            program > f() {
-                    >     _
-                    > }
-            method  > f() {
-                    >     _
-                    > }
-            mdecl   > f()
-            id      > f
-            block   > {
-                    >     _
-                    > }
-            error   > _
+            program   > f() {
+                      >     _
+                      > }
+            method    > f() {
+                      >     _
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     _
+                      > }
+            error     > _
 
             Error: `_` is only allowed on the left of an assignment
                ╭─[ src0.eta:2:5 ]

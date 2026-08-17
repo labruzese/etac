@@ -1,0 +1,341 @@
+use io
+use conv
+
+usage() {
+    println("Please specify the input size")
+}
+
+ack_main(args:int[][]) {
+    n: int = 11
+    r: int = Ack(3, n)
+    
+    print("Ack(3,")
+    print(unparseInt(n))
+    print("): ")
+    print(unparseInt(r))
+    println("")
+}
+
+Ack(m:int, n:int):int {
+    if (m == 0) { return n+1 }
+    else if (n == 0) { return Ack(m-1, 1) }
+    else { return Ack(m-1, Ack(m, n-1)) }
+}
+
+// Requires: the array a of length n>0 is in ascending sorted order.
+// Ensures: If x is in the array, return valid index i such that a[i]=x.
+//          Otherwise, return an arbitrary index in 0..n-1.
+//
+binary_search(a: int[], x: int) : int {
+    n:int = length(a)
+    l:int = 0
+    r:int = n-1
+
+    // loop invariant: l <= r & a[l] <= x & a[r] >= x &
+    //                 forall i,j in 0..n-1: i<j => a[i] < a[j]
+    // decrementing function: r-l
+    while (l < r) {
+        m:int = (l+r)/2
+        if (a[m] < x) l = m+1
+        else r = m
+    }
+    return l
+}
+
+// An implementation of Turing's "bombe" attack on the Enigma cipher.
+// Essentially, given a crib, it's possible to figure out the position of the
+// rotors independently from plugboard (which has far more settings); this does
+// involve brute force, but 26^3 is doable even with electromechanical means.
+//
+// (With rotors known, the plugboard can be reverse-engineered by hand...)
+//
+// The crib from which the loops were extracted as:
+//             1         2        3          4         5
+//   0123456789012345678901234567890123456789012345678901234567
+//   theenigmacipheriscertainlystrongbutnotwithoutitsweaknesses
+//   JCJYROSNHZXNTNGQPXHADDUSNKCGWZEOQFVLBDLFFDZQLJSHYMFNHWLYXY
+
+toLower(c: int): int {
+    if (c >= 'A' & c <= 'Z') { return c - 'A' + 'a' }
+    return c
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// Rotor
+
+makeInverse(base: int[], inv: int[]) {
+    c: int = 0
+    while c < 26 {
+        //We have c->base[c], inv has base[c] going to c.
+        inv[base[c]] = c
+        c = c + 1
+    }
+}
+
+mkMatrix(n: int) : int[][]
+{
+    a: int[n][n]
+    return a;
+}
+
+// Rotor encoding: forward map, reverse map, position
+makeRotor(sig: int[]): int[][], int[][], int {
+    forward:  int[][] = mkMatrix(26)
+    backward: int[][] = mkMatrix(26)
+
+    base: int[26]
+
+    c: int = 0
+    while c < 26 {
+        cd: int = toLower(sig[c]) - 'a'
+        base[c] = cd
+        c = c + 1
+    }
+
+    inv: int[26]
+
+    rot: int = 0
+    while rot < 26 {
+        //Fill in forward direction for this..
+        c = 0
+        while c < 26 {
+            forward[rot][c] = base[c]
+            c = c + 1
+        }
+
+        //Make inverse..
+        makeInverse(base, inv)
+
+        //Fill in backward
+        c = 0
+        while c < 26 {
+            backward[rot][c] = inv[c]
+            c = c + 1
+        }
+
+        //Simulate rotation..
+        first:int = (base[0] - 1 + 26)%26
+        pos:int = 1
+        while pos < 26 {
+            base[pos-1] = (base[pos] - 1 + 26)%26
+            pos = pos + 1
+        }
+
+        base[25] = first
+
+        rot = rot + 1
+    }
+
+    return forward, backward, 0
+}
+
+rotorEncryptForward(forward: int[][], backward: int[][], pos: int, letter: int): int {
+    return forward[pos][letter]
+}
+
+rotorEncryptBack(forward: int[][], backward: int[][], pos: int, letter: int): int {
+    return backward[pos][letter]
+}
+
+///////////////////////////////////////////////////////////////////////////////
+/// Reflector
+
+// This is just a permutation, so its state is an int[]
+
+makeReflector(encoding: int[]): int[] {
+    perm:int[26]
+
+    //Extract the base permutation.
+    c: int = 0
+    while c < 26 {
+        cd: int = toLower(encoding[c])-'a'
+        perm[c] = cd
+        c = c + 1
+    }
+    return perm
+}
+
+reflectorEncrypt(perm: int[], l:int): int {
+    return perm[l]
+}
+
+enigma_main(a: int[][]) {
+    loops: int[][] = {
+     {12, 27, 6, 57, 25, 51, 52, -1},
+     {12, 27, 6, 55, 25, 51, 52, -1},
+     {12, 46, 47, -1},
+     {12, 27, 6, 16, 11, 52, -1}
+    }
+
+    //Setup components
+    r1f: int[][], r1b: int[][], r1p: int = makeRotor("EKMFLGDQVZNTOWYHXUSPAIBRCJ")
+    r2f: int[][], r2b: int[][], r2p: int = makeRotor("AJDKSIRUXBLHWTMCQGZNPYFVOE")
+    r3f: int[][], r3b: int[][], r3p: int = makeRotor("BDFHJLCPRTXVZNYEIWGAKMUSQO")
+    mb: int[] = makeReflector("YRUHQSLDPXNGOKMIEBFZCWVJAT")
+
+    pos: int = 0
+    while (pos < 26*26*26) {
+        //Guess where the first letter in the loop goes to..
+        guess: int = 0
+        while guess < 26 {
+            allMatch: bool = true
+
+            loop: int = 0
+            while loop < length(loops) {
+                l: int = guess
+                //Try to go through the possible values..
+                loopPos: int = 0
+                while (loops[loop][loopPos] != -1) {
+                    epos: int = pos + loops[loop][loopPos]
+
+                    r1p = epos % 26
+                    r2p = (epos/26)%26
+                    r3p = epos/(26*26)%26
+                    l = rotorEncryptForward(r1f, r1b, r1p, l)
+                    l = rotorEncryptForward(r2f, r2b, r2p, l)
+                    l = rotorEncryptForward(r3f, r3b, r3p, l)
+                    l = reflectorEncrypt(mb, l)
+                    l = rotorEncryptBack(r3f, r3b, r3p, l)
+                    l = rotorEncryptBack(r2f, r2b, r2p, l)
+                    l = rotorEncryptBack(r1f, r1b, r1p, l)
+                    loopPos = loopPos + 1
+                }
+
+                if (l != guess)
+                    allMatch = false
+
+                loop = loop + 1
+            } // while loop
+
+            if allMatch {
+                posStr: int[3]
+                posStr[0] = (pos%26)+'A'
+                posStr[1] = ((pos/26)%26)+'A'
+                posStr[2] = ((pos/(26*26))%26)+'A'
+                print ("MATCH At rotor pos:")
+                print (posStr)
+                print (" first comes in from:")
+                guessStr:int[1]
+                guessStr[0] = guess+'A'
+                println(guessStr)
+            }
+
+            guess = guess + 1
+        } // while guess
+
+        pos = pos + 1
+    } // while pos
+}
+
+fib(i:int) : int {
+    if i < 2 {
+        return i
+    } else {
+        return fib(i-1) + fib(i-2)
+    }
+}
+
+fib_main(args:int[][]) {
+    print("Please enter a positive number : ");
+    input: int[] = readln();
+    value:int, valid:bool = parseInt(input)
+
+    if !valid {
+            println("Invalid input!")
+            return
+    }
+
+    println(unparseInt(fib(value)))
+}
+
+sort(a: int[]) {
+  i:int = 0
+  n:int = length(a)
+  while (i < n) {
+      j:int = i
+      while (j > 0) {
+        if (a[j-1] > a[j]) {
+            swap:int = a[j]
+            a[j] = a[j-1]
+            a[j-1] = swap
+        }
+        j = j-1
+      }
+      i = i+1
+  }
+}
+
+match(t:int[], p:int[]) : int {
+    return matcher(t, p, prefix(p), 1)
+}
+
+begin(t:int[], p:int[]) : int[] {
+    return prefix(p)
+}
+
+next(t:int[], p:int[], pi:int[], i:int):int {
+    return matcher(t, p, pi, i+1)
+}
+
+matcher(t:int[], p:int[], pi:int[], i_:int) : int {
+    i:int = i_
+    n:int = length(t)
+    m:int = length(p)
+
+    q:int = 0
+
+    while i <= n {
+        while (q > 0 & p[q] != t[i-1]) q = pi[q-1]
+        if (p[q] == t[i-1]) q = q + 1
+        if q == m { return i-m+1 }
+
+        i = i+1
+    }
+    return -1
+}
+
+prefix(p:int[]) : int[] {
+    m:int = length(p)
+    pi:int[m]
+    k:int = 0
+    q:int = 2
+    while q <= m {
+        while (k > 0 & p[k] != p[q-1]) k = pi[k-1]
+        if (p[k] == p[q-1]) k = k + 1
+        pi[q-1] = k
+        q = q + 1
+    }
+    return pi
+}
+
+gcd(a:int, b:int):int {
+    while a != 0 {
+        if a<b  b = b - a
+        else    a = a - b
+    }
+    return b
+}
+
+isprime(n:int):bool {
+    i:int = 2
+    while (i*i <= n) {
+        if (gcd(i, n) != 1) {
+            return false
+        }
+        i = i+1
+    }
+    return true
+}
+
+largestprime(max:int):int {
+    a:int = 1; largest:int = 1
+    while a < max {
+      if isprime(a)  largest = a
+      a = a+1
+    }
+    return largest
+}
+
+primes_main(args:int[][]) {
+    print("Largest prime less than 1,000,000 is " + unparseInt(largestprime(1000000)))
+}

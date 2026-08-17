@@ -1,5 +1,5 @@
 use std::fmt::Write;
-use std::{cell::RefCell, rc::Rc};
+use std::cell::RefCell;
 
 use etac_errors::{dcx::DiagCtx, emitter::EmitConfig};
 use etac_intern::EtacInterner;

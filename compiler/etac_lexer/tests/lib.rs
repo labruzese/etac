@@ -33,15 +33,15 @@ fn arrayinit() {
             src0:1:8..1:9        RBracket
             src0:1:10..1:11      Assign
             src0:1:12..1:13      BlockOpen
-            src0:1:13..1:15      Int(72)
+            src0:1:13..1:15      IntLiteral(72)
             src0:1:15..1:16      Comma
-            src0:1:16..1:19      Int(101)
+            src0:1:16..1:19      IntLiteral(101)
             src0:1:19..1:20      Comma
-            src0:1:20..1:23      Int(108)
+            src0:1:20..1:23      IntLiteral(108)
             src0:1:23..1:24      Comma
-            src0:1:24..1:27      Int(108)
+            src0:1:24..1:27      IntLiteral(108)
             src0:1:27..1:28      Comma
-            src0:1:28..1:31      Int(111)
+            src0:1:28..1:31      IntLiteral(111)
             src0:1:31..1:32      BlockClose
             src0:2:1..2:2        Identifier(a)
             src0:2:2..2:3        Colon
@@ -72,9 +72,9 @@ fn arrayinit2() {
             src0:1:8..1:9        Assign
             src0:1:10..1:13      Identifier(gcd)
             src0:1:13..1:14      LParen
-            src0:1:14..1:16      Int(10)
+            src0:1:14..1:16      IntLiteral(10)
             src0:1:16..1:17      Comma
-            src0:1:18..1:19      Int(2)
+            src0:1:18..1:19      IntLiteral(2)
             src0:1:19..1:20      RParen
             src0:2:1..2:2        Identifier(a)
             src0:2:2..2:3        Colon
@@ -86,14 +86,14 @@ fn arrayinit2() {
             src0:3:7..3:8        LParen
             src0:3:8..3:9        Identifier(n)
             src0:3:10..3:11      Gt
-            src0:3:12..3:13      Int(0)
+            src0:3:12..3:13      IntLiteral(0)
             src0:3:13..3:14      RParen
             src0:3:15..3:16      BlockOpen
             src0:4:3..4:4        Identifier(n)
             src0:4:5..4:6        Assign
             src0:4:7..4:8        Identifier(n)
             src0:4:9..4:10       Minus
-            src0:4:11..4:12      Int(1)
+            src0:4:11..4:12      IntLiteral(1)
             src0:5:3..5:4        Identifier(a)
             src0:5:4..5:5        LBracket
             src0:5:5..5:6        Identifier(n)
@@ -465,7 +465,7 @@ fn ex1() {
             src0:5:13..5:14      Assign
             src0:5:15..5:18      CharLiteral(x)
             src0:5:19..5:20      Plus
-            src0:5:21..5:23      Int(47)
+            src0:5:21..5:23      IntLiteral(47)
             src0:5:23..5:24      SemiColon
             src0:6:3..6:7        Identifier(r2d2)
             src0:6:7..6:8        Colon
@@ -490,7 +490,7 @@ fn ex2() {
             src0:1:2..1:3        Colon
             src0:1:3..1:7        KwBool
             src0:1:8..1:9        Assign
-            src0:1:10..1:11      Int(4)
+            src0:1:10..1:11      IntLiteral(4)
             src0:1:11..1:14      Identifier(all)
             src0:2:1..2:2        Identifier(x)
             src0:2:3..2:4        Assign
@@ -543,7 +543,7 @@ fn gcd() {
             src0:2:9..2:10       LParen
             src0:2:10..2:11      Identifier(a)
             src0:2:12..2:14      Neq
-            src0:2:15..2:16      Int(0)
+            src0:2:15..2:16      IntLiteral(0)
             src0:2:16..2:17      RParen
             src0:2:18..2:19      BlockOpen
             src0:3:5..3:7        KwIf
@@ -640,7 +640,7 @@ fn insertionsort() {
             src0:2:4..2:5        Colon
             src0:2:5..2:8        KwInt
             src0:2:9..2:10       Assign
-            src0:2:11..2:12      Int(0)
+            src0:2:11..2:12      IntLiteral(0)
             src0:3:3..3:4        Identifier(n)
             src0:3:4..3:5        Colon
             src0:3:5..3:8        KwInt
@@ -665,7 +665,7 @@ fn insertionsort() {
             src0:6:13..6:14      LParen
             src0:6:14..6:15      Identifier(j)
             src0:6:16..6:17      Gt
-            src0:6:18..6:19      Int(0)
+            src0:6:18..6:19      IntLiteral(0)
             src0:6:19..6:20      RParen
             src0:6:21..6:22      BlockOpen
             src0:7:9..7:11       KwIf
@@ -674,7 +674,7 @@ fn insertionsort() {
             src0:7:14..7:15      LBracket
             src0:7:15..7:16      Identifier(j)
             src0:7:16..7:17      Minus
-            src0:7:17..7:18      Int(1)
+            src0:7:17..7:18      IntLiteral(1)
             src0:7:18..7:19      RBracket
             src0:7:20..7:21      Gt
             src0:7:22..7:23      Identifier(a)
@@ -700,13 +700,13 @@ fn insertionsort() {
             src0:9:21..9:22      LBracket
             src0:9:22..9:23      Identifier(j)
             src0:9:23..9:24      Minus
-            src0:9:24..9:25      Int(1)
+            src0:9:24..9:25      IntLiteral(1)
             src0:9:25..9:26      RBracket
             src0:10:13..10:14    Identifier(a)
             src0:10:14..10:15    LBracket
             src0:10:15..10:16    Identifier(j)
             src0:10:16..10:17    Minus
-            src0:10:17..10:18    Int(1)
+            src0:10:17..10:18    IntLiteral(1)
             src0:10:18..10:19    RBracket
             src0:10:20..10:21    Assign
             src0:10:22..10:26    Identifier(swap)
@@ -715,13 +715,13 @@ fn insertionsort() {
             src0:12:11..12:12    Assign
             src0:12:13..12:14    Identifier(j)
             src0:12:14..12:15    Minus
-            src0:12:15..12:16    Int(1)
+            src0:12:15..12:16    IntLiteral(1)
             src0:13:7..13:8      BlockClose
             src0:14:7..14:8      Identifier(i)
             src0:14:9..14:10     Assign
             src0:14:11..14:12    Identifier(i)
             src0:14:12..14:13    Plus
-            src0:14:13..14:14    Int(1)
+            src0:14:13..14:14    IntLiteral(1)
             src0:15:3..15:4      BlockClose
             src0:16:1..16:2      BlockClose
             src0:16:3..16:3      EOF
@@ -820,7 +820,7 @@ fn keyword_prefix_identifiers() {
             src0:1:8..1:9        Colon
             src0:1:10..1:13      KwInt
             src0:1:14..1:15      Assign
-            src0:1:16..1:17      Int(0)
+            src0:1:16..1:17      IntLiteral(0)
             src0:2:1..2:8        Identifier(boolean)
             src0:2:8..2:9        Colon
             src0:2:10..2:14      KwBool
@@ -830,27 +830,27 @@ fn keyword_prefix_identifiers() {
             src0:3:5..3:6        Colon
             src0:3:7..3:10       KwInt
             src0:3:11..3:12      Assign
-            src0:3:13..3:14      Int(1)
+            src0:3:13..3:14      IntLiteral(1)
             src0:4:1..4:4        Identifier(iff)
             src0:4:4..4:5        Colon
             src0:4:6..4:9        KwInt
             src0:4:10..4:11      Assign
-            src0:4:12..4:13      Int(2)
+            src0:4:12..4:13      IntLiteral(2)
             src0:5:1..5:10       Identifier(whileLoop)
             src0:5:10..5:11      Colon
             src0:5:12..5:15      KwInt
             src0:5:16..5:17      Assign
-            src0:5:18..5:19      Int(3)
+            src0:5:18..5:19      IntLiteral(3)
             src0:6:1..6:10       Identifier(returning)
             src0:6:10..6:11      Colon
             src0:6:12..6:15      KwInt
             src0:6:16..6:17      Assign
-            src0:6:18..6:19      Int(4)
+            src0:6:18..6:19      IntLiteral(4)
             src0:7:1..7:8        Identifier(lengths)
             src0:7:8..7:9        Colon
             src0:7:10..7:13      KwInt
             src0:7:14..7:15      Assign
-            src0:7:16..7:17      Int(5)
+            src0:7:16..7:17      IntLiteral(5)
             src0:7:18..7:18      EOF
         "#]]
     }
@@ -884,10 +884,10 @@ fn leading_zeros() {
             01
         "#],
         expect![[r#"
-            src0:1:1..1:2        Int(0)
-            src0:1:2..1:3        Int(0)
-            src0:2:1..2:2        Int(0)
-            src0:2:2..2:3        Int(1)
+            src0:1:1..1:2        IntLiteral(0)
+            src0:1:2..1:3        IntLiteral(0)
+            src0:2:1..2:2        IntLiteral(0)
+            src0:2:2..2:3        IntLiteral(1)
             src0:2:4..2:4        EOF
         "#]]
     }
@@ -900,8 +900,8 @@ fn max_int_boundary() {
             9223372036854775808
         "#],
         expect![[r#"
-            src0:1:1..1:20       Int(9223372036854775807)
-            src0:2:1..2:20       Int(9223372036854775808)
+            src0:1:1..1:20       IntLiteral(9223372036854775807)
+            src0:2:1..2:20       IntLiteral(9223372036854775808)
             src0:2:21..2:21      EOF
         "#]]
     }
@@ -941,10 +941,10 @@ fn mdarrays() {
             src0:2:2..2:3        Colon
             src0:2:4..2:7        KwInt
             src0:2:7..2:8        LBracket
-            src0:2:8..2:9        Int(3)
+            src0:2:8..2:9        IntLiteral(3)
             src0:2:9..2:10       RBracket
             src0:2:10..2:11      LBracket
-            src0:2:11..2:12      Int(4)
+            src0:2:11..2:12      IntLiteral(4)
             src0:2:12..2:13      RBracket
             src0:3:1..3:2        Identifier(a)
             src0:3:3..3:4        Assign
@@ -953,38 +953,38 @@ fn mdarrays() {
             src0:4:2..4:3        Colon
             src0:4:4..4:7        KwInt
             src0:4:7..4:8        LBracket
-            src0:4:8..4:9        Int(3)
+            src0:4:8..4:9        IntLiteral(3)
             src0:4:9..4:10       RBracket
             src0:4:10..4:11      LBracket
             src0:4:11..4:12      RBracket
             src0:5:1..5:2        Identifier(c)
             src0:5:2..5:3        LBracket
-            src0:5:3..5:4        Int(0)
+            src0:5:3..5:4        IntLiteral(0)
             src0:5:4..5:5        RBracket
             src0:5:6..5:7        Assign
             src0:5:8..5:9        Identifier(b)
             src0:5:9..5:10       LBracket
-            src0:5:10..5:11      Int(0)
+            src0:5:10..5:11      IntLiteral(0)
             src0:5:11..5:12      RBracket
             src0:5:12..5:13      SemiColon
             src0:5:14..5:15      Identifier(c)
             src0:5:15..5:16      LBracket
-            src0:5:16..5:17      Int(1)
+            src0:5:16..5:17      IntLiteral(1)
             src0:5:17..5:18      RBracket
             src0:5:19..5:20      Assign
             src0:5:21..5:22      Identifier(b)
             src0:5:22..5:23      LBracket
-            src0:5:23..5:24      Int(1)
+            src0:5:23..5:24      IntLiteral(1)
             src0:5:24..5:25      RBracket
             src0:5:25..5:26      SemiColon
             src0:5:27..5:28      Identifier(c)
             src0:5:28..5:29      LBracket
-            src0:5:29..5:30      Int(2)
+            src0:5:29..5:30      IntLiteral(2)
             src0:5:30..5:31      RBracket
             src0:5:32..5:33      Assign
             src0:5:34..5:35      Identifier(b)
             src0:5:35..5:36      LBracket
-            src0:5:36..5:37      Int(2)
+            src0:5:36..5:37      IntLiteral(2)
             src0:5:37..5:38      RBracket
             src0:6:1..6:2        Identifier(d)
             src0:6:2..6:3        Colon
@@ -996,15 +996,15 @@ fn mdarrays() {
             src0:6:12..6:13      Assign
             src0:6:14..6:15      BlockOpen
             src0:6:15..6:16      BlockOpen
-            src0:6:16..6:17      Int(1)
+            src0:6:16..6:17      IntLiteral(1)
             src0:6:17..6:18      Comma
-            src0:6:19..6:20      Int(0)
+            src0:6:19..6:20      IntLiteral(0)
             src0:6:20..6:21      BlockClose
             src0:6:21..6:22      Comma
             src0:6:23..6:24      BlockOpen
-            src0:6:24..6:25      Int(0)
+            src0:6:24..6:25      IntLiteral(0)
             src0:6:25..6:26      Comma
-            src0:6:27..6:28      Int(1)
+            src0:6:27..6:28      IntLiteral(1)
             src0:6:28..6:29      BlockClose
             src0:6:29..6:30      BlockClose
             src0:6:31..6:31      EOF
@@ -1138,13 +1138,13 @@ fn lex_pa1_ratadduse() {
             src0:1:16..1:17      Assign
             src0:1:18..1:24      Identifier(ratadd)
             src0:1:24..1:25      LParen
-            src0:1:25..1:26      Int(2)
+            src0:1:25..1:26      IntLiteral(2)
             src0:1:26..1:27      Comma
-            src0:1:28..1:29      Int(5)
+            src0:1:28..1:29      IntLiteral(5)
             src0:1:29..1:30      Comma
-            src0:1:31..1:32      Int(1)
+            src0:1:31..1:32      IntLiteral(1)
             src0:1:32..1:33      Comma
-            src0:1:34..1:35      Int(3)
+            src0:1:34..1:35      IntLiteral(3)
             src0:1:35..1:36      RParen
             src0:2:1..2:2        LParen
             src0:2:2..2:3        Discard
@@ -1156,13 +1156,13 @@ fn lex_pa1_ratadduse() {
             src0:2:13..2:14      Assign
             src0:2:15..2:21      Identifier(ratadd)
             src0:2:21..2:22      LParen
-            src0:2:22..2:23      Int(1)
+            src0:2:22..2:23      IntLiteral(1)
             src0:2:23..2:24      Comma
-            src0:2:25..2:26      Int(2)
+            src0:2:25..2:26      IntLiteral(2)
             src0:2:26..2:27      Comma
-            src0:2:28..2:29      Int(1)
+            src0:2:28..2:29      IntLiteral(1)
             src0:2:29..2:30      Comma
-            src0:2:31..2:32      Int(3)
+            src0:2:31..2:32      IntLiteral(3)
             src0:2:32..2:33      RParen
             src0:2:34..2:34      EOF
         "#]]
@@ -1182,7 +1182,7 @@ fn spec1() {
             src0:1:2..1:3        Colon
             src0:1:3..1:6        KwInt
             src0:1:7..1:8        Assign
-            src0:1:9..1:10       Int(2)
+            src0:1:9..1:10       IntLiteral(2)
             src0:1:10..1:11      SemiColon
             src0:2:1..2:2        Identifier(z)
             src0:2:2..2:3        Colon
@@ -1227,15 +1227,15 @@ fn spec2() {
             src0:1:3..1:4        Assign
             src0:1:5..1:6        Identifier(x)
             src0:1:7..1:8        Plus
-            src0:1:9..1:10       Int(1)
+            src0:1:9..1:10       IntLiteral(1)
             src0:2:1..2:2        Identifier(s)
             src0:2:3..2:4        Assign
             src0:2:5..2:6        BlockOpen
-            src0:2:6..2:7        Int(1)
+            src0:2:6..2:7        IntLiteral(1)
             src0:2:7..2:8        Comma
-            src0:2:9..2:10       Int(2)
+            src0:2:9..2:10       IntLiteral(2)
             src0:2:10..2:11      Comma
-            src0:2:12..2:13      Int(3)
+            src0:2:12..2:13      IntLiteral(3)
             src0:2:13..2:14      BlockClose
             src0:3:1..3:2        Identifier(b)
             src0:3:3..3:4        Assign
@@ -1261,9 +1261,9 @@ fn spec3() {
             src0:1:12..1:19      StrLiteral(Hello)
             src0:1:20..1:21      Plus
             src0:1:22..1:23      BlockOpen
-            src0:1:23..1:25      Int(13)
+            src0:1:23..1:25      IntLiteral(13)
             src0:1:25..1:26      Comma
-            src0:1:27..1:29      Int(10)
+            src0:1:27..1:29      IntLiteral(10)
             src0:1:29..1:30      BlockClose
             src0:1:31..1:31      EOF
         "#]]

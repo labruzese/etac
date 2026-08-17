@@ -83,7 +83,8 @@ impl DiagCtx {
     }
 
     /// deliberately don't emit the diagnostics to emitter
-    pub fn cancel(#[cfg_attr(not(debug_assertions), allow(unused_mut))] mut self) {
+    #[allow(unused_mut)]
+    pub fn cancel(mut self) {
         #[cfg(debug_assertions)] self.bomb.defuse();
     }
 
@@ -182,7 +183,7 @@ impl<'dcx> Diag<'dcx> {
 
     /// Emit a fully-built diagnostic.
     #[must_use = "consider returning this guarentee as a proof that you have already emitted for this error"]
-    pub fn finish(mut self) -> ErrorGuaranteed {
+    pub fn finish(#[allow(unused_mut)] mut self) -> ErrorGuaranteed {
         let level = self.diagnostic.level;
         match level {
             Level::Error => {
@@ -202,7 +203,7 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Throw the diagnostic away deliberately (drop without panic in debug mode)
-    pub fn cancel(#[cfg_attr(not(debug_assertions), allow(unused_mut))] mut self) {
+    pub fn cancel(#[allow(unused_mut)] mut self) {
         #[cfg(debug_assertions)]
         self.bomb.defuse();
     }

@@ -5,7 +5,6 @@
 use std::fmt;
 
 use etac_errors::dcx::{Diag, DiagCtx};
-use etac_errors::etac_error;
 use etac_lexer::token::{Token, TokenKind};
 use etac_lexer::Tok;
 use etac_lexer::Tokens;

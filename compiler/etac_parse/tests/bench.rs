@@ -17,7 +17,7 @@ use etac_source::SourceMap;
 fn throughput() {
     let mut src = String::new();
     for _ in 0..200 { // this will generate at least use errors
-        src.push_str(include_str!("./bench/main.eta"));
+        src.push_str(include_str!("bench/main.eta"));
     }
     let bytes = src.len();
 

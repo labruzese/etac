@@ -57,9 +57,9 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> SpanPrinterWriter<'ast, 'sm, 'buf, 'prt
         let s = Self::elipse_lines(&s, seal);
 
         let mut lines = s.lines();
-        Self::into_cf(writeln!(self.out, "{tag:<width$}> {}", Self::elipse_line(lines.next().unwrap_or_default(), seac), width = 8))?;
+        Self::into_cf(writeln!(self.out, "{tag:<width$}> {}", Self::elipse_line(lines.next().unwrap_or_default(), seac), width = 10))?;
         for line in lines {
-            Self::into_cf(writeln!(self.out, "        > {}", Self::elipse_line(line, seac)))?;
+            Self::into_cf(writeln!(self.out, "          > {}", Self::elipse_line(line, seac)))?;
         }
         ControlFlow::Continue(())
     }
