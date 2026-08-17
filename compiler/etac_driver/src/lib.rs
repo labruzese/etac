@@ -1,20 +1,15 @@
 //! The driver for the compiler
-//!
-//! Creates the compilation's [`EtaCache`] and diagnostic context, then passes
-//! input between each phase, storing every phase's output back into the cache
-//! and attaching loggers along the way.
 
-use std::convert::identity;
-
+use etac_ast::ast::{Interface, Program};
 use etac_cache::EtaCache;
 use etac_errors::{
     dcx::{Diag, DiagCtx},
     guarentee::ErrorGuaranteed,
 };
-use etac_intern::{EtacInterner};
+use etac_intern::EtacInterner;
 use etac_parse::{
     result::{ParseResult, Parsed},
-    IParser,
+    Parse,
 };
 use etac_resolve::{File, Resolver};
 use etac_session::cli::Flags;
@@ -27,55 +22,28 @@ mod status;
 type Result<T> = std::result::Result<T, ErrorGuaranteed>;
 type CompilationResult = std::result::Result<CompilationSuccess, CompilationFailure>;
 
-struct ParseOneSuccess<'src, Out> {
-    _out: Out,
-    _interner: &'src mut EtacInterner,
-}
-
-fn parse_one<'src, 'dcx, P>(
-    sm: &'src SourceMap,
-    interner: &'src mut EtacInterner,
-    dcx: &'dcx DiagCtx,
-    file: FileId<'src>,
-    parser: P,
-) -> Result<ParseOneSuccess<'src, P::Out>>
+fn parse_one<'src, T>(sm: &'src SourceMap, interner: &mut EtacInterner, dcx: &DiagCtx, file: FileId<'src>) -> Result<T>
 where
-    P: IParser<'src, 'dcx>,
+    T: Parse,
 {
     let source = sm.get_source(file);
-    let offset = sm.base_offset(file);
-    let lexer = etac_lexer::EtaLexer::new(offset, &source.source, interner, dcx);
+    let lexed = etac_lexer::EtaLexer::new(sm.base_offset(file), interner, dcx).lex(&source.source);
 
-    let ParseResult {
-        parse,
-        mut diags,
-        symbols,
-    } = parser.parse(lexer);
+    let mut lex_guarantee = None;
+    for diag in Vec::from(lexed.diags) {
+        lex_guarantee = Some(diag.finish());
+    }
+
+    let ParseResult { parse, mut diags } = T::parse(&lexed.tokens, dcx);
+    let parse_guarantee = diags.drain(..).map(Diag::finish).reduce(|_, g| g);
 
     match parse {
-        Parsed::Ok(tree) => Ok(ParseOneSuccess {
-            _out: tree,
-            _interner: symbols,
-        }),
-        Parsed::Recovered(tree) => {
-            let _g = diags
-                .drain(..)
-                .map(Diag::finish)
-                .reduce(|_, g| identity(g))
-                .expect("recovered tree must have at least one diagnostic");
-            Ok(ParseOneSuccess {
-                _out: tree,
-                _interner: symbols,
-            })
-        }
-        Parsed::Failed => {
-            let g = diags
-                .drain(..)
-                .map(Diag::finish)
-                .reduce(|_, g| identity(g))
-                .expect("failed tree must have at least one diagnostic");
-            Err(g)
-        }
+        Parsed::Ok(tree) | Parsed::Recovered(tree) => Ok(tree),
+        Parsed::Failed => Err(
+            parse_guarantee
+                .or(lex_guarantee)
+                .expect("a failed parse must have reported at least one diagnostic")
+        ),
     }
 }
 
@@ -97,24 +65,22 @@ pub fn run(flags: &Flags) -> CompilationResult {
         })
         .collect();
 
-
     for file in files {
         match file {
             File::Program(id) => {
-                if let Ok(ParseOneSuccess{ _out: _, _interner: _ }) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id, etac_parse::ProgramParser::new(&dcx)) {
-                    
-                }
+                let _ast: Result<Program> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id);
             }
             File::Interface(id) => {
-                if let Ok(ParseOneSuccess{ _out: _, _interner: _ }) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id, etac_parse::InterfaceParser::new(&dcx)) {
-                    
-                }
+                let _ast: Result<Interface> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id);
             }
         }
     }
 
-    match dcx.has_errors() {
+    let result = match dcx.has_errors() {
         true => Err((&dcx).into()),
         false => Ok((&dcx).into()),
-    }
+    };
+
+    dcx.emit_diagnostics(&cache.sources);
+    result
 }

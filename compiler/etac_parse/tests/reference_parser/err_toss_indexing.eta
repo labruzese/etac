@@ -1,0 +1,3 @@
+main(args: int[][]) {
+    _[0] = true
+}

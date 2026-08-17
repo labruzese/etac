@@ -6,7 +6,7 @@ use expect_test::expect;
 use indoc::indoc;
 
 #[macro_use]
-pub mod parse;
+pub mod util;
 
 #[test]
 fn add() {

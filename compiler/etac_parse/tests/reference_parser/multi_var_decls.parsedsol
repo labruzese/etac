@@ -1,0 +1,8 @@
+(()
+ ((main ((args ([] ([] int)))) ()
+   ( (= ((x int) z (y int)) (1 2))
+     (= ((a int) (b bool)) (3 true))
+   )
+  )
+ )
+)

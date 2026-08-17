@@ -1,44 +1,43 @@
-use std::{cell::RefCell, rc::Rc};
-
 use etac_errors::{dcx::{Diag, DiagCtx}, emitter::EmitConfig};
 use etac_intern::EtacInterner;
 use etac_lexer::EtaLexer;
-use etac_parse::{IParser, result::ParseResult};
+use etac_parse::{Parse, result::{Parsed, ParseResult}};
 use etac_source::{FileId, SourceMap};
 
-pub fn parse_program<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String {
-    let out = Rc::new(RefCell::new(String::new()));
-    let dcx = DiagCtx::with_emitter(Box::new(etac_test::string_emitter(
-        &out,
-        EmitConfig::default().with_color(false).with_compact(false),
-    )));
-    let lexer = EtaLexer::new(sm.base_offset(file_id), &sm.get_source(file_id).source, interner, &dcx);
+fn run<'sm, T>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String
+where
+    T: Parse,
+    for<'a, 'b> etac_ast::display::sexpr::SexpPrinter<'a, 'b, EtacInterner, T>: std::fmt::Display,
+    for<'a, 'b> etac_ast::display::span::SpanPrinter<'a, 'b, T>: std::fmt::Display,
+{
+    let (out, emitter) = etac_test::string_emitter(EmitConfig::default().with_color(false).with_compact(false));
+    let dcx = DiagCtx::with_emitter(Box::new(emitter));
+    // Lex first, then parse: the parser walks a finished token array.
+    let lexed = EtaLexer::new(sm.base_offset(file_id), interner, &dcx).lex(&sm.get_source(file_id).source);
+    for d in Vec::from(lexed.diags) {
+        let _ = d.finish();
+    }
 
-    let parser = etac_parse::ProgramParser::new(&dcx);
+    let ParseResult { parse, mut diags } = T::parse(&lexed.tokens, &dcx);
+    diags.drain(..).map(Diag::finish).reduce(|_, g| g);
 
-    let ParseResult { parse, mut diags, symbols } = parser.parse(lexer);
-    diags.drain(..).map(Diag::finish).reduce(|_,g| g);
-    etac_test::write_parse(&out, parse, file_id, sm, symbols);
+    let (status, tree) = match &parse {
+        Parsed::Ok(t) => ("clean", Some(t)),
+        Parsed::Recovered(t) => ("recovered", Some(t)),
+        Parsed::Failed => ("failed", None),
+    };
+    etac_test::write_parse(&out, status, tree, file_id, sm, interner);
+
     dcx.emit_diagnostics(sm);
     out.take()
 }
 
+pub fn parse_program<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String {
+    run::<etac_ast::ast::Program>(sm, interner, file_id)
+}
+
 pub fn parse_interface<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String {
-    let out = Rc::new(RefCell::new(String::new()));
-    let dcx = DiagCtx::with_emitter(Box::new(etac_test::string_emitter(
-        &out,
-        EmitConfig::default().with_color(false).with_compact(false),
-    )));
-    let lexer = EtaLexer::new(sm.base_offset(file_id), &sm.get_source(file_id).source, interner, &dcx);
-
-    let parser = etac_parse::InterfaceParser::new(&dcx);
-
-    let ParseResult { parse, mut diags, symbols } = parser.parse(lexer);
-    diags.drain(..).map(Diag::finish).reduce(|_,g| g);
-    etac_test::write_parse(&out, parse, file_id, sm, symbols);
-
-    dcx.emit_diagnostics(sm);
-    out.take()
+    run::<etac_ast::ast::Interface>(sm, interner, file_id)
 }
 
 #[allow(unused_macros)]
@@ -60,8 +59,8 @@ macro_rules! parsetest {
             u => panic!("no parser for this file type {}", u),
         };
         let parse_res = match ty {
-            Ft::Prgm => parse::parse_program(&$cache.sources, &mut $cache.state.interner, id),
-            Ft::Intf => parse::parse_interface(&$cache.sources, &mut $cache.state.interner, id),
+            Ft::Prgm => util::parse_program(&$cache.sources, &mut $cache.state.interner, id),
+            Ft::Intf => util::parse_interface(&$cache.sources, &mut $cache.state.interner, id),
         };
         let expected: expect_test::Expect = $expected;
         expected.assert_eq(&parse_res);

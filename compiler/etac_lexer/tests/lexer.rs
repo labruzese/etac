@@ -16,12 +16,8 @@ fn write_token(write_buf: &RefCell<String>, token: Token, span: Span, sm: &Sourc
 
 /// testing interface for lexer
 pub fn lex<'sm>(sm: &SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String {
-    let out = Rc::new(RefCell::new(String::new()));
-
-    let dcx = DiagCtx::with_emitter(Box::new(etac_test::string_emitter(
-        &out,
-        EmitConfig::default().with_color(false).with_compact(false),
-    )));
+    let (out, emitter) = etac_test::string_emitter(EmitConfig::default().with_color(false).with_compact(false));
+    let dcx = DiagCtx::with_emitter(Box::new(emitter));
 
     let lexer = EtaLexer::new(sm.base_offset(file_id), interner, &dcx);
 

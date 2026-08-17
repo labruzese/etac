@@ -1,0 +1,5 @@
+f(a: bool, b: bool, c: bool): bool {
+    d: bool = a & b | c & !a
+    e: bool = (a | b) & (b | c)
+    return d == e
+}

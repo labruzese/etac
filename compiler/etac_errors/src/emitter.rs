@@ -13,7 +13,7 @@ use crate::{Level, dcx::Diagnostic};
 
 /// Can take ownership of a diagnostic to emit it
 pub trait Emitter {
-    fn emit<'sm>(&mut self, sm: &'sm SourceMap, diag: crate::dcx::Diagnostic);
+    fn emit(&mut self, sm: &SourceMap, diag: crate::dcx::Diagnostic);
 }
 
 pub type EmitConfig = ariadne::Config;
@@ -35,7 +35,7 @@ impl<W: Write> IoEmitter<W> {
 }
 
 impl<W: Write> Emitter for IoEmitter<W> {
-    fn emit<'sm>(&mut self, sm: &'sm SourceMap, diag: crate::dcx::Diagnostic) {
+    fn emit(&mut self, sm: &SourceMap, diag: crate::dcx::Diagnostic) {
         diag.render_report(sm, &mut self.writer, self.conf);
     }
 }

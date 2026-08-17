@@ -1,0 +1,20 @@
+count: int = 42
+flag: bool = true
+data: int[]
+n: int
+
+flag2: bool = true;
+m: int;
+
+reset() {
+    count = 0
+    flag = false
+}
+
+count: int = 42
+flag: bool = true
+data: int[]
+n: int
+
+flag2: bool = true;
+m: int;

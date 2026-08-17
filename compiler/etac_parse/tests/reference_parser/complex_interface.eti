@@ -1,0 +1,7 @@
+// Math operations
+add(a: int, b: int): int
+subtract(a: int, b: int): int
+divide(a: int, b: int): int, int
+noop()
+identity(x: int[]): int[]
+matrix(m: int[][]): int[][]

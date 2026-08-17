@@ -6,6 +6,9 @@ authors.workspace = true
 
 [dependencies]
 etac_errors.workspace = true
+etac_ast.workspace    = true
+etac_source.workspace = true
+etac_intern.workspace = true
 
 [lints]
 workspace = true

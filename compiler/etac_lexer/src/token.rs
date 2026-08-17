@@ -66,6 +66,7 @@ macro_rules! tokens {
             kept: [ ]
             name: [ ]
             toks: [ ]
+            pats: [ ]
             cur:  [ $id $(($data))? ]
             outer: {
                 meta: [ $($meta)* ]
@@ -81,6 +82,7 @@ macro_rules! tokens {
     // Done, an explicit #[name] was given.
     (@attrs
         scan: [ ] kept: [ $($kept:tt)* ] name: [ $n:literal ] toks: [ $($toks:tt)* ]
+        pats: [ $($p:tt)+ ]
         cur: [ $id:ident $(($data:tt))? ]
         outer: {
             meta: [ $($meta:tt)* ] ids: [ $($ids:tt)* ] disp: [ $($disp:tt)* ]
@@ -91,16 +93,17 @@ macro_rules! tokens {
             @build
             meta: [ $($meta)* ]
             ids:  [ $($ids)* ]
-            disp: [ $($disp)* $id : $n , ]
+            disp: [ $($disp)* $id : $n : prose , ]
             todo: [ $($todo)* ]
             variants: [ $($variants)* $($kept)* $id $(($data))? , ]
-            arms: [ $($arms)* ($n) => { $crate::Token::$id }; ]
+            arms: [ $($arms)* ($($p)*) => { $crate::token::TokenKind::$id }; ]
         }
     };
 
     // Done, no #[name], exactly one #[token] -> that literal is the name.
     (@attrs
         scan: [ ] kept: [ $($kept:tt)* ] name: [ ] toks: [ $t:literal ]
+        pats: [ $($p:tt)+ ]
         cur: [ $id:ident $(($data:tt))? ]
         outer: {
             meta: [ $($meta:tt)* ] ids: [ $($ids:tt)* ] disp: [ $($disp:tt)* ]
@@ -111,16 +114,30 @@ macro_rules! tokens {
             @build
             meta: [ $($meta)* ]
             ids:  [ $($ids)* ]
-            disp: [ $($disp)* $id : $t , ]
+            disp: [ $($disp)* $id : $t : literal , ]
             todo: [ $($todo)* ]
             variants: [ $($variants)* $($kept)* $id $(($data))? , ]
-            arms: [ $($arms)* ($t) => { $crate::Token::$id }; ]
+            arms: [ $($arms)* ($($p)*) => { $crate::token::TokenKind::$id }; ]
         }
+    };
+
+    // Done, but no #[pat(..)] -> `Tok![..]` would have no spelling for this token.
+    (@attrs
+        scan: [ ] kept: [ $($kept:tt)* ] name: [ $($name:tt)* ] toks: [ $($toks:tt)* ]
+        pats: [ ]
+        cur: [ $id:ident $(($data:tt))? ]
+        outer: { $($outer:tt)* }
+    ) => {
+        compile_error!(concat!(
+            "token variant `", stringify!($id),
+            "` needs a #[pat(..)] giving its spelling inside `Tok![..]`"
+        ));
     };
 
     // Done, but ambiguous: zero or 2+ #[token]s and no #[name].
     (@attrs
         scan: [ ] kept: [ $($kept:tt)* ] name: [ ] toks: [ $($toks:tt)* ]
+        pats: [ $($p:tt)* ]
         cur: [ $id:ident $(($data:tt))? ]
         outer: { $($outer:tt)* }
     ) => {
@@ -138,6 +155,24 @@ macro_rules! tokens {
     ) => {
         tokens! {
             @attrs scan: [ $($rest)* ] kept: [ $($kept)* ] name: [ $n ] toks: [ $($toks)* ]
+            $($tail)*
+        }
+    };
+
+    // #[pat(..)] -- the spelling this token answers to inside `Tok![..]`.
+    (@attrs
+        scan: [ #[pat($($p:tt)*)] $($rest:tt)* ]
+        kept: [ $($kept:tt)* ] name: [ $($name:tt)* ] toks: [ $($toks:tt)* ]
+        pats: [ $($old:tt)* ]
+        $($tail:tt)*
+    ) => {
+        tokens! {
+            @attrs
+            scan: [ $($rest)* ]
+            kept: [ $($kept)* ]
+            name: [ $($name)* ]
+            toks: [ $($toks)* ]
+            pats: [ $($p)* ]
             $($tail)*
         }
     };
@@ -167,11 +202,17 @@ macro_rules! tokens {
         tokens! { @attrs scan: [ $($rest)* ] kept: [ $($kept)* # $other ] $($tail)* }
     };
 
+    // Render a token name the way a diagnostic wants to read it: concrete spellings get
+    // backticks (`` `,` ``), prose names are already written to slot into a sentence
+    // ("an identifier").
+    (@disp_str literal $l:literal) => { concat!("`", $l, "`") };
+    (@disp_str prose   $l:literal) => { $l };
+
     // everything is accumulated, emit.
     (@build
         meta: [ $($meta:tt)* ]
         ids:  [ $( $id:ident $(($data:tt))? ),* $(,)? ]
-        disp: [ $( $did:ident : $dlit:literal , )* ]
+        disp: [ $( $did:ident : $dlit:literal : $dkind:ident , )* ]
         todo: [ ]
         variants: [ $($variants:tt)* ]
         arms: [ $($arms:tt)* ]
@@ -189,6 +230,10 @@ macro_rules! tokens {
 
         impl TokenKind {
             pub const COUNT: usize = count_idents!($($id)*);
+
+            /// Every kind, in discriminant order. Lets a bitset of kinds be turned back
+            /// into the kinds it holds (see `etac_parse`'s `TokenSet`).
+            pub const ALL: [TokenKind; Self::COUNT] = [ $(TokenKind::$id,)* ];
         }
 
         impl fmt::Display for TokenKind {
@@ -196,9 +241,21 @@ macro_rules! tokens {
                 // `f.write_str(<expr>)` rather than `write!(f, <macro call>)`:
                 // write!'s first argument must be a literal format string.
                 f.write_str(match self {
-                    $( TokenKind::$did => $dlit, )*
+                    $( TokenKind::$did => tokens!(@disp_str $dkind $dlit), )*
                 })
             }
+        }
+
+        /// Name a [`TokenKind`] by how it is written in Eta source: `Tok![,]`,
+        /// `Tok![while]`, `Tok!['(']`, `Tok![ident]`.
+        ///
+        /// Generated from the token table above, so a new token becomes available here
+        /// the moment it gets a `#[pat(..)]` -- there is no second list to update.
+        /// Delimiters are spelled as char literals (`Tok!['(']`) because an unbalanced
+        /// `(` cannot appear on its own inside a macro invocation.
+        #[macro_export]
+        macro_rules! Tok {
+            $($arms)*
         }
 
         impl Token {
@@ -236,77 +293,82 @@ macro_rules! tokens {
 
 tokens! {
     Logos {
-        #[derive(Debug, Clone, PartialEq, Logos)]
+        #[derive(Debug, Clone, Copy, PartialEq, Logos)]
         #[logos(skip r"[ \t\n\f\r]+")]
         #[logos(skip(r"//[^\n]*", allow_greedy = true))]
         #[logos(extras = (u32, &'s mut EtacInterner))]
         #[logos(error(InternalLexerError, internal_error_unknown_token))]
     }
 
-    #[name("eof")]      EOF,
-    #[name("error")]    Error,
+    #[name("end of file")]  #[pat(EOF)]     EOF,
+    #[name("error")]        #[pat(Error)]   Error,
 
     // Keywords
-    #[token("use")]     KwUse,
-    #[token("length")]  KwLength,
-    #[token("while")]   KwWhile,
-    #[token("if")]      KwIf,
-    #[token("else")]    KwElse,
-    #[token("return")]  KwReturn,
-    #[token("int")]     KwInt,
-    #[token("bool")]    KwBool,
+    #[token("use")]     #[pat(use)]     KwUse,
+    #[token("length")]  #[pat(length)]  KwLength,
+    #[token("while")]   #[pat(while)]   KwWhile,
+    #[token("if")]      #[pat(if)]      KwIf,
+    #[token("else")]    #[pat(else)]    KwElse,
+    #[token("return")]  #[pat(return)]  KwReturn,
+    #[token("int")]     #[pat(int)]     KwInt,
+    #[token("bool")]    #[pat(bool)]    KwBool,
 
-    #[token(";")]       SemiColon,
-    #[token("_")]       Discard,
-    #[token(":")]       Colon,
-    #[token("=")]       Assign,
-    #[token(",")]       Comma,
+    #[token(";")]       #[pat(;)]       SemiColon,
+    #[token("_")]       #[pat(_)]       Discard,
+    #[token(":")]       #[pat(:)]       Colon,
+    #[token("=")]       #[pat(=)]       Assign,
+    #[token(",")]       #[pat(,)]       Comma,
 
-    #[token("(")]       LParen,
-    #[token(")")]       RParen,
-    #[token("[")]       LBracket,
-    #[token("]")]       RBracket,
-    #[token("{")]       BlockOpen,
-    #[token("}")]       BlockClose,
+    #[token("(")]       #[pat('(')]     LParen,
+    #[token(")")]       #[pat(')')]     RParen,
+    #[token("[")]       #[pat('[')]     LBracket,
+    #[token("]")]       #[pat(']')]     RBracket,
+    #[token("{")]       #[pat('{')]     BlockOpen,
+    #[token("}")]       #[pat('}')]     BlockClose,
 
-    #[token("*")]       Star,
-    #[token("*>>")]     HMul,
-    #[token("/")]       FSlash,
-    #[token("%")]       Percent,
-    #[token("!")]       Bang,
-    #[token("-")]       Minus,
-    #[token("+")]       Plus,
+    #[token("*")]       #[pat(*)]       Star,
+    #[token("*>>")]     #[pat(*>>)]     HMul,
+    #[token("/")]       #[pat(/)]       FSlash,
+    #[token("%")]       #[pat(%)]       Percent,
+    #[token("!")]       #[pat(!)]       Bang,
+    #[token("-")]       #[pat(-)]       Minus,
+    #[token("+")]       #[pat(+)]       Plus,
 
-    #[token("==")]      EqEq,
-    #[token("!=")]      Neq,
-    #[token(">")]       Gt,
-    #[token(">=")]      Ge,
-    #[token("<")]       Lt,
-    #[token("<=")]      Le,
+    #[token("==")]      #[pat(==)]      EqEq,
+    #[token("!=")]      #[pat(!=)]      Neq,
+    #[token(">")]       #[pat(>)]       Gt,
+    #[token(">=")]      #[pat(>=)]      Ge,
+    #[token("<")]       #[pat(<)]       Lt,
+    #[token("<=")]      #[pat(<=)]      Le,
 
-    #[token("&")]       Land,
-    #[token("|")]       Lor,
+    #[token("&")]       #[pat(&)]       Land,
+    #[token("|")]       #[pat(|)]       Lor,
 
     #[token("true", |_| true)]
     #[token("false", |_| false)]
-    #[name("a bool literal")]
+    #[name("a boolean literal")]
+    #[pat(bool_lit)]
     BoolLiteral(bool),
 
     #[regex(r"'([^'\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*'", crate::strings::parse_char)]
-    #[name("a char literal")]
+    #[name("a character literal")]
+    #[pat(char_lit)]
     CharLiteral(char),
 
     #[regex(r#""([^"\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*""#, |lex| {
         crate::strings::parse_str(lex).map(|s| lex.extras.1.get_or_intern(&s))
     })]
     #[name("a string literal")]
+    #[pat(str_lit)]
     StrLiteral(Symbol),
 
     #[regex(r"[1-9][0-9]*|0", crate::parse_int)]
-    #[name("an int literal")]
+    #[name("an integer literal")]
+    #[pat(int_lit)]
     IntLiteral(u64),
 
     #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.extras.1.get_or_intern(lex.slice()))]
     #[name("an identifier")]
+    #[pat(ident)]
     Identifier(Symbol),
 }

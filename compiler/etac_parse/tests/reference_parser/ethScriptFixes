@@ -1,0 +1,23 @@
+# build compiler first
+build
+
+etac ("Test --parse bugfixing") ["../resources/eta-files/custom/pa2"] "--parse" {
+    gd_assign01.eta;
+    gd_assign03.eta;
+    gd_assign04.eta;
+    gd_block01.eta;
+    gd_block02.eta;
+    gd_globlarrinit.eta (Syntax, "Syntax error: unexpected string whoops.");
+    gd_globlarrinit1.eta (Syntax, "Syntax error: unexpected integer 4.");
+    gd_globlarrinit2.eta (Syntax, "Syntax error: unexpected {.");
+    ref_expr06.eta;
+    referr_block01.eta (Syntax, "Syntax error: unexpected ;.");
+    referr_empty.eta (Syntax, "Syntax error: unexpected end of file.");
+    referr_use01.eta (Syntax, "Syntax error: unexpected end of file.");
+    referr_use02.eta (Syntax, "Syntax error: unexpected end of file.");
+    referr_vardecl01.eta (Syntax, "Syntax error: unexpected integer 1.");
+    referr_vardecl02.eta (Syntax, "Syntax error: unexpected integer 1.");
+    referr_vardecl03.eta (Syntax, "Syntax error: unexpected _.");
+    etierr_x01.eti (Syntax, "Syntax error: unexpected end of file.");
+    etierr_x04.eti (Syntax, "Syntax error: unexpected end of file.");
+}

@@ -1,0 +1,6 @@
+x :bool[] = {true, false,};
+
+foo(x :int) :int
+{
+   return x;
+}
