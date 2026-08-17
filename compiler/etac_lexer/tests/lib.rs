@@ -11,9 +11,10 @@ fn add() {
     lextest! {
         "+++",
         expect![[r#"
-            src0:1:1..1:2 +
-            src0:1:2..1:3 +
-            src0:1:3..1:4 +
+            src0:1:1..1:2        Plus
+            src0:1:2..1:3        Plus
+            src0:1:3..1:4        Plus
+            src0:1:4..1:4        EOF
         "#]]
     }
 }
@@ -25,30 +26,31 @@ fn arrayinit() {
             a: int[] = "Hello"
         "#],
         expect![[r#"
-            src0:1:1..1:2 a
-            src0:1:2..1:3 :
-            src0:1:4..1:7 int
-            src0:1:7..1:8 [
-            src0:1:8..1:9 ]
-            src0:1:10..1:11 =
-            src0:1:12..1:13 {
-            src0:1:13..1:15 72
-            src0:1:15..1:16 ,
-            src0:1:16..1:19 101
-            src0:1:19..1:20 ,
-            src0:1:20..1:23 108
-            src0:1:23..1:24 ,
-            src0:1:24..1:27 108
-            src0:1:27..1:28 ,
-            src0:1:28..1:31 111
-            src0:1:31..1:32 }
-            src0:2:1..2:2 a
-            src0:2:2..2:3 :
-            src0:2:4..2:7 int
-            src0:2:7..2:8 [
-            src0:2:8..2:9 ]
-            src0:2:10..2:11 =
-            src0:2:12..2:19 "Hello"
+            src0:1:1..1:2        Identifier(a)
+            src0:1:2..1:3        Colon
+            src0:1:4..1:7        KwInt
+            src0:1:7..1:8        LBracket
+            src0:1:8..1:9        RBracket
+            src0:1:10..1:11      Assign
+            src0:1:12..1:13      BlockOpen
+            src0:1:13..1:15      Int(72)
+            src0:1:15..1:16      Comma
+            src0:1:16..1:19      Int(101)
+            src0:1:19..1:20      Comma
+            src0:1:20..1:23      Int(108)
+            src0:1:23..1:24      Comma
+            src0:1:24..1:27      Int(108)
+            src0:1:27..1:28      Comma
+            src0:1:28..1:31      Int(111)
+            src0:1:31..1:32      BlockClose
+            src0:2:1..2:2        Identifier(a)
+            src0:2:2..2:3        Colon
+            src0:2:4..2:7        KwInt
+            src0:2:7..2:8        LBracket
+            src0:2:8..2:9        RBracket
+            src0:2:10..2:11      Assign
+            src0:2:12..2:19      StrLiteral(Hello)
+            src0:2:20..2:20      EOF
         "#]]
     }
 }
@@ -64,41 +66,42 @@ fn arrayinit2() {
             }
         "#],
         expect![[r#"
-            src0:1:1..1:2 n
-            src0:1:2..1:3 :
-            src0:1:4..1:7 int
-            src0:1:8..1:9 =
-            src0:1:10..1:13 gcd
-            src0:1:13..1:14 (
-            src0:1:14..1:16 10
-            src0:1:16..1:17 ,
-            src0:1:18..1:19 2
-            src0:1:19..1:20 )
-            src0:2:1..2:2 a
-            src0:2:2..2:3 :
-            src0:2:4..2:7 int
-            src0:2:7..2:8 [
-            src0:2:8..2:9 n
-            src0:2:9..2:10 ]
-            src0:3:1..3:6 while
-            src0:3:7..3:8 (
-            src0:3:8..3:9 n
-            src0:3:10..3:11 >
-            src0:3:12..3:13 0
-            src0:3:13..3:14 )
-            src0:3:15..3:16 {
-            src0:4:3..4:4 n
-            src0:4:5..4:6 =
-            src0:4:7..4:8 n
-            src0:4:9..4:10 -
-            src0:4:11..4:12 1
-            src0:5:3..5:4 a
-            src0:5:4..5:5 [
-            src0:5:5..5:6 n
-            src0:5:6..5:7 ]
-            src0:5:8..5:9 =
-            src0:5:10..5:11 n
-            src0:6:1..6:2 }
+            src0:1:1..1:2        Identifier(n)
+            src0:1:2..1:3        Colon
+            src0:1:4..1:7        KwInt
+            src0:1:8..1:9        Assign
+            src0:1:10..1:13      Identifier(gcd)
+            src0:1:13..1:14      LParen
+            src0:1:14..1:16      Int(10)
+            src0:1:16..1:17      Comma
+            src0:1:18..1:19      Int(2)
+            src0:1:19..1:20      RParen
+            src0:2:1..2:2        Identifier(a)
+            src0:2:2..2:3        Colon
+            src0:2:4..2:7        KwInt
+            src0:2:7..2:8        LBracket
+            src0:2:8..2:9        Identifier(n)
+            src0:2:9..2:10       RBracket
+            src0:3:1..3:6        KwWhile
+            src0:3:7..3:8        LParen
+            src0:3:8..3:9        Identifier(n)
+            src0:3:10..3:11      Gt
+            src0:3:12..3:13      Int(0)
+            src0:3:13..3:14      RParen
+            src0:3:15..3:16      BlockOpen
+            src0:4:3..4:4        Identifier(n)
+            src0:4:5..4:6        Assign
+            src0:4:7..4:8        Identifier(n)
+            src0:4:9..4:10       Minus
+            src0:4:11..4:12      Int(1)
+            src0:5:3..5:4        Identifier(a)
+            src0:5:4..5:5        LBracket
+            src0:5:5..5:6        Identifier(n)
+            src0:5:6..5:7        RBracket
+            src0:5:8..5:9        Assign
+            src0:5:10..5:11      Identifier(n)
+            src0:6:1..6:2        BlockClose
+            src0:6:3..6:3        EOF
         "#]]
     }
 }
@@ -109,17 +112,19 @@ fn badescape() {
             This is not a Unicode char: \x{ffffff}
         "#], 
         expect![[r#"
-            src0:1:1..1:5 This
-            src0:1:6..1:8 is
-            src0:1:9..1:12 not
-            src0:1:13..1:14 a
-            src0:1:15..1:22 Unicode
-            src0:1:23..1:27 char
-            src0:1:27..1:28 :
-            src0:1:30..1:31 x
-            src0:1:31..1:32 {
-            src0:1:32..1:38 ffffff
-            src0:1:38..1:39 }
+            src0:1:1..1:5        Identifier(This)
+            src0:1:6..1:8        Identifier(is)
+            src0:1:9..1:12       Identifier(not)
+            src0:1:13..1:14      Identifier(a)
+            src0:1:15..1:22      Identifier(Unicode)
+            src0:1:23..1:27      Identifier(char)
+            src0:1:27..1:28      Colon
+            src0:1:29..1:30      Error
+            src0:1:30..1:31      Identifier(x)
+            src0:1:31..1:32      BlockOpen
+            src0:1:32..1:38      Identifier(ffffff)
+            src0:1:38..1:39      BlockClose
+            src0:1:40..1:40      EOF
             Error: unknown token
                ╭─[ src0:1:29 ]
                │
@@ -139,105 +144,106 @@ fn beauty() {
             ===============================================================================
         "#],
         expect![[r#"
-            src0:1:1..1:3 ==
-            src0:1:3..1:5 ==
-            src0:1:5..1:7 ==
-            src0:1:7..1:9 ==
-            src0:1:9..1:11 ==
-            src0:1:11..1:13 ==
-            src0:1:13..1:15 ==
-            src0:1:15..1:17 ==
-            src0:1:17..1:19 ==
-            src0:1:19..1:21 ==
-            src0:1:21..1:23 ==
-            src0:1:23..1:25 ==
-            src0:1:25..1:27 ==
-            src0:1:27..1:29 ==
-            src0:1:29..1:31 ==
-            src0:1:31..1:33 ==
-            src0:1:33..1:35 ==
-            src0:1:35..1:37 ==
-            src0:1:37..1:39 ==
-            src0:1:39..1:41 ==
-            src0:1:41..1:43 ==
-            src0:1:43..1:45 ==
-            src0:1:45..1:47 ==
-            src0:1:47..1:49 ==
-            src0:1:49..1:51 ==
-            src0:1:51..1:53 ==
-            src0:1:53..1:55 ==
-            src0:1:55..1:57 ==
-            src0:1:57..1:59 ==
-            src0:1:59..1:61 ==
-            src0:1:61..1:63 ==
-            src0:1:63..1:65 ==
-            src0:1:65..1:67 ==
-            src0:1:67..1:69 ==
-            src0:1:69..1:71 ==
-            src0:1:71..1:73 ==
-            src0:1:73..1:75 ==
-            src0:1:75..1:77 ==
-            src0:1:77..1:79 ==
-            src0:1:79..1:80 =
-            src0:2:1..2:2 =
-            src0:2:3..2:7 This
-            src0:2:8..2:10 is
-            src0:2:11..2:12 a
-            src0:2:13..2:22 beautiful
-            src0:2:23..2:31 document
-            src0:2:32..2:39 heading
-            src0:2:39..2:40 ,
-            src0:2:41..2:44 not
-            src0:2:45..2:46 a
-            src0:2:47..2:49 xi
-            src0:2:50..2:57 program
-            src0:2:57..2:58 ,
-            src0:2:59..2:62 but
-            src0:2:63..2:65 it
-            src0:2:66..2:71 still
-            src0:2:72..2:77 lexes
-            src0:2:77..2:78 !
-            src0:2:79..2:80 =
-            src0:3:1..3:3 ==
-            src0:3:3..3:5 ==
-            src0:3:5..3:7 ==
-            src0:3:7..3:9 ==
-            src0:3:9..3:11 ==
-            src0:3:11..3:13 ==
-            src0:3:13..3:15 ==
-            src0:3:15..3:17 ==
-            src0:3:17..3:19 ==
-            src0:3:19..3:21 ==
-            src0:3:21..3:23 ==
-            src0:3:23..3:25 ==
-            src0:3:25..3:27 ==
-            src0:3:27..3:29 ==
-            src0:3:29..3:31 ==
-            src0:3:31..3:33 ==
-            src0:3:33..3:35 ==
-            src0:3:35..3:37 ==
-            src0:3:37..3:39 ==
-            src0:3:39..3:41 ==
-            src0:3:41..3:43 ==
-            src0:3:43..3:45 ==
-            src0:3:45..3:47 ==
-            src0:3:47..3:49 ==
-            src0:3:49..3:51 ==
-            src0:3:51..3:53 ==
-            src0:3:53..3:55 ==
-            src0:3:55..3:57 ==
-            src0:3:57..3:59 ==
-            src0:3:59..3:61 ==
-            src0:3:61..3:63 ==
-            src0:3:63..3:65 ==
-            src0:3:65..3:67 ==
-            src0:3:67..3:69 ==
-            src0:3:69..3:71 ==
-            src0:3:71..3:73 ==
-            src0:3:73..3:75 ==
-            src0:3:75..3:77 ==
-            src0:3:77..3:79 ==
-            src0:3:79..3:80 =
+            src0:1:1..1:3        EqEq
+            src0:1:3..1:5        EqEq
+            src0:1:5..1:7        EqEq
+            src0:1:7..1:9        EqEq
+            src0:1:9..1:11       EqEq
+            src0:1:11..1:13      EqEq
+            src0:1:13..1:15      EqEq
+            src0:1:15..1:17      EqEq
+            src0:1:17..1:19      EqEq
+            src0:1:19..1:21      EqEq
+            src0:1:21..1:23      EqEq
+            src0:1:23..1:25      EqEq
+            src0:1:25..1:27      EqEq
+            src0:1:27..1:29      EqEq
+            src0:1:29..1:31      EqEq
+            src0:1:31..1:33      EqEq
+            src0:1:33..1:35      EqEq
+            src0:1:35..1:37      EqEq
+            src0:1:37..1:39      EqEq
+            src0:1:39..1:41      EqEq
+            src0:1:41..1:43      EqEq
+            src0:1:43..1:45      EqEq
+            src0:1:45..1:47      EqEq
+            src0:1:47..1:49      EqEq
+            src0:1:49..1:51      EqEq
+            src0:1:51..1:53      EqEq
+            src0:1:53..1:55      EqEq
+            src0:1:55..1:57      EqEq
+            src0:1:57..1:59      EqEq
+            src0:1:59..1:61      EqEq
+            src0:1:61..1:63      EqEq
+            src0:1:63..1:65      EqEq
+            src0:1:65..1:67      EqEq
+            src0:1:67..1:69      EqEq
+            src0:1:69..1:71      EqEq
+            src0:1:71..1:73      EqEq
+            src0:1:73..1:75      EqEq
+            src0:1:75..1:77      EqEq
+            src0:1:77..1:79      EqEq
+            src0:1:79..1:80      Assign
+            src0:2:1..2:2        Assign
+            src0:2:3..2:7        Identifier(This)
+            src0:2:8..2:10       Identifier(is)
+            src0:2:11..2:12      Identifier(a)
+            src0:2:13..2:22      Identifier(beautiful)
+            src0:2:23..2:31      Identifier(document)
+            src0:2:32..2:39      Identifier(heading)
+            src0:2:39..2:40      Comma
+            src0:2:41..2:44      Identifier(not)
+            src0:2:45..2:46      Identifier(a)
+            src0:2:47..2:49      Identifier(xi)
+            src0:2:50..2:57      Identifier(program)
+            src0:2:57..2:58      Comma
+            src0:2:59..2:62      Identifier(but)
+            src0:2:63..2:65      Identifier(it)
+            src0:2:66..2:71      Identifier(still)
+            src0:2:72..2:77      Identifier(lexes)
+            src0:2:77..2:78      Bang
+            src0:2:79..2:80      Assign
+            src0:3:1..3:3        EqEq
+            src0:3:3..3:5        EqEq
+            src0:3:5..3:7        EqEq
+            src0:3:7..3:9        EqEq
+            src0:3:9..3:11       EqEq
+            src0:3:11..3:13      EqEq
+            src0:3:13..3:15      EqEq
+            src0:3:15..3:17      EqEq
+            src0:3:17..3:19      EqEq
+            src0:3:19..3:21      EqEq
+            src0:3:21..3:23      EqEq
+            src0:3:23..3:25      EqEq
+            src0:3:25..3:27      EqEq
+            src0:3:27..3:29      EqEq
+            src0:3:29..3:31      EqEq
+            src0:3:31..3:33      EqEq
+            src0:3:33..3:35      EqEq
+            src0:3:35..3:37      EqEq
+            src0:3:37..3:39      EqEq
+            src0:3:39..3:41      EqEq
+            src0:3:41..3:43      EqEq
+            src0:3:43..3:45      EqEq
+            src0:3:45..3:47      EqEq
+            src0:3:47..3:49      EqEq
+            src0:3:49..3:51      EqEq
+            src0:3:51..3:53      EqEq
+            src0:3:53..3:55      EqEq
+            src0:3:55..3:57      EqEq
+            src0:3:57..3:59      EqEq
+            src0:3:59..3:61      EqEq
+            src0:3:61..3:63      EqEq
+            src0:3:63..3:65      EqEq
+            src0:3:65..3:67      EqEq
+            src0:3:67..3:69      EqEq
+            src0:3:69..3:71      EqEq
+            src0:3:71..3:73      EqEq
+            src0:3:73..3:75      EqEq
+            src0:3:75..3:77      EqEq
+            src0:3:77..3:79      EqEq
+            src0:3:79..3:80      Assign
+            src0:3:81..3:81      EOF
         "#]]
     }
 }
@@ -250,16 +256,17 @@ fn consecutive_operators() {
             --x
         "#],
         expect![[r#"
-            src0:1:1..1:2 a
-            src0:1:2..1:3 +
-            src0:1:3..1:4 -
-            src0:1:4..1:5 b
-            src0:2:1..2:2 !
-            src0:2:2..2:3 -
-            src0:2:3..2:4 x
-            src0:3:1..3:2 -
-            src0:3:2..3:3 -
-            src0:3:3..3:4 x
+            src0:1:1..1:2        Identifier(a)
+            src0:1:2..1:3        Plus
+            src0:1:3..1:4        Minus
+            src0:1:4..1:5        Identifier(b)
+            src0:2:1..2:2        Bang
+            src0:2:2..2:3        Minus
+            src0:2:3..2:4        Identifier(x)
+            src0:3:1..3:2        Minus
+            src0:3:2..3:3        Minus
+            src0:3:3..3:4        Identifier(x)
+            src0:3:5..3:5        EOF
         "#]]
     }
 }
@@ -270,6 +277,8 @@ fn empty_hex_escape() {
             "\x{}"
         "#],
         expect![[r#"
+            src0:1:1..1:7        Error
+            src0:1:8..1:8        EOF
             Error: empty unicode escape expected non-empty hex between '{' and '}'
                ╭─[ src0:1:2 ]
                │
@@ -287,6 +296,8 @@ fn error_escape_q() {
             "\q"
         "#],
         expect![[r#"
+            src0:1:1..1:5        Error
+            src0:1:6..1:6        EOF
             Error: unknown escape: '\q' is not a recognized escape sequence
                ╭─[ src0:1:2 ]
                │
@@ -306,6 +317,8 @@ fn error_escape_space() {
             "\ \ \ "
         "#],
         expect![[r#"
+            src0:1:1..1:9        Error
+            src0:1:10..1:10      EOF
             Error: unknown escape: '\ ' is not a recognized escape sequence
                ╭─[ src0:1:2 ]
                │
@@ -325,6 +338,8 @@ fn error_escape_x() {
             "\x"
         "#],
         expect![[r#"
+            src0:1:1..1:5        Error
+            src0:1:6..1:6        EOF
             Error: expected '{{' after '\x'
                ╭─[ src0:1:2 ]
                │
@@ -343,8 +358,9 @@ fn escape_double_quote() {
             "say \"hi\"!"
         "#],
         expect![[r#"
-            src0:1:1..1:5 '\"'
-            src0:2:1..2:14 "say \"hi\"!"
+            src0:1:1..1:5        CharLiteral(\")
+            src0:2:1..2:14       StrLiteral(say \"hi\"!)
+            src0:2:15..2:15      EOF
         "#]]
     }
 }
@@ -356,8 +372,9 @@ fn escape_hex_newline() {
             "\x{0a}"
         "#],
         expect![[r#"
-            src0:1:1..1:9 '\n'
-            src0:2:1..2:9 "\n"
+            src0:1:1..1:9        CharLiteral(\n)
+            src0:2:1..2:9        StrLiteral(\n)
+            src0:2:10..2:10      EOF
         "#]]
     }
 }
@@ -370,9 +387,10 @@ fn escape_null_cr() {
             "\0\r"
         "#],
         expect![[r#"
-            src0:1:1..1:5 '\x{0}'
-            src0:2:1..2:5 '\r'
-            src0:3:1..3:7 "\x{0}\r"
+            src0:1:1..1:5        CharLiteral(\u{0})
+            src0:2:1..2:5        CharLiteral(\r)
+            src0:3:1..3:7        StrLiteral(\u{0}\r)
+            src0:3:8..3:8        EOF
         "#]]
     }
 }
@@ -390,13 +408,15 @@ fn escapes() {
             "\q" 
         "#],
         expect![[r#"
-            src0:1:1..1:21 "Hello, World!"
-            src0:2:1..2:9 'd'
-            src0:3:1..3:21 "Hello, Worl\x{b5}!"
-            src0:4:1..4:9 '\x{b5}'
-            src0:5:1..5:5 "\t"
-            src0:6:1..6:5 '\t'
-            src0:7:1..7:7 "\x{e9}\x{e7}"
+            src0:1:1..1:21       StrLiteral(Hello, World!)
+            src0:2:1..2:9        CharLiteral(d)
+            src0:3:1..3:21       StrLiteral(Hello, Worl\u{b5}!)
+            src0:4:1..4:9        CharLiteral(\u{b5})
+            src0:5:1..5:5        StrLiteral(\t)
+            src0:6:1..6:5        CharLiteral(\t)
+            src0:7:1..7:7        StrLiteral(\u{e9}\u{e7})
+            src0:8:1..8:5        Error
+            src0:8:7..8:7        EOF
             Error: unknown escape: '\q' is not a recognized escape sequence
                ╭─[ src0:8:2 ]
                │
@@ -422,37 +442,38 @@ fn ex1() {
             }
         "#],
         expect![[r#"
-            src0:1:1..1:4 use
-            src0:1:5..1:7 io
-            src0:3:1..3:5 main
-            src0:3:5..3:6 (
-            src0:3:6..3:10 args
-            src0:3:10..3:11 :
-            src0:3:12..3:15 int
-            src0:3:15..3:16 [
-            src0:3:16..3:17 ]
-            src0:3:17..3:18 [
-            src0:3:18..3:19 ]
-            src0:3:19..3:20 )
-            src0:3:21..3:22 {
-            src0:4:3..4:8 print
-            src0:4:8..4:9 (
-            src0:4:9..4:31 "Hello, World!\n"
-            src0:4:31..4:32 )
-            src0:5:3..5:7 c3po
-            src0:5:7..5:8 :
-            src0:5:9..5:12 int
-            src0:5:13..5:14 =
-            src0:5:15..5:18 'x'
-            src0:5:19..5:20 +
-            src0:5:21..5:23 47
-            src0:5:23..5:24 ;
-            src0:6:3..6:7 r2d2
-            src0:6:7..6:8 :
-            src0:6:9..6:12 int
-            src0:6:13..6:14 =
-            src0:6:15..6:19 c3po
-            src0:7:1..7:2 }
+            src0:1:1..1:4        KwUse
+            src0:1:5..1:7        Identifier(io)
+            src0:3:1..3:5        Identifier(main)
+            src0:3:5..3:6        LParen
+            src0:3:6..3:10       Identifier(args)
+            src0:3:10..3:11      Colon
+            src0:3:12..3:15      KwInt
+            src0:3:15..3:16      LBracket
+            src0:3:16..3:17      RBracket
+            src0:3:17..3:18      LBracket
+            src0:3:18..3:19      RBracket
+            src0:3:19..3:20      RParen
+            src0:3:21..3:22      BlockOpen
+            src0:4:3..4:8        Identifier(print)
+            src0:4:8..4:9        LParen
+            src0:4:9..4:31       StrLiteral(Hello, World!\n)
+            src0:4:31..4:32      RParen
+            src0:5:3..5:7        Identifier(c3po)
+            src0:5:7..5:8        Colon
+            src0:5:9..5:12       KwInt
+            src0:5:13..5:14      Assign
+            src0:5:15..5:18      CharLiteral(x)
+            src0:5:19..5:20      Plus
+            src0:5:21..5:23      Int(47)
+            src0:5:23..5:24      SemiColon
+            src0:6:3..6:7        Identifier(r2d2)
+            src0:6:7..6:8        Colon
+            src0:6:9..6:12       KwInt
+            src0:6:13..6:14      Assign
+            src0:6:15..6:19      Identifier(c3po)
+            src0:7:1..7:2        BlockClose
+            src0:7:3..7:3        EOF
         "#]]
     }
 }
@@ -465,19 +486,21 @@ fn ex2() {
             this = does not matter
         "#],
         expect![[r#"
-            src0:1:1..1:2 x
-            src0:1:2..1:3 :
-            src0:1:3..1:7 bool
-            src0:1:8..1:9 =
-            src0:1:10..1:11 4
-            src0:1:11..1:14 all
-            src0:2:1..2:2 x
-            src0:2:3..2:4 =
-            src0:3:1..3:5 this
-            src0:3:6..3:7 =
-            src0:3:8..3:12 does
-            src0:3:13..3:16 not
-            src0:3:17..3:23 matter
+            src0:1:1..1:2        Identifier(x)
+            src0:1:2..1:3        Colon
+            src0:1:3..1:7        KwBool
+            src0:1:8..1:9        Assign
+            src0:1:10..1:11      Int(4)
+            src0:1:11..1:14      Identifier(all)
+            src0:2:1..2:2        Identifier(x)
+            src0:2:3..2:4        Assign
+            src0:2:5..2:7        Error
+            src0:3:1..3:5        Identifier(this)
+            src0:3:6..3:7        Assign
+            src0:3:8..3:12       Identifier(does)
+            src0:3:13..3:16      Identifier(not)
+            src0:3:17..3:23      Identifier(matter)
+            src0:3:24..3:24      EOF
             Error: empty character literal
                ╭─[ src0:2:5 ]
                │
@@ -503,49 +526,50 @@ fn gcd() {
             }
         "#],
         expect![[r#"
-            src0:1:1..1:4 gcd
-            src0:1:4..1:5 (
-            src0:1:5..1:6 a
-            src0:1:6..1:7 :
-            src0:1:7..1:10 int
-            src0:1:10..1:11 ,
-            src0:1:12..1:13 b
-            src0:1:13..1:14 :
-            src0:1:14..1:17 int
-            src0:1:17..1:18 )
-            src0:1:18..1:19 :
-            src0:1:19..1:22 int
-            src0:1:23..1:24 {
-            src0:2:3..2:8 while
-            src0:2:9..2:10 (
-            src0:2:10..2:11 a
-            src0:2:12..2:14 !=
-            src0:2:15..2:16 0
-            src0:2:16..2:17 )
-            src0:2:18..2:19 {
-            src0:3:5..3:7 if
-            src0:3:8..3:9 (
-            src0:3:9..3:10 a
-            src0:3:10..3:11 <
-            src0:3:11..3:12 b
-            src0:3:12..3:13 )
-            src0:3:14..3:15 b
-            src0:3:16..3:17 =
-            src0:3:18..3:19 b
-            src0:3:20..3:21 -
-            src0:3:22..3:23 a
-            src0:4:5..4:9 else
-            src0:4:10..4:11 a
-            src0:4:12..4:13 =
-            src0:4:14..4:15 a
-            src0:4:16..4:17 -
-            src0:4:18..4:19 b
-            src0:5:3..5:4 }
-            src0:6:3..6:9 return
-            src0:6:9..6:10 (
-            src0:6:10..6:11 b
-            src0:6:11..6:12 )
-            src0:7:1..7:2 }
+            src0:1:1..1:4        Identifier(gcd)
+            src0:1:4..1:5        LParen
+            src0:1:5..1:6        Identifier(a)
+            src0:1:6..1:7        Colon
+            src0:1:7..1:10       KwInt
+            src0:1:10..1:11      Comma
+            src0:1:12..1:13      Identifier(b)
+            src0:1:13..1:14      Colon
+            src0:1:14..1:17      KwInt
+            src0:1:17..1:18      RParen
+            src0:1:18..1:19      Colon
+            src0:1:19..1:22      KwInt
+            src0:1:23..1:24      BlockOpen
+            src0:2:3..2:8        KwWhile
+            src0:2:9..2:10       LParen
+            src0:2:10..2:11      Identifier(a)
+            src0:2:12..2:14      Neq
+            src0:2:15..2:16      Int(0)
+            src0:2:16..2:17      RParen
+            src0:2:18..2:19      BlockOpen
+            src0:3:5..3:7        KwIf
+            src0:3:8..3:9        LParen
+            src0:3:9..3:10       Identifier(a)
+            src0:3:10..3:11      Lt
+            src0:3:11..3:12      Identifier(b)
+            src0:3:12..3:13      RParen
+            src0:3:14..3:15      Identifier(b)
+            src0:3:16..3:17      Assign
+            src0:3:18..3:19      Identifier(b)
+            src0:3:20..3:21      Minus
+            src0:3:22..3:23      Identifier(a)
+            src0:4:5..4:9        KwElse
+            src0:4:10..4:11      Identifier(a)
+            src0:4:12..4:13      Assign
+            src0:4:14..4:15      Identifier(a)
+            src0:4:16..4:17      Minus
+            src0:4:18..4:19      Identifier(b)
+            src0:5:3..5:4        BlockClose
+            src0:6:3..6:9        KwReturn
+            src0:6:9..6:10       LParen
+            src0:6:10..6:11      Identifier(b)
+            src0:6:11..6:12      RParen
+            src0:7:1..7:2        BlockClose
+            src0:7:3..7:3        EOF
         "#]]
     }
 }
@@ -556,9 +580,10 @@ fn high_mul_operator() {
             a *>> b
         "#],
         expect![[r#"
-            src0:1:1..1:2 a
-            src0:1:3..1:6 *>>
-            src0:1:7..1:8 b
+            src0:1:1..1:2        Identifier(a)
+            src0:1:3..1:6        HMul
+            src0:1:7..1:8        Identifier(b)
+            src0:1:9..1:9        EOF
         "#]]
     }
 }
@@ -572,10 +597,11 @@ fn identifier_with_primes() {
             q'r's
         "#],
         expect![[r#"
-            src0:1:1..1:3 x'
-            src0:2:1..2:4 a'b
-            src0:3:1..3:5 x'_1
-            src0:4:1..4:6 q'r's
+            src0:1:1..1:3        Identifier(x\')
+            src0:2:1..2:4        Identifier(a\'b)
+            src0:3:1..3:5        Identifier(x\'_1)
+            src0:4:1..4:6        Identifier(q\'r\'s)
+            src0:4:7..4:7        EOF
         "#]]
     }
 }
@@ -601,103 +627,104 @@ fn insertionsort() {
             }
         "#],
         expect![[r#"
-            src0:1:1..1:5 sort
-            src0:1:5..1:6 (
-            src0:1:6..1:7 a
-            src0:1:7..1:8 :
-            src0:1:9..1:12 int
-            src0:1:12..1:13 [
-            src0:1:13..1:14 ]
-            src0:1:14..1:15 )
-            src0:1:16..1:17 {
-            src0:2:3..2:4 i
-            src0:2:4..2:5 :
-            src0:2:5..2:8 int
-            src0:2:9..2:10 =
-            src0:2:11..2:12 0
-            src0:3:3..3:4 n
-            src0:3:4..3:5 :
-            src0:3:5..3:8 int
-            src0:3:9..3:10 =
-            src0:3:11..3:17 length
-            src0:3:17..3:18 (
-            src0:3:18..3:19 a
-            src0:3:19..3:20 )
-            src0:4:3..4:8 while
-            src0:4:9..4:10 (
-            src0:4:10..4:11 i
-            src0:4:12..4:13 <
-            src0:4:14..4:15 n
-            src0:4:15..4:16 )
-            src0:4:17..4:18 {
-            src0:5:7..5:8 j
-            src0:5:8..5:9 :
-            src0:5:9..5:12 int
-            src0:5:13..5:14 =
-            src0:5:15..5:16 i
-            src0:6:7..6:12 while
-            src0:6:13..6:14 (
-            src0:6:14..6:15 j
-            src0:6:16..6:17 >
-            src0:6:18..6:19 0
-            src0:6:19..6:20 )
-            src0:6:21..6:22 {
-            src0:7:9..7:11 if
-            src0:7:12..7:13 (
-            src0:7:13..7:14 a
-            src0:7:14..7:15 [
-            src0:7:15..7:16 j
-            src0:7:16..7:17 -
-            src0:7:17..7:18 1
-            src0:7:18..7:19 ]
-            src0:7:20..7:21 >
-            src0:7:22..7:23 a
-            src0:7:23..7:24 [
-            src0:7:24..7:25 j
-            src0:7:25..7:26 ]
-            src0:7:26..7:27 )
-            src0:7:28..7:29 {
-            src0:8:13..8:17 swap
-            src0:8:17..8:18 :
-            src0:8:18..8:21 int
-            src0:8:22..8:23 =
-            src0:8:24..8:25 a
-            src0:8:25..8:26 [
-            src0:8:26..8:27 j
-            src0:8:27..8:28 ]
-            src0:9:13..9:14 a
-            src0:9:14..9:15 [
-            src0:9:15..9:16 j
-            src0:9:16..9:17 ]
-            src0:9:18..9:19 =
-            src0:9:20..9:21 a
-            src0:9:21..9:22 [
-            src0:9:22..9:23 j
-            src0:9:23..9:24 -
-            src0:9:24..9:25 1
-            src0:9:25..9:26 ]
-            src0:10:13..10:14 a
-            src0:10:14..10:15 [
-            src0:10:15..10:16 j
-            src0:10:16..10:17 -
-            src0:10:17..10:18 1
-            src0:10:18..10:19 ]
-            src0:10:20..10:21 =
-            src0:10:22..10:26 swap
-            src0:11:9..11:10 }
-            src0:12:9..12:10 j
-            src0:12:11..12:12 =
-            src0:12:13..12:14 j
-            src0:12:14..12:15 -
-            src0:12:15..12:16 1
-            src0:13:7..13:8 }
-            src0:14:7..14:8 i
-            src0:14:9..14:10 =
-            src0:14:11..14:12 i
-            src0:14:12..14:13 +
-            src0:14:13..14:14 1
-            src0:15:3..15:4 }
-            src0:16:1..16:2 }
+            src0:1:1..1:5        Identifier(sort)
+            src0:1:5..1:6        LParen
+            src0:1:6..1:7        Identifier(a)
+            src0:1:7..1:8        Colon
+            src0:1:9..1:12       KwInt
+            src0:1:12..1:13      LBracket
+            src0:1:13..1:14      RBracket
+            src0:1:14..1:15      RParen
+            src0:1:16..1:17      BlockOpen
+            src0:2:3..2:4        Identifier(i)
+            src0:2:4..2:5        Colon
+            src0:2:5..2:8        KwInt
+            src0:2:9..2:10       Assign
+            src0:2:11..2:12      Int(0)
+            src0:3:3..3:4        Identifier(n)
+            src0:3:4..3:5        Colon
+            src0:3:5..3:8        KwInt
+            src0:3:9..3:10       Assign
+            src0:3:11..3:17      KwLength
+            src0:3:17..3:18      LParen
+            src0:3:18..3:19      Identifier(a)
+            src0:3:19..3:20      RParen
+            src0:4:3..4:8        KwWhile
+            src0:4:9..4:10       LParen
+            src0:4:10..4:11      Identifier(i)
+            src0:4:12..4:13      Lt
+            src0:4:14..4:15      Identifier(n)
+            src0:4:15..4:16      RParen
+            src0:4:17..4:18      BlockOpen
+            src0:5:7..5:8        Identifier(j)
+            src0:5:8..5:9        Colon
+            src0:5:9..5:12       KwInt
+            src0:5:13..5:14      Assign
+            src0:5:15..5:16      Identifier(i)
+            src0:6:7..6:12       KwWhile
+            src0:6:13..6:14      LParen
+            src0:6:14..6:15      Identifier(j)
+            src0:6:16..6:17      Gt
+            src0:6:18..6:19      Int(0)
+            src0:6:19..6:20      RParen
+            src0:6:21..6:22      BlockOpen
+            src0:7:9..7:11       KwIf
+            src0:7:12..7:13      LParen
+            src0:7:13..7:14      Identifier(a)
+            src0:7:14..7:15      LBracket
+            src0:7:15..7:16      Identifier(j)
+            src0:7:16..7:17      Minus
+            src0:7:17..7:18      Int(1)
+            src0:7:18..7:19      RBracket
+            src0:7:20..7:21      Gt
+            src0:7:22..7:23      Identifier(a)
+            src0:7:23..7:24      LBracket
+            src0:7:24..7:25      Identifier(j)
+            src0:7:25..7:26      RBracket
+            src0:7:26..7:27      RParen
+            src0:7:28..7:29      BlockOpen
+            src0:8:13..8:17      Identifier(swap)
+            src0:8:17..8:18      Colon
+            src0:8:18..8:21      KwInt
+            src0:8:22..8:23      Assign
+            src0:8:24..8:25      Identifier(a)
+            src0:8:25..8:26      LBracket
+            src0:8:26..8:27      Identifier(j)
+            src0:8:27..8:28      RBracket
+            src0:9:13..9:14      Identifier(a)
+            src0:9:14..9:15      LBracket
+            src0:9:15..9:16      Identifier(j)
+            src0:9:16..9:17      RBracket
+            src0:9:18..9:19      Assign
+            src0:9:20..9:21      Identifier(a)
+            src0:9:21..9:22      LBracket
+            src0:9:22..9:23      Identifier(j)
+            src0:9:23..9:24      Minus
+            src0:9:24..9:25      Int(1)
+            src0:9:25..9:26      RBracket
+            src0:10:13..10:14    Identifier(a)
+            src0:10:14..10:15    LBracket
+            src0:10:15..10:16    Identifier(j)
+            src0:10:16..10:17    Minus
+            src0:10:17..10:18    Int(1)
+            src0:10:18..10:19    RBracket
+            src0:10:20..10:21    Assign
+            src0:10:22..10:26    Identifier(swap)
+            src0:11:9..11:10     BlockClose
+            src0:12:9..12:10     Identifier(j)
+            src0:12:11..12:12    Assign
+            src0:12:13..12:14    Identifier(j)
+            src0:12:14..12:15    Minus
+            src0:12:15..12:16    Int(1)
+            src0:13:7..13:8      BlockClose
+            src0:14:7..14:8      Identifier(i)
+            src0:14:9..14:10     Assign
+            src0:14:11..14:12    Identifier(i)
+            src0:14:12..14:13    Plus
+            src0:14:13..14:14    Int(1)
+            src0:15:3..15:4      BlockClose
+            src0:16:1..16:2      BlockClose
+            src0:16:3..16:3      EOF
         "#]]
     }
 }
@@ -712,45 +739,46 @@ fn interface() {
             noargs(): int
         "#],
         expect![[r#"
-            src0:2:1..2:4 add
-            src0:2:4..2:5 (
-            src0:2:5..2:6 a
-            src0:2:6..2:7 :
-            src0:2:8..2:11 int
-            src0:2:11..2:12 ,
-            src0:2:13..2:14 b
-            src0:2:14..2:15 :
-            src0:2:16..2:19 int
-            src0:2:19..2:20 )
-            src0:2:20..2:21 :
-            src0:2:22..2:25 int
-            src0:3:1..3:7 matrix
-            src0:3:7..3:8 (
-            src0:3:8..3:9 m
-            src0:3:9..3:10 :
-            src0:3:11..3:14 int
-            src0:3:14..3:15 [
-            src0:3:15..3:16 ]
-            src0:3:16..3:17 [
-            src0:3:17..3:18 ]
-            src0:3:18..3:19 )
-            src0:3:19..3:20 :
-            src0:3:21..3:24 int
-            src0:3:24..3:25 [
-            src0:3:25..3:26 ]
-            src0:3:26..3:27 [
-            src0:3:27..3:28 ]
-            src0:4:1..4:9 noreturn
-            src0:4:9..4:10 (
-            src0:4:10..4:11 a
-            src0:4:11..4:12 :
-            src0:4:13..4:16 int
-            src0:4:16..4:17 )
-            src0:5:1..5:7 noargs
-            src0:5:7..5:8 (
-            src0:5:8..5:9 )
-            src0:5:9..5:10 :
-            src0:5:11..5:14 int
+            src0:2:1..2:4        Identifier(add)
+            src0:2:4..2:5        LParen
+            src0:2:5..2:6        Identifier(a)
+            src0:2:6..2:7        Colon
+            src0:2:8..2:11       KwInt
+            src0:2:11..2:12      Comma
+            src0:2:13..2:14      Identifier(b)
+            src0:2:14..2:15      Colon
+            src0:2:16..2:19      KwInt
+            src0:2:19..2:20      RParen
+            src0:2:20..2:21      Colon
+            src0:2:22..2:25      KwInt
+            src0:3:1..3:7        Identifier(matrix)
+            src0:3:7..3:8        LParen
+            src0:3:8..3:9        Identifier(m)
+            src0:3:9..3:10       Colon
+            src0:3:11..3:14      KwInt
+            src0:3:14..3:15      LBracket
+            src0:3:15..3:16      RBracket
+            src0:3:16..3:17      LBracket
+            src0:3:17..3:18      RBracket
+            src0:3:18..3:19      RParen
+            src0:3:19..3:20      Colon
+            src0:3:21..3:24      KwInt
+            src0:3:24..3:25      LBracket
+            src0:3:25..3:26      RBracket
+            src0:3:26..3:27      LBracket
+            src0:3:27..3:28      RBracket
+            src0:4:1..4:9        Identifier(noreturn)
+            src0:4:9..4:10       LParen
+            src0:4:10..4:11      Identifier(a)
+            src0:4:11..4:12      Colon
+            src0:4:13..4:16      KwInt
+            src0:4:16..4:17      RParen
+            src0:5:1..5:7        Identifier(noargs)
+            src0:5:7..5:8        LParen
+            src0:5:8..5:9        RParen
+            src0:5:9..5:10       Colon
+            src0:5:11..5:14      KwInt
+            src0:5:15..5:15      EOF
         "#]]
     }
 }
@@ -761,6 +789,8 @@ fn int_overflow() {
             12393498732984798273498
         "#],
         expect![[r#"
+            src0:1:1..1:24       Error
+            src0:1:25..1:25      EOF
             Error: illegal integer literal: this integer literal is too large to be stored in any Eta type
                ╭─[ src0:1:1 ]
                │
@@ -786,41 +816,42 @@ fn keyword_prefix_identifiers() {
             lengths: int = 5
         "#],
         expect![[r#"
-            src0:1:1..1:8 integer
-            src0:1:8..1:9 :
-            src0:1:10..1:13 int
-            src0:1:14..1:15 =
-            src0:1:16..1:17 0
-            src0:2:1..2:8 boolean
-            src0:2:8..2:9 :
-            src0:2:10..2:14 bool
-            src0:2:15..2:16 =
-            src0:2:17..2:21 true
-            src0:3:1..3:5 uses
-            src0:3:5..3:6 :
-            src0:3:7..3:10 int
-            src0:3:11..3:12 =
-            src0:3:13..3:14 1
-            src0:4:1..4:4 iff
-            src0:4:4..4:5 :
-            src0:4:6..4:9 int
-            src0:4:10..4:11 =
-            src0:4:12..4:13 2
-            src0:5:1..5:10 whileLoop
-            src0:5:10..5:11 :
-            src0:5:12..5:15 int
-            src0:5:16..5:17 =
-            src0:5:18..5:19 3
-            src0:6:1..6:10 returning
-            src0:6:10..6:11 :
-            src0:6:12..6:15 int
-            src0:6:16..6:17 =
-            src0:6:18..6:19 4
-            src0:7:1..7:8 lengths
-            src0:7:8..7:9 :
-            src0:7:10..7:13 int
-            src0:7:14..7:15 =
-            src0:7:16..7:17 5
+            src0:1:1..1:8        Identifier(integer)
+            src0:1:8..1:9        Colon
+            src0:1:10..1:13      KwInt
+            src0:1:14..1:15      Assign
+            src0:1:16..1:17      Int(0)
+            src0:2:1..2:8        Identifier(boolean)
+            src0:2:8..2:9        Colon
+            src0:2:10..2:14      KwBool
+            src0:2:15..2:16      Assign
+            src0:2:17..2:21      BoolLiteral(true)
+            src0:3:1..3:5        Identifier(uses)
+            src0:3:5..3:6        Colon
+            src0:3:7..3:10       KwInt
+            src0:3:11..3:12      Assign
+            src0:3:13..3:14      Int(1)
+            src0:4:1..4:4        Identifier(iff)
+            src0:4:4..4:5        Colon
+            src0:4:6..4:9        KwInt
+            src0:4:10..4:11      Assign
+            src0:4:12..4:13      Int(2)
+            src0:5:1..5:10       Identifier(whileLoop)
+            src0:5:10..5:11      Colon
+            src0:5:12..5:15      KwInt
+            src0:5:16..5:17      Assign
+            src0:5:18..5:19      Int(3)
+            src0:6:1..6:10       Identifier(returning)
+            src0:6:10..6:11      Colon
+            src0:6:12..6:15      KwInt
+            src0:6:16..6:17      Assign
+            src0:6:18..6:19      Int(4)
+            src0:7:1..7:8        Identifier(lengths)
+            src0:7:8..7:9        Colon
+            src0:7:10..7:13      KwInt
+            src0:7:14..7:15      Assign
+            src0:7:16..7:17      Int(5)
+            src0:7:18..7:18      EOF
         "#]]
     }
 }
@@ -831,6 +862,8 @@ fn large_int() {
             1000000000000000000000000000000
         "#],
         expect![[r#"
+            src0:1:1..1:32       Error
+            src0:1:33..1:33      EOF
             Error: illegal integer literal: this integer literal is too large to be stored in any Eta type
                ╭─[ src0:1:1 ]
                │
@@ -851,10 +884,11 @@ fn leading_zeros() {
             01
         "#],
         expect![[r#"
-            src0:1:1..1:2 0
-            src0:1:2..1:3 0
-            src0:2:1..2:2 0
-            src0:2:2..2:3 1
+            src0:1:1..1:2        Int(0)
+            src0:1:2..1:3        Int(0)
+            src0:2:1..2:2        Int(0)
+            src0:2:2..2:3        Int(1)
+            src0:2:4..2:4        EOF
         "#]]
     }
 }
@@ -866,8 +900,9 @@ fn max_int_boundary() {
             9223372036854775808
         "#],
         expect![[r#"
-            src0:1:1..1:20 9223372036854775807
-            src0:2:1..2:20 9223372036854775808
+            src0:1:1..1:20       Int(9223372036854775807)
+            src0:2:1..2:20       Int(9223372036854775808)
+            src0:2:21..2:21      EOF
         "#]]
     }
 }
@@ -878,7 +913,8 @@ fn max_valid_codepoint() {
             '\x{10FFFF}'
         "#],
         expect![[r#"
-            src0:1:1..1:13 '\x{10ffff}'
+            src0:1:1..1:13       CharLiteral(\u{10ffff})
+            src0:1:14..1:14      EOF
         "#]]
     }
 }
@@ -894,83 +930,84 @@ fn mdarrays() {
             d: int[][] = {{1, 0}, {0, 1}}
         "#],
         expect![[r#"
-            src0:1:1..1:2 a
-            src0:1:2..1:3 :
-            src0:1:4..1:7 int
-            src0:1:7..1:8 [
-            src0:1:8..1:9 ]
-            src0:1:9..1:10 [
-            src0:1:10..1:11 ]
-            src0:2:1..2:2 b
-            src0:2:2..2:3 :
-            src0:2:4..2:7 int
-            src0:2:7..2:8 [
-            src0:2:8..2:9 3
-            src0:2:9..2:10 ]
-            src0:2:10..2:11 [
-            src0:2:11..2:12 4
-            src0:2:12..2:13 ]
-            src0:3:1..3:2 a
-            src0:3:3..3:4 =
-            src0:3:5..3:6 b
-            src0:4:1..4:2 c
-            src0:4:2..4:3 :
-            src0:4:4..4:7 int
-            src0:4:7..4:8 [
-            src0:4:8..4:9 3
-            src0:4:9..4:10 ]
-            src0:4:10..4:11 [
-            src0:4:11..4:12 ]
-            src0:5:1..5:2 c
-            src0:5:2..5:3 [
-            src0:5:3..5:4 0
-            src0:5:4..5:5 ]
-            src0:5:6..5:7 =
-            src0:5:8..5:9 b
-            src0:5:9..5:10 [
-            src0:5:10..5:11 0
-            src0:5:11..5:12 ]
-            src0:5:12..5:13 ;
-            src0:5:14..5:15 c
-            src0:5:15..5:16 [
-            src0:5:16..5:17 1
-            src0:5:17..5:18 ]
-            src0:5:19..5:20 =
-            src0:5:21..5:22 b
-            src0:5:22..5:23 [
-            src0:5:23..5:24 1
-            src0:5:24..5:25 ]
-            src0:5:25..5:26 ;
-            src0:5:27..5:28 c
-            src0:5:28..5:29 [
-            src0:5:29..5:30 2
-            src0:5:30..5:31 ]
-            src0:5:32..5:33 =
-            src0:5:34..5:35 b
-            src0:5:35..5:36 [
-            src0:5:36..5:37 2
-            src0:5:37..5:38 ]
-            src0:6:1..6:2 d
-            src0:6:2..6:3 :
-            src0:6:4..6:7 int
-            src0:6:7..6:8 [
-            src0:6:8..6:9 ]
-            src0:6:9..6:10 [
-            src0:6:10..6:11 ]
-            src0:6:12..6:13 =
-            src0:6:14..6:15 {
-            src0:6:15..6:16 {
-            src0:6:16..6:17 1
-            src0:6:17..6:18 ,
-            src0:6:19..6:20 0
-            src0:6:20..6:21 }
-            src0:6:21..6:22 ,
-            src0:6:23..6:24 {
-            src0:6:24..6:25 0
-            src0:6:25..6:26 ,
-            src0:6:27..6:28 1
-            src0:6:28..6:29 }
-            src0:6:29..6:30 }
+            src0:1:1..1:2        Identifier(a)
+            src0:1:2..1:3        Colon
+            src0:1:4..1:7        KwInt
+            src0:1:7..1:8        LBracket
+            src0:1:8..1:9        RBracket
+            src0:1:9..1:10       LBracket
+            src0:1:10..1:11      RBracket
+            src0:2:1..2:2        Identifier(b)
+            src0:2:2..2:3        Colon
+            src0:2:4..2:7        KwInt
+            src0:2:7..2:8        LBracket
+            src0:2:8..2:9        Int(3)
+            src0:2:9..2:10       RBracket
+            src0:2:10..2:11      LBracket
+            src0:2:11..2:12      Int(4)
+            src0:2:12..2:13      RBracket
+            src0:3:1..3:2        Identifier(a)
+            src0:3:3..3:4        Assign
+            src0:3:5..3:6        Identifier(b)
+            src0:4:1..4:2        Identifier(c)
+            src0:4:2..4:3        Colon
+            src0:4:4..4:7        KwInt
+            src0:4:7..4:8        LBracket
+            src0:4:8..4:9        Int(3)
+            src0:4:9..4:10       RBracket
+            src0:4:10..4:11      LBracket
+            src0:4:11..4:12      RBracket
+            src0:5:1..5:2        Identifier(c)
+            src0:5:2..5:3        LBracket
+            src0:5:3..5:4        Int(0)
+            src0:5:4..5:5        RBracket
+            src0:5:6..5:7        Assign
+            src0:5:8..5:9        Identifier(b)
+            src0:5:9..5:10       LBracket
+            src0:5:10..5:11      Int(0)
+            src0:5:11..5:12      RBracket
+            src0:5:12..5:13      SemiColon
+            src0:5:14..5:15      Identifier(c)
+            src0:5:15..5:16      LBracket
+            src0:5:16..5:17      Int(1)
+            src0:5:17..5:18      RBracket
+            src0:5:19..5:20      Assign
+            src0:5:21..5:22      Identifier(b)
+            src0:5:22..5:23      LBracket
+            src0:5:23..5:24      Int(1)
+            src0:5:24..5:25      RBracket
+            src0:5:25..5:26      SemiColon
+            src0:5:27..5:28      Identifier(c)
+            src0:5:28..5:29      LBracket
+            src0:5:29..5:30      Int(2)
+            src0:5:30..5:31      RBracket
+            src0:5:32..5:33      Assign
+            src0:5:34..5:35      Identifier(b)
+            src0:5:35..5:36      LBracket
+            src0:5:36..5:37      Int(2)
+            src0:5:37..5:38      RBracket
+            src0:6:1..6:2        Identifier(d)
+            src0:6:2..6:3        Colon
+            src0:6:4..6:7        KwInt
+            src0:6:7..6:8        LBracket
+            src0:6:8..6:9        RBracket
+            src0:6:9..6:10       LBracket
+            src0:6:10..6:11      RBracket
+            src0:6:12..6:13      Assign
+            src0:6:14..6:15      BlockOpen
+            src0:6:15..6:16      BlockOpen
+            src0:6:16..6:17      Int(1)
+            src0:6:17..6:18      Comma
+            src0:6:19..6:20      Int(0)
+            src0:6:20..6:21      BlockClose
+            src0:6:21..6:22      Comma
+            src0:6:23..6:24      BlockOpen
+            src0:6:24..6:25      Int(0)
+            src0:6:25..6:26      Comma
+            src0:6:27..6:28      Int(1)
+            src0:6:28..6:29      BlockClose
+            src0:6:29..6:30      BlockClose
+            src0:6:31..6:31      EOF
         "#]]
     }
 }
@@ -981,9 +1018,10 @@ fn modulo_operator() {
             a % b
         "#],
         expect![[r#"
-            src0:1:1..1:2 a
-            src0:1:3..1:4 %
-            src0:1:5..1:6 b
+            src0:1:1..1:2        Identifier(a)
+            src0:1:3..1:4        Percent
+            src0:1:5..1:6        Identifier(b)
+            src0:1:7..1:7        EOF
         "#]]
     }
 }
@@ -995,7 +1033,8 @@ fn multiline_string() {
             World"
         "#],
         expect![[r#"
-            src0:1:1..2:7 "Hello\nWorld"
+            src0:1:1..2:7        StrLiteral(Hello\nWorld)
+            src0:2:8..2:8        EOF
         "#]]
     }
 }
@@ -1010,71 +1049,72 @@ fn ratadd() {
             }
         "#],
         expect![[r#"
-            src0:1:1..1:7 ratadd
-            src0:1:7..1:8 (
-            src0:1:8..1:10 p1
-            src0:1:10..1:11 :
-            src0:1:11..1:14 int
-            src0:1:14..1:15 ,
-            src0:1:16..1:18 q1
-            src0:1:18..1:19 :
-            src0:1:19..1:22 int
-            src0:1:22..1:23 ,
-            src0:1:24..1:26 p2
-            src0:1:26..1:27 :
-            src0:1:27..1:30 int
-            src0:1:30..1:31 ,
-            src0:1:32..1:34 q2
-            src0:1:34..1:35 :
-            src0:1:35..1:38 int
-            src0:1:38..1:39 )
-            src0:1:40..1:41 :
-            src0:1:42..1:43 (
-            src0:1:43..1:46 int
-            src0:1:46..1:47 ,
-            src0:1:48..1:51 int
-            src0:1:51..1:52 )
-            src0:1:53..1:54 {
-            src0:2:5..2:6 g
-            src0:2:6..2:7 :
-            src0:2:7..2:10 int
-            src0:2:11..2:12 =
-            src0:2:13..2:16 gcd
-            src0:2:16..2:17 (
-            src0:2:17..2:19 q1
-            src0:2:19..2:20 ,
-            src0:2:20..2:22 q2
-            src0:2:22..2:23 )
-            src0:3:5..3:7 p3
-            src0:3:7..3:8 :
-            src0:3:8..3:11 int
-            src0:3:12..3:13 =
-            src0:3:14..3:16 p1
-            src0:3:16..3:17 *
-            src0:3:17..3:18 (
-            src0:3:18..3:20 q2
-            src0:3:20..3:21 /
-            src0:3:21..3:22 g
-            src0:3:22..3:23 )
-            src0:3:24..3:25 +
-            src0:3:26..3:28 p2
-            src0:3:28..3:29 *
-            src0:3:29..3:30 (
-            src0:3:30..3:32 q1
-            src0:3:32..3:33 /
-            src0:3:33..3:34 g
-            src0:3:34..3:35 )
-            src0:4:5..4:11 return
-            src0:4:12..4:13 (
-            src0:4:13..4:15 p3
-            src0:4:15..4:16 ,
-            src0:4:17..4:19 q1
-            src0:4:19..4:20 /
-            src0:4:20..4:21 g
-            src0:4:21..4:22 *
-            src0:4:22..4:24 q2
-            src0:4:24..4:25 )
-            src0:5:1..5:2 }
+            src0:1:1..1:7        Identifier(ratadd)
+            src0:1:7..1:8        LParen
+            src0:1:8..1:10       Identifier(p1)
+            src0:1:10..1:11      Colon
+            src0:1:11..1:14      KwInt
+            src0:1:14..1:15      Comma
+            src0:1:16..1:18      Identifier(q1)
+            src0:1:18..1:19      Colon
+            src0:1:19..1:22      KwInt
+            src0:1:22..1:23      Comma
+            src0:1:24..1:26      Identifier(p2)
+            src0:1:26..1:27      Colon
+            src0:1:27..1:30      KwInt
+            src0:1:30..1:31      Comma
+            src0:1:32..1:34      Identifier(q2)
+            src0:1:34..1:35      Colon
+            src0:1:35..1:38      KwInt
+            src0:1:38..1:39      RParen
+            src0:1:40..1:41      Colon
+            src0:1:42..1:43      LParen
+            src0:1:43..1:46      KwInt
+            src0:1:46..1:47      Comma
+            src0:1:48..1:51      KwInt
+            src0:1:51..1:52      RParen
+            src0:1:53..1:54      BlockOpen
+            src0:2:5..2:6        Identifier(g)
+            src0:2:6..2:7        Colon
+            src0:2:7..2:10       KwInt
+            src0:2:11..2:12      Assign
+            src0:2:13..2:16      Identifier(gcd)
+            src0:2:16..2:17      LParen
+            src0:2:17..2:19      Identifier(q1)
+            src0:2:19..2:20      Comma
+            src0:2:20..2:22      Identifier(q2)
+            src0:2:22..2:23      RParen
+            src0:3:5..3:7        Identifier(p3)
+            src0:3:7..3:8        Colon
+            src0:3:8..3:11       KwInt
+            src0:3:12..3:13      Assign
+            src0:3:14..3:16      Identifier(p1)
+            src0:3:16..3:17      Star
+            src0:3:17..3:18      LParen
+            src0:3:18..3:20      Identifier(q2)
+            src0:3:20..3:21      FSlash
+            src0:3:21..3:22      Identifier(g)
+            src0:3:22..3:23      RParen
+            src0:3:24..3:25      Plus
+            src0:3:26..3:28      Identifier(p2)
+            src0:3:28..3:29      Star
+            src0:3:29..3:30      LParen
+            src0:3:30..3:32      Identifier(q1)
+            src0:3:32..3:33      FSlash
+            src0:3:33..3:34      Identifier(g)
+            src0:3:34..3:35      RParen
+            src0:4:5..4:11       KwReturn
+            src0:4:12..4:13      LParen
+            src0:4:13..4:15      Identifier(p3)
+            src0:4:15..4:16      Comma
+            src0:4:17..4:19      Identifier(q1)
+            src0:4:19..4:20      FSlash
+            src0:4:20..4:21      Identifier(g)
+            src0:4:21..4:22      Star
+            src0:4:22..4:24      Identifier(q2)
+            src0:4:24..4:25      RParen
+            src0:5:1..5:2        BlockClose
+            src0:5:3..5:3        EOF
         "#]]
     }
 }
@@ -1086,44 +1126,45 @@ fn lex_pa1_ratadduse() {
             (_, q':int) = ratadd(1, 2, 1, 3)
         "#],
         expect![[r#"
-            src0:1:1..1:2 (
-            src0:1:2..1:3 p
-            src0:1:3..1:4 :
-            src0:1:4..1:7 int
-            src0:1:7..1:8 ,
-            src0:1:9..1:10 q
-            src0:1:10..1:11 :
-            src0:1:11..1:14 int
-            src0:1:14..1:15 )
-            src0:1:16..1:17 =
-            src0:1:18..1:24 ratadd
-            src0:1:24..1:25 (
-            src0:1:25..1:26 2
-            src0:1:26..1:27 ,
-            src0:1:28..1:29 5
-            src0:1:29..1:30 ,
-            src0:1:31..1:32 1
-            src0:1:32..1:33 ,
-            src0:1:34..1:35 3
-            src0:1:35..1:36 )
-            src0:2:1..2:2 (
-            src0:2:2..2:3 _
-            src0:2:3..2:4 ,
-            src0:2:5..2:7 q'
-            src0:2:7..2:8 :
-            src0:2:8..2:11 int
-            src0:2:11..2:12 )
-            src0:2:13..2:14 =
-            src0:2:15..2:21 ratadd
-            src0:2:21..2:22 (
-            src0:2:22..2:23 1
-            src0:2:23..2:24 ,
-            src0:2:25..2:26 2
-            src0:2:26..2:27 ,
-            src0:2:28..2:29 1
-            src0:2:29..2:30 ,
-            src0:2:31..2:32 3
-            src0:2:32..2:33 )
+            src0:1:1..1:2        LParen
+            src0:1:2..1:3        Identifier(p)
+            src0:1:3..1:4        Colon
+            src0:1:4..1:7        KwInt
+            src0:1:7..1:8        Comma
+            src0:1:9..1:10       Identifier(q)
+            src0:1:10..1:11      Colon
+            src0:1:11..1:14      KwInt
+            src0:1:14..1:15      RParen
+            src0:1:16..1:17      Assign
+            src0:1:18..1:24      Identifier(ratadd)
+            src0:1:24..1:25      LParen
+            src0:1:25..1:26      Int(2)
+            src0:1:26..1:27      Comma
+            src0:1:28..1:29      Int(5)
+            src0:1:29..1:30      Comma
+            src0:1:31..1:32      Int(1)
+            src0:1:32..1:33      Comma
+            src0:1:34..1:35      Int(3)
+            src0:1:35..1:36      RParen
+            src0:2:1..2:2        LParen
+            src0:2:2..2:3        Discard
+            src0:2:3..2:4        Comma
+            src0:2:5..2:7        Identifier(q\')
+            src0:2:7..2:8        Colon
+            src0:2:8..2:11       KwInt
+            src0:2:11..2:12      RParen
+            src0:2:13..2:14      Assign
+            src0:2:15..2:21      Identifier(ratadd)
+            src0:2:21..2:22      LParen
+            src0:2:22..2:23      Int(1)
+            src0:2:23..2:24      Comma
+            src0:2:25..2:26      Int(2)
+            src0:2:26..2:27      Comma
+            src0:2:28..2:29      Int(1)
+            src0:2:29..2:30      Comma
+            src0:2:31..2:32      Int(3)
+            src0:2:32..2:33      RParen
+            src0:2:34..2:34      EOF
         "#]]
     }
 }
@@ -1137,38 +1178,39 @@ fn spec1() {
             s: int[] = "Hello";
         "#],
         expect![[r#"
-            src0:1:1..1:2 x
-            src0:1:2..1:3 :
-            src0:1:3..1:6 int
-            src0:1:7..1:8 =
-            src0:1:9..1:10 2
-            src0:1:10..1:11 ;
-            src0:2:1..2:2 z
-            src0:2:2..2:3 :
-            src0:2:3..2:6 int
-            src0:2:6..2:7 ;
-            src0:3:1..3:2 (
-            src0:3:2..3:3 b
-            src0:3:3..3:4 :
-            src0:3:5..3:9 bool
-            src0:3:9..3:10 ,
-            src0:3:11..3:12 i
-            src0:3:12..3:13 :
-            src0:3:13..3:16 int
-            src0:3:16..3:17 )
-            src0:3:18..3:19 =
-            src0:3:20..3:21 f
-            src0:3:21..3:22 (
-            src0:3:22..3:23 x
-            src0:3:23..3:24 }
-            src0:4:1..4:2 s
-            src0:4:2..4:3 :
-            src0:4:4..4:7 int
-            src0:4:7..4:8 [
-            src0:4:8..4:9 ]
-            src0:4:10..4:11 =
-            src0:4:12..4:19 "Hello"
-            src0:4:19..4:20 ;
+            src0:1:1..1:2        Identifier(x)
+            src0:1:2..1:3        Colon
+            src0:1:3..1:6        KwInt
+            src0:1:7..1:8        Assign
+            src0:1:9..1:10       Int(2)
+            src0:1:10..1:11      SemiColon
+            src0:2:1..2:2        Identifier(z)
+            src0:2:2..2:3        Colon
+            src0:2:3..2:6        KwInt
+            src0:2:6..2:7        SemiColon
+            src0:3:1..3:2        LParen
+            src0:3:2..3:3        Identifier(b)
+            src0:3:3..3:4        Colon
+            src0:3:5..3:9        KwBool
+            src0:3:9..3:10       Comma
+            src0:3:11..3:12      Identifier(i)
+            src0:3:12..3:13      Colon
+            src0:3:13..3:16      KwInt
+            src0:3:16..3:17      RParen
+            src0:3:18..3:19      Assign
+            src0:3:20..3:21      Identifier(f)
+            src0:3:21..3:22      LParen
+            src0:3:22..3:23      Identifier(x)
+            src0:3:23..3:24      BlockClose
+            src0:4:1..4:2        Identifier(s)
+            src0:4:2..4:3        Colon
+            src0:4:4..4:7        KwInt
+            src0:4:7..4:8        LBracket
+            src0:4:8..4:9        RBracket
+            src0:4:10..4:11      Assign
+            src0:4:12..4:19      StrLiteral(Hello)
+            src0:4:19..4:20      SemiColon
+            src0:4:21..4:21      EOF
         "#]]
     }
 }
@@ -1181,24 +1223,25 @@ fn spec2() {
           b = !b
         "#],
         expect![[r#"
-            src0:1:1..1:2 x
-            src0:1:3..1:4 =
-            src0:1:5..1:6 x
-            src0:1:7..1:8 +
-            src0:1:9..1:10 1
-            src0:2:1..2:2 s
-            src0:2:3..2:4 =
-            src0:2:5..2:6 {
-            src0:2:6..2:7 1
-            src0:2:7..2:8 ,
-            src0:2:9..2:10 2
-            src0:2:10..2:11 ,
-            src0:2:12..2:13 3
-            src0:2:13..2:14 }
-            src0:3:1..3:2 b
-            src0:3:3..3:4 =
-            src0:3:5..3:6 !
-            src0:3:6..3:7 b
+            src0:1:1..1:2        Identifier(x)
+            src0:1:3..1:4        Assign
+            src0:1:5..1:6        Identifier(x)
+            src0:1:7..1:8        Plus
+            src0:1:9..1:10       Int(1)
+            src0:2:1..2:2        Identifier(s)
+            src0:2:3..2:4        Assign
+            src0:2:5..2:6        BlockOpen
+            src0:2:6..2:7        Int(1)
+            src0:2:7..2:8        Comma
+            src0:2:9..2:10       Int(2)
+            src0:2:10..2:11      Comma
+            src0:2:12..2:13      Int(3)
+            src0:2:13..2:14      BlockClose
+            src0:3:1..3:2        Identifier(b)
+            src0:3:3..3:4        Assign
+            src0:3:5..3:6        Bang
+            src0:3:6..3:7        Identifier(b)
+            src0:3:8..3:8        EOF
         "#]]
     }
 }
@@ -1209,19 +1252,20 @@ fn spec3() {
             s: int[] = "Hello" + {13, 10}
         "#],
         expect![[r#"
-            src0:1:1..1:2 s
-            src0:1:2..1:3 :
-            src0:1:4..1:7 int
-            src0:1:7..1:8 [
-            src0:1:8..1:9 ]
-            src0:1:10..1:11 =
-            src0:1:12..1:19 "Hello"
-            src0:1:20..1:21 +
-            src0:1:22..1:23 {
-            src0:1:23..1:25 13
-            src0:1:25..1:26 ,
-            src0:1:27..1:29 10
-            src0:1:29..1:30 }
+            src0:1:1..1:2        Identifier(s)
+            src0:1:2..1:3        Colon
+            src0:1:4..1:7        KwInt
+            src0:1:7..1:8        LBracket
+            src0:1:8..1:9        RBracket
+            src0:1:10..1:11      Assign
+            src0:1:12..1:19      StrLiteral(Hello)
+            src0:1:20..1:21      Plus
+            src0:1:22..1:23      BlockOpen
+            src0:1:23..1:25      Int(13)
+            src0:1:25..1:26      Comma
+            src0:1:27..1:29      Int(10)
+            src0:1:29..1:30      BlockClose
+            src0:1:31..1:31      EOF
         "#]]
     }
 }
@@ -1232,7 +1276,8 @@ fn string_tab() {
             "\t"
         "#],
         expect![[r#"
-            src0:1:1..1:5 "\t"
+            src0:1:1..1:5        StrLiteral(\t)
+            src0:1:6..1:6        EOF
         "#]]
     }
 }
@@ -1247,38 +1292,39 @@ fn supplementary_char() {
             }
         "#],
         expect![[r#"
-            src0:1:1..1:5 main
-            src0:1:5..1:6 (
-            src0:1:6..1:10 args
-            src0:1:10..1:11 :
-            src0:1:12..1:15 int
-            src0:1:15..1:16 [
-            src0:1:16..1:17 ]
-            src0:1:17..1:18 [
-            src0:1:18..1:19 ]
-            src0:1:19..1:20 )
-            src0:1:21..1:22 {
-            src0:2:5..2:6 a
-            src0:2:6..2:7 :
-            src0:2:7..2:10 int
-            src0:2:11..2:12 =
-            src0:2:13..2:19 '\x{1f600}'
-            src0:2:19..2:20 ;
-            src0:3:5..3:6 b
-            src0:3:6..3:7 :
-            src0:3:7..3:10 int
-            src0:3:11..3:12 =
-            src0:3:13..3:19 '\x{1f170}'
-            src0:3:19..3:20 ;
-            src0:4:5..4:6 c
-            src0:4:6..4:7 :
-            src0:4:7..4:10 int
-            src0:4:10..4:11 [
-            src0:4:11..4:12 ]
-            src0:4:13..4:14 =
-            src0:4:15..4:33 "Hello \x{1f600} World"
-            src0:4:33..4:34 ;
-            src0:5:1..5:2 }
+            src0:1:1..1:5        Identifier(main)
+            src0:1:5..1:6        LParen
+            src0:1:6..1:10       Identifier(args)
+            src0:1:10..1:11      Colon
+            src0:1:12..1:15      KwInt
+            src0:1:15..1:16      LBracket
+            src0:1:16..1:17      RBracket
+            src0:1:17..1:18      LBracket
+            src0:1:18..1:19      RBracket
+            src0:1:19..1:20      RParen
+            src0:1:21..1:22      BlockOpen
+            src0:2:5..2:6        Identifier(a)
+            src0:2:6..2:7        Colon
+            src0:2:7..2:10       KwInt
+            src0:2:11..2:12      Assign
+            src0:2:13..2:19      CharLiteral(\u{1f600})
+            src0:2:19..2:20      SemiColon
+            src0:3:5..3:6        Identifier(b)
+            src0:3:6..3:7        Colon
+            src0:3:7..3:10       KwInt
+            src0:3:11..3:12      Assign
+            src0:3:13..3:19      CharLiteral(\u{1f170})
+            src0:3:19..3:20      SemiColon
+            src0:4:5..4:6        Identifier(c)
+            src0:4:6..4:7        Colon
+            src0:4:7..4:10       KwInt
+            src0:4:10..4:11      LBracket
+            src0:4:11..4:12      RBracket
+            src0:4:13..4:14      Assign
+            src0:4:15..4:33      StrLiteral(Hello \u{1f600} World)
+            src0:4:33..4:34      SemiColon
+            src0:5:1..5:2        BlockClose
+            src0:5:3..5:3        EOF
         "#]]
     }
 }
@@ -1291,25 +1337,27 @@ fn supplementary_outofbounds() {
             }
         "#],
         expect![[r#"
-            src0:1:1..1:5 main
-            src0:1:5..1:6 (
-            src0:1:6..1:10 args
-            src0:1:10..1:11 :
-            src0:1:12..1:15 int
-            src0:1:15..1:16 [
-            src0:1:16..1:17 ]
-            src0:1:17..1:18 [
-            src0:1:18..1:19 ]
-            src0:1:19..1:20 )
-            src0:1:21..1:22 {
-            src0:2:5..2:7 ok
-            src0:2:7..2:8 :
-            src0:2:9..2:12 int
-            src0:2:12..2:13 [
-            src0:2:13..2:14 ]
-            src0:2:15..2:16 =
-            src0:2:29..2:30 ;
-            src0:3:1..3:2 }
+            src0:1:1..1:5        Identifier(main)
+            src0:1:5..1:6        LParen
+            src0:1:6..1:10       Identifier(args)
+            src0:1:10..1:11      Colon
+            src0:1:12..1:15      KwInt
+            src0:1:15..1:16      LBracket
+            src0:1:16..1:17      RBracket
+            src0:1:17..1:18      LBracket
+            src0:1:18..1:19      RBracket
+            src0:1:19..1:20      RParen
+            src0:1:21..1:22      BlockOpen
+            src0:2:5..2:7        Identifier(ok)
+            src0:2:7..2:8        Colon
+            src0:2:9..2:12       KwInt
+            src0:2:12..2:13      LBracket
+            src0:2:13..2:14      RBracket
+            src0:2:15..2:16      Assign
+            src0:2:17..2:29      Error
+            src0:2:29..2:30      SemiColon
+            src0:3:1..3:2        BlockClose
+            src0:3:3..3:3        EOF
             Error: unicode escape out of range
                ╭─[ src0:2:21 ]
                │
@@ -1329,6 +1377,8 @@ fn surrogate_char() {
             '\x{D800}'
         "#],
         expect![[r#"
+            src0:1:1..1:11       Error
+            src0:1:12..1:12      EOF
             Error: invalid unicode escape
                ╭─[ src0:1:2 ]
                │
@@ -1348,6 +1398,8 @@ fn surrogate_string() {
             "\x{D800}"
         "#],
         expect![[r#"
+            src0:1:1..1:11       Error
+            src0:1:12..1:12      EOF
             Error: invalid unicode escape
                ╭─[ src0:1:2 ]
                │
@@ -1367,6 +1419,8 @@ fn unclosedescape() {
             "Hello, Worl\x{64"
         "#],
         expect![[r#"
+            src0:1:1..1:19       Error
+            src0:1:20..1:20      EOF
             Error: unterminated unicode escape
                ╭─[ src0:1:13 ]
                │
@@ -1386,7 +1440,8 @@ fn unicode_bmp_char() {
             'é'
         "#],
         expect![[r#"
-            src0:1:1..1:5 '\x{e9}'
+            src0:1:1..1:5        CharLiteral(\u{e9})
+            src0:1:6..1:6        EOF
         "#]]
     }
 }

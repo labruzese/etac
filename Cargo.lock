@@ -452,14 +452,7 @@ dependencies = [
 name = "etac_test"
 version = "0.1.0"
 dependencies = [
- "ariadne",
- "etac_ast",
- "etac_cache",
  "etac_errors",
- "etac_intern",
- "etac_lexer",
- "etac_parse",
- "etac_source",
 ]
 
 [[package]]

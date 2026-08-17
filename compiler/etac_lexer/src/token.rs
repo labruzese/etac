@@ -6,167 +6,307 @@ use logos::Logos;
 
 use crate::{internal_error::InternalLexerError, internal_error_unknown_token};
 
-pub type SourceToken = (u32, RawToken, u32);
+macro_rules! count_idents {
+    () => { 0usize };
+    ($h:ident $($t:ident)*) => { 1usize + count_idents!($($t)*) };
+}
 
-#[derive(Debug, Clone, PartialEq, Logos)]
-#[logos(skip r"[ \t\n\f\r]+")]
-#[logos(skip(r"//[^\n]*", allow_greedy = true))]
-#[logos(extras = (u32, &'s mut EtacInterner))]
-#[logos(error(InternalLexerError, internal_error_unknown_token))]
-pub enum RawToken {
+macro_rules! tokens {
+    // `Token::Foo(..)` or `Token::Foo`
+    (@match_tok $id:ident($data:tt)) => { Token::$id(..) };
+    (@match_tok $id:ident)           => { Token::$id };
+
+    // `Token::Foo(v)` or `Token::Foo`
+    (@bind_tok $id:ident($v:ident: $data:tt)) => { Token::$id($v) };
+    (@bind_tok $id:ident)                     => { Token::$id };
+
+    // Display for Token [ex: Token::Identifier(Symbol) => "Identifier(foo)"]
+    (@tok_display $s:ident, $f:ident, $id:ident, $v:ident: Symbol) => {
+        write!($f, "{}({})", stringify!($id), $s.res.resolve($v).escape_default())
+    };
+    (@tok_display $s:ident, $f:ident, $id:ident, $v:ident: char) => {
+        write!($f, "{}({})", stringify!($id), $v.escape_default())
+    };
+    (@tok_display $s:ident, $f:ident, $id:ident, $v:ident: $other:tt) => {
+        write!($f, "{}({})", stringify!($id), $v)
+    };
+    (@tok_display $s:ident, $f:ident, $id:ident) => {
+        write!($f, "{}", stringify!($id))
+    };
+
+    (
+        Logos { $(# $meta:tt)* }
+        $(
+            $(# $attr:tt)+
+            $id:ident $(($data:tt))?
+        ),* $(,)?
+    ) => {
+        tokens! {
+            @build
+            meta: [ $(# $meta)* ]
+            ids:  [ $( $id $(($data))? ),* ]
+            disp: [ ]
+            todo: [ $( { $(# $attr)+ } $id $(($data))? , )* ]
+            variants: [ ]
+            arms: [ ]
+        }
+    };
+
+    (@build
+        meta: [ $($meta:tt)* ]
+        ids:  [ $($ids:tt)* ]
+        disp: [ $($disp:tt)* ]
+        todo: [ { $($attrs:tt)* } $id:ident $(($data:tt))? , $($rest:tt)* ]
+        variants: [ $($variants:tt)* ]
+        arms: [ $($arms:tt)* ]
+    ) => {
+        tokens! {
+            @attrs
+            scan: [ $($attrs)* ]
+            kept: [ ]
+            name: [ ]
+            toks: [ ]
+            cur:  [ $id $(($data))? ]
+            outer: {
+                meta: [ $($meta)* ]
+                ids:  [ $($ids)* ]
+                disp: [ $($disp)* ]
+                todo: [ $($rest)* ]
+                variants: [ $($variants)* ]
+                arms: [ $($arms)* ]
+            }
+        }
+    };
+
+    // Done, an explicit #[name] was given.
+    (@attrs
+        scan: [ ] kept: [ $($kept:tt)* ] name: [ $n:literal ] toks: [ $($toks:tt)* ]
+        cur: [ $id:ident $(($data:tt))? ]
+        outer: {
+            meta: [ $($meta:tt)* ] ids: [ $($ids:tt)* ] disp: [ $($disp:tt)* ]
+            todo: [ $($todo:tt)* ] variants: [ $($variants:tt)* ] arms: [ $($arms:tt)* ]
+        }
+    ) => {
+        tokens! {
+            @build
+            meta: [ $($meta)* ]
+            ids:  [ $($ids)* ]
+            disp: [ $($disp)* $id : $n , ]
+            todo: [ $($todo)* ]
+            variants: [ $($variants)* $($kept)* $id $(($data))? , ]
+            arms: [ $($arms)* ($n) => { $crate::Token::$id }; ]
+        }
+    };
+
+    // Done, no #[name], exactly one #[token] -> that literal is the name.
+    (@attrs
+        scan: [ ] kept: [ $($kept:tt)* ] name: [ ] toks: [ $t:literal ]
+        cur: [ $id:ident $(($data:tt))? ]
+        outer: {
+            meta: [ $($meta:tt)* ] ids: [ $($ids:tt)* ] disp: [ $($disp:tt)* ]
+            todo: [ $($todo:tt)* ] variants: [ $($variants:tt)* ] arms: [ $($arms:tt)* ]
+        }
+    ) => {
+        tokens! {
+            @build
+            meta: [ $($meta)* ]
+            ids:  [ $($ids)* ]
+            disp: [ $($disp)* $id : $t , ]
+            todo: [ $($todo)* ]
+            variants: [ $($variants)* $($kept)* $id $(($data))? , ]
+            arms: [ $($arms)* ($t) => { $crate::Token::$id }; ]
+        }
+    };
+
+    // Done, but ambiguous: zero or 2+ #[token]s and no #[name].
+    (@attrs
+        scan: [ ] kept: [ $($kept:tt)* ] name: [ ] toks: [ $($toks:tt)* ]
+        cur: [ $id:ident $(($data:tt))? ]
+        outer: { $($outer:tt)* }
+    ) => {
+        compile_error!(concat!(
+            "token variant `", stringify!($id),
+            "` needs either exactly one #[token(..)] or an explicit #[name(\"..\")]"
+        ));
+    };
+
+    // #[name("..")]
+    (@attrs
+        scan: [ #[name($n:literal)] $($rest:tt)* ]
+        kept: [ $($kept:tt)* ] name: [ $($old:tt)* ] toks: [ $($toks:tt)* ]
+        $($tail:tt)*
+    ) => {
+        tokens! {
+            @attrs scan: [ $($rest)* ] kept: [ $($kept)* ] name: [ $n ] toks: [ $($toks)* ]
+            $($tail)*
+        }
+    };
+
+    // #[token("..", optional callback)]
+    (@attrs
+        scan: [ #[token($lit:literal $($targs:tt)*)] $($rest:tt)* ]
+        kept: [ $($kept:tt)* ] name: [ $($name:tt)* ] toks: [ $($toks:tt)* ]
+        $($tail:tt)*
+    ) => {
+        tokens! {
+            @attrs
+            scan: [ $($rest)* ]
+            kept: [ $($kept)* #[token($lit $($targs)*)] ]
+            name: [ $($name)* ]
+            toks: [ $($toks)* $lit ]
+            $($tail)*
+        }
+    };
+
+    // everything else (#[regex(..)], doc comments, ...) passes through.
+    (@attrs
+        scan: [ # $other:tt $($rest:tt)* ]
+        kept: [ $($kept:tt)* ]
+        $($tail:tt)*
+    ) => {
+        tokens! { @attrs scan: [ $($rest)* ] kept: [ $($kept)* # $other ] $($tail)* }
+    };
+
+    // everything is accumulated, emit.
+    (@build
+        meta: [ $($meta:tt)* ]
+        ids:  [ $( $id:ident $(($data:tt))? ),* $(,)? ]
+        disp: [ $( $did:ident : $dlit:literal , )* ]
+        todo: [ ]
+        variants: [ $($variants:tt)* ]
+        arms: [ $($arms:tt)* ]
+    ) => {
+        $($meta)*
+        pub enum Token {
+            $($variants)*
+        }
+
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+        #[repr(u8)]
+        pub enum TokenKind {
+            $($id,)*
+        }
+
+        impl TokenKind {
+            pub const COUNT: usize = count_idents!($($id)*);
+        }
+
+        impl fmt::Display for TokenKind {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                // `f.write_str(<expr>)` rather than `write!(f, <macro call>)`:
+                // write!'s first argument must be a literal format string.
+                f.write_str(match self {
+                    $( TokenKind::$did => $dlit, )*
+                })
+            }
+        }
+
+        impl Token {
+            #[inline]
+            pub fn kind(&self) -> TokenKind {
+                match self {
+                    $( tokens!(@match_tok $id $(($data))?) => TokenKind::$id, )*
+                }
+            }
+        }
+
+        pub struct TokenDisplay<R: etac_intern::Resolver> {
+            tok: Token,
+            res: R,
+        }
+
+        impl<R: etac_intern::Resolver> TokenDisplay<R> {
+            pub fn new(tok: Token, res: R) -> Self {
+                TokenDisplay { tok, res }
+            }
+        }
+
+        impl<R: etac_intern::Resolver> Display for TokenDisplay<R> {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                match &self.tok {
+                    $(
+                        tokens!(@bind_tok $id $((v: $data))?)
+                            => tokens!(@tok_display self, f, $id $(, v: $data)?),
+                    )*
+                }
+            }
+        }
+    };
+}
+
+tokens! {
+    Logos {
+        #[derive(Debug, Clone, PartialEq, Logos)]
+        #[logos(skip r"[ \t\n\f\r]+")]
+        #[logos(skip(r"//[^\n]*", allow_greedy = true))]
+        #[logos(extras = (u32, &'s mut EtacInterner))]
+        #[logos(error(InternalLexerError, internal_error_unknown_token))]
+    }
+
+    #[name("eof")]      EOF,
+    #[name("error")]    Error,
+
     // Keywords
-    #[token("use")]
-    KeywordUse,
-    #[token("length")]
-    KeywordLength,
-    #[token("while")]
-    KeywordWhile,
-    #[token("if")]
-    KeywordIf,
-    #[token("else")]
-    KeywordElse,
-    #[token("return")]
-    KeywordReturn,
-    #[token("int")]
-    KeywordInt,
-    #[token("bool")]
-    KeywordBool,
+    #[token("use")]     KwUse,
+    #[token("length")]  KwLength,
+    #[token("while")]   KwWhile,
+    #[token("if")]      KwIf,
+    #[token("else")]    KwElse,
+    #[token("return")]  KwReturn,
+    #[token("int")]     KwInt,
+    #[token("bool")]    KwBool,
 
-    // Punctuation
-    #[token(";")]
-    SemiColon,
-    #[token("_")]
-    Discard,
-    #[token(":")]
-    OfType,
-    #[token("=")]
-    Assign,
-    #[token(",")]
-    Comma,
+    #[token(";")]       SemiColon,
+    #[token("_")]       Discard,
+    #[token(":")]       Colon,
+    #[token("=")]       Assign,
+    #[token(",")]       Comma,
+
+    #[token("(")]       LParen,
+    #[token(")")]       RParen,
+    #[token("[")]       LBracket,
+    #[token("]")]       RBracket,
+    #[token("{")]       BlockOpen,
+    #[token("}")]       BlockClose,
+
+    #[token("*")]       Star,
+    #[token("*>>")]     HMul,
+    #[token("/")]       FSlash,
+    #[token("%")]       Percent,
+    #[token("!")]       Bang,
+    #[token("-")]       Minus,
+    #[token("+")]       Plus,
+
+    #[token("==")]      EqEq,
+    #[token("!=")]      Neq,
+    #[token(">")]       Gt,
+    #[token(">=")]      Ge,
+    #[token("<")]       Lt,
+    #[token("<=")]      Le,
+
+    #[token("&")]       Land,
+    #[token("|")]       Lor,
 
     #[token("true", |_| true)]
     #[token("false", |_| false)]
+    #[name("a bool literal")]
     BoolLiteral(bool),
 
     #[regex(r"'([^'\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*'", crate::strings::parse_char)]
+    #[name("a char literal")]
     CharLiteral(char),
 
-    #[regex(r#""([^"\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*""#, |lex| { 
+    #[regex(r#""([^"\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*""#, |lex| {
         crate::strings::parse_str(lex).map(|s| lex.extras.1.get_or_intern(&s))
     })]
+    #[name("a string literal")]
     StrLiteral(Symbol),
 
-    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.extras.1.get_or_intern(lex.slice()))]
-    Identifier(Symbol),
-
     #[regex(r"[1-9][0-9]*|0", crate::parse_int)]
-    Integer(u64),
+    #[name("an int literal")]
+    IntLiteral(u64),
 
-    // Brackets and braces
-    #[token("(")]
-    LParen,
-    #[token(")")]
-    RParen,
-    #[token("[")]
-    LBracket,
-    #[token("]")]
-    RBracket,
-    #[token("{")]
-    BlockOpen,
-    #[token("}")]
-    BlockClose,
-
-    // Arithmetic operators
-    #[token("*")]
-    OperatorMul,
-    #[token("*>>")]
-    OperatorHighMul,
-    #[token("/")]
-    OperatorDiv,
-    #[token("%")]
-    OperatorMod,
-    #[token("!")]
-    OperatorNot,
-    #[token("-")]
-    Minus,
-    #[token("+")]
-    OperatorAdd,
-
-    // Relational operators
-    #[token("==")]
-    RelOpEq,
-    #[token("!=")]
-    RelOpNeq,
-    #[token(">")]
-    RelOpGr,
-    #[token(">=")]
-    RelOpGe,
-    #[token("<")]
-    RelOpLt,
-    #[token("<=")]
-    RelOpLe,
-
-    // Logical operators
-    #[token("&")]
-    Land,
-    #[token("|")]
-    Lor,
-}
-
-pub struct TokenDisplay<R: etac_intern::Resolver> {
-    tok: RawToken,
-    resolver: R,
-}
-
-impl<R: etac_intern::Resolver> TokenDisplay<R> {
-    pub fn new(tok: RawToken, resolver: R) -> Self {
-        TokenDisplay { tok, resolver }
-    }
-}
-
-impl<R: etac_intern::Resolver> Display for TokenDisplay<R> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self.tok {
-            RawToken::StrLiteral(sym) => write!(f, "\"{}\"", self.resolver.resolve(sym).escape_default().collect::<String>().replace("\\u{", "\\x{")),
-            RawToken::Identifier(sym) => write!(f, "{}", self.resolver.resolve(sym)),
-            RawToken::KeywordUse => write!(f, "use"),
-            RawToken::KeywordLength => write!(f, "length"),
-            RawToken::KeywordWhile => write!(f, "while"),
-            RawToken::KeywordIf => write!(f, "if"),
-            RawToken::KeywordElse => write!(f, "else"),
-            RawToken::KeywordReturn => write!(f, "return"),
-            RawToken::KeywordInt => write!(f, "int"),
-            RawToken::KeywordBool => write!(f, "bool"),
-            RawToken::SemiColon => write!(f, ";"),
-            RawToken::Discard => write!(f, "_"),
-            RawToken::OfType => write!(f, ":"),
-            RawToken::Assign => write!(f, "="),
-            RawToken::Comma => write!(f, ","),
-            RawToken::BoolLiteral(b) => write!(f, "{b}"),
-            RawToken::CharLiteral(c) => write!(f, "'{}'", c.escape_default().collect::<String>().replace("\\u{", "\\x{")),
-            RawToken::Integer(n) => write!(f, "{n}"),
-            RawToken::LParen => write!(f, "("),
-            RawToken::RParen => write!(f, ")"),
-            RawToken::LBracket => write!(f, "["),
-            RawToken::RBracket => write!(f, "]"),
-            RawToken::BlockOpen => write!(f, "{{"),
-            RawToken::BlockClose => write!(f, "}}"),
-            RawToken::OperatorMul => write!(f, "*"),
-            RawToken::OperatorHighMul => write!(f, "*>>"),
-            RawToken::OperatorDiv => write!(f, "/"),
-            RawToken::OperatorMod => write!(f, "%"),
-            RawToken::OperatorNot => write!(f, "!"),
-            RawToken::Minus => write!(f, "-"),
-            RawToken::OperatorAdd => write!(f, "+"),
-            RawToken::RelOpEq => write!(f, "=="),
-            RawToken::RelOpNeq => write!(f, "!="),
-            RawToken::RelOpGr => write!(f, ">"),
-            RawToken::RelOpGe => write!(f, ">="),
-            RawToken::RelOpLt => write!(f, "<"),
-            RawToken::RelOpLe => write!(f, "<="),
-            RawToken::Land => write!(f, "&"),
-            RawToken::Lor => write!(f, "|"),
-
-        }
-    }
+    #[regex(r"[a-zA-Z][a-zA-Z0-9_']*", |lex| lex.extras.1.get_or_intern(lex.slice()))]
+    #[name("an identifier")]
+    Identifier(Symbol),
 }

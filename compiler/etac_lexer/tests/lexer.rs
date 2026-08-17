@@ -1,30 +1,38 @@
+use std::fmt::Write;
 use std::{cell::RefCell, rc::Rc};
 
 use etac_errors::{dcx::DiagCtx, emitter::EmitConfig};
 use etac_intern::EtacInterner;
-use etac_lexer::EtaLexer;
-use etac_source::{FileId, SourceMap};
+use etac_lexer::token::Token;
+use etac_lexer::{EtaLexer, LexResult};
+use etac_source::{FileId, SourceMap, Span};
+
+#[inline]
+fn write_token(write_buf: &RefCell<String>, token: Token, span: Span, sm: &SourceMap, lookup: &EtacInterner) {
+    let span_location = sm.span_location(span);
+    let display_token = etac_lexer::token::TokenDisplay::new(token, lookup);
+    let _ = writeln!(write_buf.borrow_mut(), "{span_location:<20} {display_token}");
+}
 
 /// testing interface for lexer
 pub fn lex<'sm>(sm: &SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String {
     let out = Rc::new(RefCell::new(String::new()));
+
     let dcx = DiagCtx::with_emitter(Box::new(etac_test::string_emitter(
         &out,
         EmitConfig::default().with_color(false).with_compact(false),
     )));
-    let mut lexer = EtaLexer::new(sm.base_offset(file_id), &sm.get_source(file_id).source, interner, &dcx);
 
-    loop {
-        let item = lexer.next();
-        match item {
-            Some(Ok(token)) => {
-                etac_test::write_token(&out, token, sm, lexer.interner());
-            }
-            Some(Err(diag)) => {
-                let _ = diag.finish(); // queued for emission
-            }
-            None => break,
-        }
+    let lexer = EtaLexer::new(sm.base_offset(file_id), interner, &dcx);
+
+    let LexResult { tokens, diags } = lexer.lex(&sm.get_source(file_id).source);
+
+    for (token, span) in tokens.data {
+        write_token(&out, token, span, sm, interner);
+    }
+
+    for diag in diags {
+        let _g = diag.finish();
     }
 
     dcx.emit_diagnostics(sm);

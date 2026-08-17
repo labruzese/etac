@@ -127,7 +127,18 @@ pub struct SpanLocation {
 }
 impl std::fmt::Display for SpanLocation {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}:{}:{}..{}:{}", self.file, self.start.0, self.start.1, self.end.0, self.end.1)
+        if f.width().is_none() && f.precision().is_none() {
+            return write!(
+                f,
+                "{}:{}:{}..{}:{}",
+                self.file, self.start.0, self.start.1, self.end.0, self.end.1
+            );
+        }
+        let s = format!(
+            "{}:{}:{}..{}:{}",
+            self.file, self.start.0, self.start.1, self.end.0, self.end.1
+        );
+        f.pad(&s)
     }
 }
 

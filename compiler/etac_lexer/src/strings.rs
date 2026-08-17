@@ -1,6 +1,8 @@
-use crate::internal_error::{InternalLexerError, lexer_error};
+use logos::Lexer;
 
-use super::{current_span, LogosLexer, Span};
+use crate::{internal_error::InternalLexerError, token::Token};
+
+use super::{current_span, Span};
 
 const VALID_ESCAPES: &str = "valid escapes: '\\n', '\\t', '\\r', '\\\\', '\\'', '\\\"', '\\0', '\\x{..}'";
 
@@ -56,10 +58,11 @@ fn finish_char(cursor: &mut Cursor, start: u32) -> (char, u32) {
 
 fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> {
     if cursor.next() != Some(b'{') {
-        return Err(lexer_error! {
-            span = Span::new(open, open + 2),
-            message = "expected '{{' after '\\x'",
-            plabel = "at this escape sequence"
+        return Err(InternalLexerError {
+            span: Span::new(open, open + 2),
+            message: String::from("expected '{{' after '\\x'"),
+            plabel: Some(String::from("at this escape sequence")),
+            note: None
         })
     }
 
@@ -80,10 +83,11 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
 
                 if digit_count == 0 {
                     // No digits between `{` and `}`.
-                    return Err(lexer_error! {
-                        span = Span::new(open, close),
-                        message = "empty unicode escape expected non-empty hex between '{' and '}'",
-                        plabel = "expected non-empty hex here",
+                    return Err(InternalLexerError {
+                        span: Span::new(open, close),
+                        message: String::from("empty unicode escape expected non-empty hex between '{' and '}'"),
+                        plabel: Some(String::from("expected non-empty hex here")),
+                        note: None
                     });
                 }
 
@@ -100,11 +104,11 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
 
                 if digit_count > 6 {
                     // keep scanning (without overflowing `value`, until `}` for better span.
-                    pending_error.get_or_insert(lexer_error! {
-                        span = Span::new(digits_start, cursor.pos),
-                        message = "too many hex digits in unicode escape",
-                        plabel = "too many hex digits here",
-                        note = "at most 6 hex digits are allowed between '{' and '}' (codepoints only go up to 10FFFF), e.g. '\\x{10FFFF}'"
+                    pending_error.get_or_insert(InternalLexerError {
+                        span: Span::new(digits_start, cursor.pos),
+                        message: String::from("too many hex digits in unicode escape"),
+                        plabel: Some(String::from("too many hex digits here")),
+                        note: Some(String::from("at most 6 hex digits are allowed between '{' and '}' (codepoints only go up to 10FFFF), e.g. '\\x{10FFFF}'"))
                     });
                     continue;
                 }
@@ -119,11 +123,11 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
 
                 if value > 0x0010_FFFF {
                     // keep scanning (without overflowing `value`, until `}` for better span.
-                    pending_error.get_or_insert(lexer_error! {
-                        span = Span::new(digits_start, cursor.pos),
-                        message = "unicode escape out of range",
-                        plabel = "this isn't a valid codepoint",
-                        note = "the maximum valid codepoint is U+10FFFF ('\\x{10FFFF}')"
+                    pending_error.get_or_insert(InternalLexerError {
+                        span: Span::new(digits_start, cursor.pos),
+                        message: String::from("unicode escape out of range"),
+                        plabel: Some(String::from("this isn't a valid codepoint")),
+                        note: Some(String::from("the maximum valid codepoint is U+10FFFF ('\\x{10FFFF}')"))
                     });
                 }
             }
@@ -132,21 +136,21 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                 let start = cursor.loc();
                 cursor.next();
                 let (ch, end) = finish_char(cursor, start);
-                return Err(lexer_error! {
-                    span = Span::new(start, end),
-                    message = format!("invalid hex digit '{}' in unicode escape: '", ch),
-                    plabel = "inside this unicode escape",
-                    note = "only the digits 0-9 and letters a-f/A-F are allowed inside '\\x{...}",
+                return Err(InternalLexerError {
+                    span: Span::new(start, end),
+                    message: format!("invalid hex digit '{}' in unicode escape: '", ch),
+                    plabel: Some(String::from("inside this unicode escape")),
+                    note: Some(String::from("only the digits 0-9 and letters a-f/A-F are allowed inside '\\x{...}")),
                 });
             }
             None => {
                 // Ran off the end of the literal before finding a closing '}'.
                 let end = cursor.loc();
-                return Err(lexer_error! {
-                    span = Span::new(open, end),
-                    message = "unterminated unicode escape",
-                    plabel = "unicode escape unclosed here",
-                    note = "expected a closing '}' before the end of the literal"
+                return Err(InternalLexerError {
+                    span: Span::new(open, end),
+                    message: String::from("unterminated unicode escape"),
+                    plabel: Some(String::from("unicode escape unclosed here")),
+                    note: Some(String::from("expected a closing '}' before the end of the literal"))
                 });
             }
         }
@@ -161,11 +165,11 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
 
     let b_pos = cursor.loc();
     let b = cursor.next().ok_or_else(|| {
-        lexer_error! {
-            span = Span::new(esc_start, esc_start),
-            message = "dangling backslash",
-            plabel = "closing quote is escaped here",
-            note = "expected an escape character after '\\'",
+        InternalLexerError {
+            span: Span::new(esc_start, esc_start),
+            message: String::from("dangling backslash"),
+            plabel: Some(String::from("closing quote is escaped here")),
+            note: Some(String::from("expected an escape character after '\\'")),
         }
     })?;
 
@@ -186,13 +190,13 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
             // Reject UTF-16 surrogate halves (U+D800–U+DFFF). These are not valid Unicode scalar values and cannot be 
             // represented a `char`.
             if (0xD800..=0xDFFF).contains(&cp) {
-                return Err(lexer_error! {
-                    span = Span::new(esc_start, end),
-                    message = "invalid unicode escape",
-                    plabel = "this escape produces a surrogate half",
-                    note = format!("U+{cp:04X} is a UTF-16 surrogate half and is not a valid \
+                return Err(InternalLexerError {
+                    span: Span::new(esc_start, end),
+                    message: String::from("invalid unicode escape"),
+                    plabel: Some(String::from("this escape produces a surrogate half")),
+                    note: Some(format!("U+{cp:04X} is a UTF-16 surrogate half and is not a valid \
                                     Unicode scalar value; surrogate halves (U+D800–U+DFFF) \
-                                    cannot be used in escape sequences")
+                                    cannot be used in escape sequences"))
                 });
             }
 
@@ -206,11 +210,11 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
 
         _ if b.is_ascii() => {
             let l = cursor.loc();
-            return Err(lexer_error! {
-                span = Span::new(esc_start, l),
-                message = format!("unknown escape: '\\{}' is not a recognized escape sequence", b as char),
-                plabel = "this isn't a recognized escape sequence",
-                note = VALID_ESCAPES,
+            return Err(InternalLexerError {
+                span: Span::new(esc_start, l),
+                message: format!("unknown escape: '\\{}' is not a recognized escape sequence", b as char),
+                plabel: Some(String::from("this isn't a recognized escape sequence")),
+                note: Some(String::from(VALID_ESCAPES)),
             });
         }
 
@@ -218,11 +222,11 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
             // The byte after `\` is the first byte of a multi-byte UTF-8
             // character. Walk the rest of that character so both the reported character and the error span are correct
             let (ch, end) = finish_char(cursor, b_pos);
-            return Err(lexer_error! {
-                span = Span::new(esc_start, end),
-                message = format!("unknown escape: '\\{ch}' is not a recognized escape sequence"),
-                plabel = "this isn't a recognized escape sequence",
-                note = VALID_ESCAPES,
+            return Err(InternalLexerError {
+                span: Span::new(esc_start, end),
+                message: format!("unknown escape: '\\{ch}' is not a recognized escape sequence"),
+                plabel: Some(String::from("this isn't a recognized escape sequence")),
+                note: Some(String::from(VALID_ESCAPES)),
             });
         }
     };
@@ -230,16 +234,16 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
     Ok(esc)
 }
 
-pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<char, InternalLexerError> {
+pub fn parse_char<'a, 's>(lex: &'a mut Lexer<'s, Token>) -> Result<char, InternalLexerError> {
     let raw = lex.slice();
     let tok_span = current_span(lex);
 
     if raw == "''" {
-        return Err(lexer_error!{
-            span = tok_span,
-            message = "empty character literal",
-            plabel = "empty here",
-            note = "a char literal must contain exactly one character",
+        return Err(InternalLexerError {
+            span: tok_span,
+            message: String::from("empty character literal"),
+            plabel: Some(String::from("empty here")),
+            note: Some(String::from("a char literal must contain exactly one character")),
         });
     }
 
@@ -261,10 +265,11 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<char, InternalL
             c
         }
         None => {
-            return Err(lexer_error! {
-                span = tok_span,
-                message = "invalid char literal",
-                plabel = "this is not a valid char literal",
+            return Err(InternalLexerError {
+                span: tok_span,
+                message: String::from("invalid char literal"),
+                plabel: Some(String::from("this is not a valid char literal")),
+                note: None,
             });
         }
     };
@@ -272,18 +277,18 @@ pub fn parse_char<'a, 's>(lex: &'a mut LogosLexer<'s>) -> Result<char, InternalL
     if !cursor.is_empty() {
         // Multiple characters (or a character plus trailing junk) inside a single-quoted literal: 
         // span the *entire* literal, including both quotes
-        return Err(lexer_error! {
-            span = tok_span,
-            message = "too many characters in char literal",
-            plabel = "this literal contains more than one character",
-            note = " a char literal must contain exactly one character; did you mean to use a string literal (\"...\") instead?",
+        return Err(InternalLexerError {
+            span: tok_span,
+            message: String::from("too many characters in char literal"),
+            plabel: Some(String::from("this literal contains more than one character")),
+            note: Some(String::from(" a char literal must contain exactly one character; did you mean to use a string literal (\"...\") instead?")),
         });
     }
 
     Ok(value)
 }
 
-pub fn parse_str(lex: &mut LogosLexer<'_>) -> Result<String, InternalLexerError> {
+pub fn parse_str(lex: &mut Lexer<'_, Token>) -> Result<String, InternalLexerError> {
     let raw = lex.slice();
     let tok_span = current_span(lex);
 

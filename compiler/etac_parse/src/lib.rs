@@ -17,9 +17,11 @@ use crate::{
 mod state;
 pub mod result;
 
+mod grammar;
+
 // -- import grammar --
 
-lalrpop_mod!(grammar);
+// lalrpop_mod!(grammar);
 type LalrpopFailure<'dcx> = ParseError<u32, RawToken, Diag<'dcx>>;
 
 // -- parser interface --

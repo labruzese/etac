@@ -1,18 +1,9 @@
 use std::cell::RefCell;
-use std::fmt::Write as _;
 use std::io;
 use std::rc::Rc;
 
-use etac_ast::display::sexpr::SexpPrinter;
-use etac_ast::display::span::SpanPrinter;
 use etac_errors::emitter::EmitConfig;
 use etac_errors::emitter::IoEmitter;
-use etac_intern::EtacInterner;
-use etac_lexer::token::SourceToken;
-use etac_source::FileId;
-use etac_source::SourceMap;
-use etac_source::Span;
-use etac_parse::result::Parsed;
 
 pub struct StringWriter(pub Rc<RefCell<String>>);
     impl io::Write for StringWriter {
@@ -31,31 +22,32 @@ pub fn string_emitter(write_buf: &Rc<RefCell<String>>, config: EmitConfig) -> Io
     IoEmitter::with_config(StringWriter(write_buf.clone()), config)
 }
 
-pub fn write_token(write_buf: &RefCell<String>, token: SourceToken, sm: &SourceMap, lookup: &EtacInterner) {
-    let (start, tok, end) = token;
-    let span_location = sm.span_location(Span::new(start, end));
-    let display_token = etac_lexer::token::TokenDisplay::new(tok, lookup);
-    let _ = writeln!(write_buf.borrow_mut(), "{span_location} {display_token}");
-}
+// #[inline]
+// pub fn write_token(write_buf: &RefCell<String>, token: Token, span: Span, sm: &SourceMap, lookup: &EtacInterner) {
+//     let (start, tok, end) = token;
+//     let span_location = sm.span_location(Span::new(start, end));
+//     let display_token = etac_lexer::token::TokenDisplay::new(tok, lookup);
+//     let _ = writeln!(write_buf.borrow_mut(), "{span_location} {display_token}");
+// }
 
-pub fn write_parse<'sm, T>(write_buf: &RefCell<String>, res: Parsed<T>, file_id: FileId<'sm>, sm: &'sm SourceMap, lookup: &EtacInterner) 
-where 
-    for<'ast, 'sym> SexpPrinter<'ast, 'sym, EtacInterner, T>: std::fmt::Display, 
-    for<'ast, 'sym> SpanPrinter<'ast, 'sym, T>: std::fmt::Display {
-    match res {
-        Parsed::Ok(out) => {
-            let name = sm.get_source(file_id).name.clone();
-            let _ = writeln!(write_buf.borrow_mut(), "{name}: parse(clean)\n{}", SexpPrinter::new(lookup, &out));
-            let _ = writeln!(write_buf.borrow_mut(), "{}", SpanPrinter::new(&out, sm));
-        }
-        Parsed::Recovered(out) => {
-            let name = sm.get_source(file_id).name.clone();
-            let _ = writeln!(write_buf.borrow_mut(), "{name}: parse(recovered)\n{}", SexpPrinter::new(lookup, &out));
-            let _ = writeln!(write_buf.borrow_mut(), "{}", SpanPrinter::new(&out, sm));
-        }
-        Parsed::Failed => {
-            let name = sm.get_source(file_id).name.clone();
-            let _ = writeln!(write_buf.borrow_mut(), "{name}: parse(failed)");
-        }
-    }
-}
+// pub fn write_parse<'sm, T>(write_buf: &RefCell<String>, res: Parsed<T>, file_id: FileId<'sm>, sm: &'sm SourceMap, lookup: &EtacInterner) 
+// where 
+//     for<'ast, 'sym> SexpPrinter<'ast, 'sym, EtacInterner, T>: std::fmt::Display, 
+//     for<'ast, 'sym> SpanPrinter<'ast, 'sym, T>: std::fmt::Display {
+//     match res {
+//         Parsed::Ok(out) => {
+//             let name = sm.get_source(file_id).name.clone();
+//             let _ = writeln!(write_buf.borrow_mut(), "{name}: parse(clean)\n{}", SexpPrinter::new(lookup, &out));
+//             let _ = writeln!(write_buf.borrow_mut(), "{}", SpanPrinter::new(&out, sm));
+//         }
+//         Parsed::Recovered(out) => {
+//             let name = sm.get_source(file_id).name.clone();
+//             let _ = writeln!(write_buf.borrow_mut(), "{name}: parse(recovered)\n{}", SexpPrinter::new(lookup, &out));
+//             let _ = writeln!(write_buf.borrow_mut(), "{}", SpanPrinter::new(&out, sm));
+//         }
+//         Parsed::Failed => {
+//             let name = sm.get_source(file_id).name.clone();
+//             let _ = writeln!(write_buf.borrow_mut(), "{name}: parse(failed)");
+//         }
+//     }
+// }
