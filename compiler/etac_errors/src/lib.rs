@@ -10,7 +10,6 @@ pub enum Level {
 
 pub mod dcx;
 pub mod emitter;
-mod macros;
 pub mod guarentee;
 
 #[cfg(debug_assertions)]

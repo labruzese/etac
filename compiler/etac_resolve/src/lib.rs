@@ -3,9 +3,8 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
+use etac_errors::dcx::{Diag, DiagCtx};
 use etac_source::{FileId, InterfaceId, SourceId, SourceMap, Span};
-use etac_errors::etac_error;
-use etac_errors::dcx::{DiagCtx, Diag};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub enum File<'sm> {
@@ -50,10 +49,7 @@ impl<'sm> Resolver<'sm> {
             Some("eta") => false,
             Some("eti") => true,
             ext => {
-                return Err(dcx.err_no_span(format!(
-                    "unknown file type `{}` for {path_str}",
-                    ext.unwrap_or("")
-                )));
+                return Err(dcx.err_no_span(format!("unknown file type `{}` for {path_str}", ext.unwrap_or(""))));
             }
         };
 
@@ -84,9 +80,7 @@ impl<'sm> Resolver<'sm> {
     ) -> Result<Option<InterfaceId<'sm>>, Diag<'dcx>> {
         let file_name = format!("{name}.eti");
         let from_path = sm.get_source(from).name.to_string();
-        let from_dir = Path::new(&from_path)
-            .parent()
-            .unwrap_or_else(|| Path::new(""));
+        let from_dir = Path::new(&from_path).parent().unwrap_or_else(|| Path::new(""));
 
         let mut candidates = vec![from_dir.join(&file_name)];
         let in_lib = self.lib_path.join(&file_name);
@@ -109,11 +103,10 @@ impl<'sm> Resolver<'sm> {
             .map(|c| c.display().to_string())
             .collect::<Vec<_>>()
             .join(", ");
-        Err(etac_error! {
-            dcx, at, "cannot find interface `{}`", name;
-            primary: "no `{}` on the search path", file_name;
-            note: "searched: {}", searched;
-        })
+        Err(dcx
+            .err(at, format!("cannot find interface `{}`", name))
+            .with_primary_label(format!("no `{}` on the search path", file_name))
+            .with_note(format!("searched: {}", searched)))
     }
 
     /// Read `path_str` from disk and store it in the cache, reusing the

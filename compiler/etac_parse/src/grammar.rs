@@ -1,7 +1,6 @@
 //! The Eta grammar
 
 use etac_ast::ast::*;
-use etac_errors::etac_error;
 use etac_lexer::token::{Token, TokenKind};
 use etac_lexer::Tok;
 use etac_source::Span;
@@ -203,9 +202,10 @@ fn interface_item(p: &mut Parser) -> InterfaceItemKind {
         let at = p.cur_span();
         let u = use_stmt(p);
         let span = u.as_ref().map_or(at, |u| u.span);
-        let d = etac_error! { p.dcx(), span, "an interface cannot `use` another interface";
-            primary: "not allowed in an interface";
-        };
+        let d = p
+            .dcx()
+            .err(span, "an interface cannot `use` another interface")
+            .with_primary_label("not allowed in an interface");
         p.report(d);
         return InterfaceItemKind::Error(Error(span));
     }

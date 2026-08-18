@@ -1,5 +1,5 @@
 use std::marker::PhantomData;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 use crossbeam_skiplist::SkipMap;
@@ -25,23 +25,25 @@ impl FileId<'_> {
 }
 
 pub struct SourceRecord {
-    pub name: Rc<str>,
-    pub source: Rc<str>,
+    pub name: Arc<str>,
+    pub source: Arc<str>,
 }
 
 #[derive(Default)]
 pub struct SourceMap {
-    lc_cache: FrozenMap<u32, Box<ariadne::Source<Rc<str>>>>,
+    lc_cache: FrozenMap<u32, Box<ariadne::Source<Arc<str>>>>,
     source_starts: SkipMap<u32, ()>,
     source_texts: FrozenMap<u32, Box<SourceRecord>>,
-    name_to_id: DashMap<Rc<str>, u32>,
+    name_to_id: DashMap<Arc<str>, u32>,
     next_base: AtomicU32,
 }
+const fn assert_send_sync<T: Send + Sync>() {}
+const _: () = assert_send_sync::<SourceMap>();
 
 impl SourceMap {
     pub fn alloc_source(&self, display_name: String, text: String) -> (FileId<'_>, &str) {
-        let name: Rc<str> = Rc::from(display_name);
-        let source: Rc<str> = Rc::from(text);
+        let name: Arc<str> = Arc::from(display_name);
+        let source: Arc<str> = Arc::from(text);
 
         let len = u32::try_from(source.len()).expect("text maximum is 4GB (u32::MAX bytes)");
         // +1 keeps bases unique even for empty files.
@@ -82,7 +84,7 @@ impl SourceMap {
         (id, (span.lo - base) as usize..(span.hi - base) as usize)
     }
 
-    pub fn ariadne_source(&self, id: FileId<'_>) -> &ariadne::Source<Rc<str>> {
+    pub fn ariadne_source(&self, id: FileId<'_>) -> &ariadne::Source<Arc<str>> {
         if let Some(s) = self.lc_cache.get(&id.base) {
             s
         } else {
@@ -109,7 +111,7 @@ impl SourceMap {
 }
 
 impl<'sm> ariadne::Cache<FileId<'sm>> for &SourceMap {
-    type Storage = Rc<str>;
+    type Storage = Arc<str>;
     fn fetch(&mut self, id: &FileId<'sm>) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
         Ok::<_, std::convert::Infallible>(self.ariadne_source(*id))
     }
@@ -119,7 +121,7 @@ impl<'sm> ariadne::Cache<FileId<'sm>> for &SourceMap {
 }
 
 pub struct SpanLocation {
-    pub file: Rc<str>,
+    pub file: Arc<str>,
     /// (line, col)
     pub start: (u32, u32),
     /// (line, col)

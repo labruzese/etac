@@ -1,21 +1,22 @@
 use std::hash::{BuildHasherDefault};
 
-pub mod asts;
-
 mod state {
-    pub trait State {}
+    pub trait State: Send + Sync {}
+    impl State for Parse {}
+    impl State for Typecheck {}
 
     pub struct Parse {
         pub interner: etac_intern::EtacInterner,
-    } impl State for Parse {}
+    } 
 
     pub struct Typecheck {
         pub interner: etac_intern::EtacReader,
-    } impl State for Typecheck {}
+    } 
 }
 
+const fn assert_send_sync<T: Send + Sync>() {}
+const _: () = assert_send_sync::<EtaCache>();
 pub struct EtaCache<S: state::State = state::Parse> {
-    // pub asts: asts::AstArena,
     pub sources: etac_source::SourceMap,
     pub state: S,
 }
@@ -35,6 +36,7 @@ impl EtaCache {
     pub fn new() -> Self {
         Self::default()
     }
+
     pub fn finish_parse(self) -> EtaCache<state::Typecheck> {
         let state = state::Typecheck {
             interner: self.state.interner.into_reader(),
@@ -44,5 +46,5 @@ impl EtaCache {
             state,
         }
     }
-}
 
+}

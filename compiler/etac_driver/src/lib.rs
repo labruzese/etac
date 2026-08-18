@@ -39,11 +39,9 @@ where
 
     match parse {
         Parsed::Ok(tree) | Parsed::Recovered(tree) => Ok(tree),
-        Parsed::Failed => Err(
-            parse_guarantee
-                .or(lex_guarantee)
-                .expect("a failed parse must have reported at least one diagnostic")
-        ),
+        Parsed::Failed => Err(parse_guarantee
+            .or(lex_guarantee)
+            .expect("a failed parse must have reported at least one diagnostic")),
     }
 }
 
