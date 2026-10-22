@@ -74,6 +74,8 @@ impl Emitter for BufferEmitter {
 }
 
 impl Diagnostic {
+    // diagnostic can render itself, usually this is done by an emitter, prefer creating an emitter
+    // rather than emitting them directly.
     pub fn render_report<'sm>(&self, sm: &'sm SourceMap, writer: &mut impl std::io::Write, conf: EmitConfig) {
         let _ = self.make_report(sm, conf).write(sm, writer);
     }

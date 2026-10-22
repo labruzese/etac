@@ -10,7 +10,7 @@ use etac_source::SourceMap;
 
 fn accepts<T: Parse>(src: &str) -> bool {
     let emitter = etac_test::sink_emitter(EmitConfig::default().with_color(false));
-    let dcx = DiagCtx::with_emitter(Box::new(emitter));
+    let dcx = DiagCtx::new_with_emitter(Box::new(emitter));
     let sm = SourceMap::default();
     let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
 

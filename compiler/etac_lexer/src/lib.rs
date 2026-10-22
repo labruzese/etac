@@ -5,7 +5,7 @@
 
 use std::{num::ParseIntError};
 
-use etac_errors::dcx::{DiagCtx, Diag};
+use etac_errors::dcx::{DiagCtx, DiagBuilder};
 use etac_intern::{EtacInterner};
 use etac_source::Span;
 
@@ -29,7 +29,7 @@ pub struct EtaLexer<'dcx, R: etac_intern::Interner> {
 
 pub struct LexResult<'dcx> {
     pub tokens: Tokens,
-    pub diags: Box<[Diag<'dcx>]>
+    pub diags: Box<[DiagBuilder<'dcx>]>
 }
 
 pub struct Tokens {
@@ -59,8 +59,8 @@ impl<'src, 'dcx> EtaLexer<'dcx, &'src mut EtacInterner> {
             let tok = match tresult {
                 Ok(tok) => tok,
                 Err(ie) => {
-                    let mut d = self.dcx.err(ie.span, ie.message);
-                    if let Some(l) = ie.plabel { d = d.with_primary_label(l); }
+                    let mut d = self.dcx.new_err(ie.span, ie.message);
+                    if let Some(l) = ie.plabel { d = d.with_message(l); }
                     if let Some(l) = ie.note { d = d.with_note(l); }
                     diags.push(d);
                     Token::Error

@@ -1,4 +1,4 @@
-use etac_errors::dcx::Diag;
+use etac_errors::dcx::DiagBuilder;
 
 #[derive(Debug)]
 pub enum Parsed<Out> {
@@ -24,5 +24,5 @@ impl<Out> Parsed<Out> {
 /// filter before anything reaches the emitter.
 pub struct ParseResult<'dcx, Out> {
     pub parse: Parsed<Out>,
-    pub diags: Vec<Diag<'dcx>>,
+    pub diags: Vec<DiagBuilder<'dcx>>,
 }

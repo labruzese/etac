@@ -3,7 +3,7 @@
 use etac_ast::ast::{Interface, Program};
 use etac_cache::EtaCache;
 use etac_errors::{
-    dcx::{Diag, DiagCtx},
+    dcx::{DiagBuilder, DiagCtx},
     guarentee::ErrorGuaranteed,
 };
 use etac_intern::EtacInterner;
@@ -35,7 +35,7 @@ where
     }
 
     let ParseResult { parse, mut diags } = T::parse(&lexed.tokens, dcx);
-    let parse_guarantee = diags.drain(..).map(Diag::finish).reduce(|_, g| g);
+    let parse_guarantee = diags.drain(..).map(DiagBuilder::finish).reduce(|_, g| g);
 
     match parse {
         Parsed::Ok(tree) | Parsed::Recovered(tree) => Ok(tree),

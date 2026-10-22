@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use etac_errors::dcx::{Diag, DiagCtx};
+use etac_errors::dcx::{DiagBuilder, DiagCtx};
 use etac_lexer::token::{Token, TokenKind};
 use etac_lexer::Tok;
 use etac_lexer::Tokens;
@@ -83,7 +83,7 @@ pub struct Parser<'t, 'dcx> {
     /// dcx that this parser should report to
     dcx: &'dcx DiagCtx,
     /// diags this parser produced
-    diags: Vec<Diag<'dcx>>,
+    diags: Vec<DiagBuilder<'dcx>>,
     /// token position that last produced a diagnostic, for cascade suppression.
     last_err_pos: Option<usize>,
     /// current tokens we can recover on
@@ -111,7 +111,7 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         }
     }
 
-    pub fn finish_parse(self) -> Vec<Diag<'dcx>> {
+    pub fn finish_parse(self) -> Vec<DiagBuilder<'dcx>> {
         self.diags
     }
 
@@ -263,7 +263,7 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         self.last_err_pos == Some(self.pos)
     }
 
-    fn push(&mut self, d: Diag<'dcx>) {
+    fn push(&mut self, d: DiagBuilder<'dcx>) {
         self.last_err_pos = Some(self.pos);
         self.diags.push(d);
     }
@@ -272,7 +272,7 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         if self.suppressed() {
             return;
         }
-        let mut d = self.dcx.err(span, msg);
+        let mut d = self.dcx.new_err(span, msg);
         if let Some(n) = note {
             d = d.with_note(n);
         }
@@ -297,14 +297,14 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         };
         let d = self
             .dcx
-            .err(span, format!("expected {}, found {}", what, self.cur()))
-            .with_primary_label(format!("expected {}", what));
+            .new_err(span, format!("expected {}, found {}", what, self.cur()))
+            .with_message(format!("expected {}", what));
         self.push(d);
     }
 
     /// one-off messages that don't fit [`Expected`].
     /// the `Diag` is built by the caller so it can carry secondary labels.
-    pub fn report(&mut self, d: Diag<'dcx>) {
+    pub fn report(&mut self, d: DiagBuilder<'dcx>) {
         // not suppressed: these are semantic complaints about something the parser understood,
         // not an unknown token cascade.
         self.last_err_pos = Some(self.pos);
@@ -469,8 +469,8 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
             if junk.hi > junk.lo && !self.suppressed() {
                 let d = self
                     .dcx
-                    .err(junk, format!("unexpected tokens in this {}", what))
-                    .with_primary_label(format!("expected {} here", close));
+                    .new_err(junk, format!("unexpected tokens in this {}", what))
+                    .with_message(format!("expected {} here", close));
                 self.push(d);
             }
             self.bump(close);
@@ -481,8 +481,8 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         if !self.suppressed() {
             let d = self
                 .dcx
-                .err(open, format!("unclosed {}", what))
-                .with_primary_label(format!("this {} is never closed", what))
+                .new_err(open, format!("unclosed {}", what))
+                .with_message(format!("this {} is never closed", what))
                 .with_note(format!("expected {} to close it", close));
             self.push(d);
         }

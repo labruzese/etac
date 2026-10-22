@@ -2,7 +2,7 @@
 //!
 //! The generator is a deterministic xorshift, so a failure here reproduces exactly.
 
-use etac_errors::dcx::{Diag, DiagCtx};
+use etac_errors::dcx::{DiagBuilder, DiagCtx};
 use etac_errors::emitter::EmitConfig;
 use etac_intern::EtacInterner;
 use etac_parse::{Parse, result::ParseResult};
@@ -35,7 +35,7 @@ impl Rng {
 /// assertions are the failure modes under test; the output is not.
 fn fuzz_one(src: &str) {
     let emitter = etac_test::sink_emitter(EmitConfig::default().with_color(false));
-    let dcx = DiagCtx::with_emitter(Box::new(emitter));
+    let dcx = DiagCtx::new_with_emitter(Box::new(emitter));
     let sm = SourceMap::default();
     let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
 
@@ -54,7 +54,7 @@ fn fuzz_one(src: &str) {
         d.cancel();
     }
 
-    let _: Vec<Diag<'_>> = Vec::new();
+    let _: Vec<DiagBuilder<'_>> = Vec::new();
     dcx.cancel();
 }
 

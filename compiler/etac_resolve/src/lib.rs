@@ -3,7 +3,7 @@
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use etac_errors::dcx::{Diag, DiagCtx};
+use etac_errors::dcx::{DiagBuilder, DiagCtx};
 use etac_source::{FileId, InterfaceId, SourceId, SourceMap, Span};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -39,17 +39,17 @@ impl<'sm> Resolver<'sm> {
         sm: &'sm SourceMap,
         dcx: &'dcx DiagCtx,
         path: &Path,
-    ) -> Result<Option<File<'sm>>, Diag<'dcx>> {
+    ) -> Result<Option<File<'sm>>, DiagBuilder<'dcx>> {
         let path = resolve_against(&self.source_path, path);
         let Some(path_str) = path.to_str() else {
-            return Err(dcx.err_no_span(format!("non-UTF8 file name {}", path.to_string_lossy())));
+            return Err(dcx.new_err_unspanned(format!("non-UTF8 file name {}", path.to_string_lossy())));
         };
 
         let is_interface = match path.extension().and_then(|x| x.to_str()) {
             Some("eta") => false,
             Some("eti") => true,
             ext => {
-                return Err(dcx.err_no_span(format!("unknown file type `{}` for {path_str}", ext.unwrap_or(""))));
+                return Err(dcx.new_err_unspanned(format!("unknown file type `{}` for {path_str}", ext.unwrap_or(""))));
             }
         };
 
@@ -77,7 +77,7 @@ impl<'sm> Resolver<'sm> {
         from: SourceId<'sm>,
         name: &str,
         at: Span,
-    ) -> Result<Option<InterfaceId<'sm>>, Diag<'dcx>> {
+    ) -> Result<Option<InterfaceId<'sm>>, DiagBuilder<'dcx>> {
         let file_name = format!("{name}.eti");
         let from_path = sm.get_source(from).name.to_string();
         let from_dir = Path::new(&from_path).parent().unwrap_or_else(|| Path::new(""));
@@ -104,20 +104,20 @@ impl<'sm> Resolver<'sm> {
             .collect::<Vec<_>>()
             .join(", ");
         Err(dcx
-            .err(at, format!("cannot find interface `{}`", name))
-            .with_primary_label(format!("no `{}` on the search path", file_name))
+            .new_err(at, format!("cannot find interface `{}`", name))
+            .with_message(format!("no `{}` on the search path", file_name))
             .with_note(format!("searched: {}", searched)))
     }
 
     /// Read `path_str` from disk and store it in the cache, reusing the
     /// existing [`FileId`] if this path has already been loaded.
-    fn load<'dcx>(&self, sm: &'sm SourceMap, dcx: &'dcx DiagCtx, path_str: &str) -> Result<FileId<'sm>, Diag<'dcx>> {
+    fn load<'dcx>(&self, sm: &'sm SourceMap, dcx: &'dcx DiagCtx, path_str: &str) -> Result<FileId<'sm>, DiagBuilder<'dcx>> {
         if let Some(id) = sm.get_id(path_str) {
             return Ok(id);
         }
         match std::fs::read_to_string(path_str) {
             Ok(contents) => Ok(sm.alloc_source(path_str.to_string(), contents).0),
-            Err(ioe) => Err(dcx.io_err(ioe)),
+            Err(ioe) => Err(dcx.new_err_io(ioe)),
         }
     }
 }

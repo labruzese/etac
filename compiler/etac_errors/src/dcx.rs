@@ -9,6 +9,16 @@ use crate::emitter::{Emitter, IoEmitter};
 use crate::drop_bomb::DropBomb;
 use crate::guarentee::ErrorGuaranteed;
 
+#[derive(Debug)]
+pub struct Diagnostic {
+    pub level: Level,
+    pub message: String,
+    pub loc: Option<Span>,
+    pub labels: Vec<(Span, String, ariadne::Color)>,
+    pub code: Option<String>,
+    pub note: Option<String>,
+}
+
 pub struct DiagCtx {
     diagnostics: elsa::sync::FrozenVec<Box<Diagnostic>>,
     emitter: Box<dyn Emitter>,
@@ -25,12 +35,12 @@ impl Default for DiagCtx {
 impl DiagCtx {
     /// A context that renders to stderr.
     pub fn new() -> Self {
-        Self::with_emitter(Box::new(IoEmitter::new(std::io::stderr())))
+        Self::new_with_emitter(Box::new(IoEmitter::new(std::io::stderr())))
     }
 
     /// A context with a custom sink (example: [`BufferEmitter`](crate::BufferEmitter)).
     #[must_use]
-    pub fn with_emitter(emitter: Box<dyn Emitter>) -> Self {
+    pub fn new_with_emitter(emitter: Box<dyn Emitter>) -> Self {
         Self {
             diagnostics: elsa::sync::FrozenVec::new(),
             emitter,
@@ -40,23 +50,31 @@ impl DiagCtx {
         }
     }
 
+    pub fn new_diag(&self, level: Level, span: Span, message: impl Into<String>) -> DiagBuilder<'_> {
+        DiagBuilder::new(self, level, span, message)
+    }
+
+    pub fn new_diag_unspanned(&self, level: Level, message: impl Into<String>) -> DiagBuilder<'_> {
+        DiagBuilder::new_unspanned(self, level, message)
+    }
+
     /// Start building an error at `span`. 
-    pub fn err(&self, span: Span, msg: impl Into<String>) -> Diag<'_> {
-        Diag::new(self, Level::Error, span, msg)
+    pub fn new_err(&self, span: Span, msg: impl Into<String>) -> DiagBuilder<'_> {
+        DiagBuilder::new(self, Level::Error, span, msg)
     }
 
     /// Start building a location-less error.
-    pub fn err_no_span(&self, msg: impl Into<String>) -> Diag<'_> {
-        Diag::new_no_span(self, Level::Error, msg)
+    pub fn new_err_unspanned(&self, msg: impl Into<String>) -> DiagBuilder<'_> {
+        DiagBuilder::new_unspanned(self, Level::Error, msg)
     }
 
     /// Start building a warning at `span`.
-    pub fn warn(& self, span: Span, msg: impl Into<String>) -> Diag<'_> {
-        Diag::new(self, Level::Warning, span, msg)
+    pub fn new_warn(& self, span: Span, msg: impl Into<String>) -> DiagBuilder<'_> {
+        DiagBuilder::new(self, Level::Warning, span, msg)
     }
 
-    pub fn io_err(&self, io_err: std::io::Error) -> Diag<'_> {
-        self.err_no_span(io_err.to_string())
+    pub fn new_err_io(&self, io_err: std::io::Error) -> DiagBuilder<'_> {
+        self.new_err_unspanned(io_err.to_string())
     }
 
     pub fn err_count(&self) -> usize {
@@ -91,15 +109,7 @@ impl DiagCtx {
 
 }
 
-#[derive(Debug)]
-pub struct Diagnostic {
-    pub level: Level,
-    pub message: String,
-    pub loc: Option<Span>,
-    pub labels: Vec<(Span, String, ariadne::Color)>,
-    pub code: Option<String>,
-    pub note: Option<String>,
-}
+mod diag_builder {}
 
 /// A diagnostic under construction, knowing its [`DiagCtxt`].
 ///
@@ -110,12 +120,12 @@ pub struct Diagnostic {
 /// over its cache lifetime, so `&'dcx DiagCtxt<'ec>` shrinks to
 /// `&'dcx DiagCtxt<'dcx>` at construction.
 #[must_use = "a Diag does nothing until you call `.emit()` (or `.cancel()` it)"]
-pub struct Diag<'dcx> {
+pub struct DiagBuilder<'dcx> {
     pub(crate) dcx: &'dcx DiagCtx,
     diagnostic: Box<Diagnostic>,
     #[cfg(debug_assertions)] bomb: DropBomb,
 }
-impl<'dcx> Diag<'dcx> {
+impl<'dcx> DiagBuilder<'dcx> {
     /// Create a new diagnostic at a location with a message.
     fn new(dcx: &'dcx DiagCtx, level: Level, span: Span, message: impl Into<String>) -> Self {
         Self {
@@ -134,7 +144,7 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Create a new diagnostic that doesn't have a location
-    fn new_no_span(dcx: &'dcx DiagCtx, level: Level, message: impl Into<String>) -> Self {
+    fn new_unspanned(dcx: &'dcx DiagCtx, level: Level, message: impl Into<String>) -> Self {
         Self {
             dcx,
             diagnostic: Box::new(Diagnostic {
@@ -155,7 +165,7 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Point the primary (red) label at the diagnostic's own span.
-    pub fn with_primary_label(mut self, msg: impl Into<String>) -> Self {
+    pub fn with_message(mut self, msg: impl Into<String>) -> Self {
         self.diagnostic.labels.push((
             self.diagnostic.loc
                 .unwrap_or_else(|| panic!("can not add primary label to a diagnostic without a location")),
@@ -166,7 +176,7 @@ impl<'dcx> Diag<'dcx> {
     }
 
     /// Add a secondary (yellow) label at another span.
-    pub fn with_secondary_label(mut self, span: Span, msg: impl Into<String>) -> Self {
+    pub fn with_label(mut self, span: Span, msg: impl Into<String>) -> Self {
         self.diagnostic.labels.push((span, msg.into(), ariadne::Color::Yellow));
         self
     }

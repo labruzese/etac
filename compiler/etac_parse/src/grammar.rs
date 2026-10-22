@@ -52,8 +52,8 @@ pub fn program(p: &mut Parser) -> Program {
             let span = u.as_ref().map_or(at, |u| u.span);
             let d = p
                 .dcx()
-                .err(span, "`use` must come before every definition")
-                .with_primary_label("`use` is not allowed here")
+                .new_err(span, "`use` must come before every definition")
+                .with_message("`use` is not allowed here")
                 .with_note("move this `use` to the top of the file");
             p.report(d);
             uses.extend(u);
@@ -67,8 +67,8 @@ pub fn program(p: &mut Parser) -> Program {
     if definitions.is_empty() {
         let d = p
             .dcx()
-            .err(p.gap_span(), "a program must contain at least one definition")
-            .with_primary_label("expected a method or global definition");
+            .new_err(p.gap_span(), "a program must contain at least one definition")
+            .with_message("expected a method or global definition");
         p.report(d);
     }
 
@@ -95,8 +95,8 @@ pub fn interface(p: &mut Parser) -> Interface {
     if items.is_empty() {
         let d = p
             .dcx()
-            .err(p.gap_span(), "an interface must declare at least one method")
-            .with_primary_label("expected a method declaration");
+            .new_err(p.gap_span(), "an interface must declare at least one method")
+            .with_message("expected a method declaration");
         p.report(d);
     }
 
@@ -176,9 +176,9 @@ fn interface_item(p: &mut Parser) -> InterfaceItemKind {
             let body = block(p);
             let d = p
                 .dcx()
-                .err(body.span, "a method in an interface cannot have a body")
-                .with_primary_label("remove this body")
-                .with_secondary_label(decl.span, "declared here")
+                .new_err(body.span, "a method in an interface cannot have a body")
+                .with_message("remove this body")
+                .with_label(decl.span, "declared here")
                 .with_note("interfaces can only declare methods; only `.eta` files can implement them");
             p.report(d);
         }
@@ -192,8 +192,8 @@ fn interface_item(p: &mut Parser) -> InterfaceItemKind {
         let g = glob_decl(p);
         let d = p
             .dcx()
-            .err(g.span, "an interface cannot declare a global")
-            .with_primary_label("not allowed in an interface")
+            .new_err(g.span, "an interface cannot declare a global")
+            .with_message("not allowed in an interface")
             .with_note("move this global into the `.eta` file that defines it");
         p.report(d);
         return InterfaceItemKind::Error(Error(g.span));
@@ -204,8 +204,8 @@ fn interface_item(p: &mut Parser) -> InterfaceItemKind {
         let span = u.as_ref().map_or(at, |u| u.span);
         let d = p
             .dcx()
-            .err(span, "an interface cannot `use` another interface")
-            .with_primary_label("not allowed in an interface");
+            .new_err(span, "an interface cannot `use` another interface")
+            .with_message("not allowed in an interface");
         p.report(d);
         return InterfaceItemKind::Error(Error(span));
     }
@@ -226,9 +226,9 @@ fn method(p: &mut Parser) -> Method {
     } else {
         let d = p
             .dcx()
-            .err(p.gap_span(), "this method has no body")
-            .with_primary_label(format!("expected {}", (Tok!['{'])))
-            .with_secondary_label(decl.span, "declared here")
+            .new_err(p.gap_span(), "this method has no body")
+            .with_message(format!("expected {}", (Tok!['{'])))
+            .with_label(decl.span, "declared here")
             .with_note("eta is not declare before use, there is no need to foward declare")
             .with_note("only interface (`.eti`) files declare methods without a body.");
         p.report(d);
@@ -311,9 +311,9 @@ fn glob_decl(p: &mut Parser) -> GlobDecl {
         if matches!(typ, TypeKind::Array(_)) {
             let d = p
                 .dcx()
-                .err(init_span, "a global array cannot be initialised where it is declared")
-                .with_primary_label("initialisation happens here")
-                .with_secondary_label(type_span, "this is an array type");
+                .new_err(init_span, "a global array cannot be initialised where it is declared")
+                .with_message("initialisation happens here")
+                .with_label(type_span, "this is an array type");
             p.report(d);
         }
         v
@@ -383,9 +383,9 @@ fn block(p: &mut Parser) -> Block {
             (_, Some(ret_span), false) => {
                 let d = p
                     .dcx()
-                    .err(stmt_span(&s), "this statement is unreachable")
-                    .with_primary_label("unreachable")
-                    .with_secondary_label(ret_span, "the block already returned here")
+                    .new_err(stmt_span(&s), "this statement is unreachable")
+                    .with_message("unreachable")
+                    .with_label(ret_span, "the block already returned here")
                     .with_note("`return` must be the last statement in a block");
                 p.report(d);
                 reported_return_error = true; // once per block is plenty
@@ -582,8 +582,8 @@ fn assign_or_decl(p: &mut Parser) -> StmtKind {
                 let span = expr_span(&e);
                 let d = p
                     .dcx()
-                    .err(span, format!("{} is not a statement", expr_noun(&e)))
-                    .with_primary_label("expected an assignment or a procedure call")
+                    .new_err(span, format!("{} is not a statement", expr_noun(&e)))
+                    .with_message("expected an assignment or a procedure call")
                     .with_note("add `= ...` to assign to it");
                 p.report(d);
                 StmtKind::Error(Error(span))
@@ -591,8 +591,8 @@ fn assign_or_decl(p: &mut Parser) -> StmtKind {
             TargetItem::Discard(span) => {
                 let d = p
                     .dcx()
-                    .err(span, "`_` is only allowed on the left of an assignment")
-                    .with_primary_label("nothing is being discarded here");
+                    .new_err(span, "`_` is only allowed on the left of an assignment")
+                    .with_message("nothing is being discarded here");
                 p.report(d);
                 StmtKind::Error(Error(span))
             }
@@ -632,8 +632,8 @@ fn into_target(p: &mut Parser, item: TargetItem) -> TargetKind {
                 let span = expr_span(&other);
                 let d = p
                     .dcx()
-                    .err(span, format!("cannot assign to {}", expr_noun(&other)))
-                    .with_primary_label("not a valid assignment target")
+                    .new_err(span, format!("cannot assign to {}", expr_noun(&other)))
+                    .with_message("not a valid assignment target")
                     .with_note("assign to a variable, an array element, or `_`");
                 p.report(d);
                 TargetKind::Discard(span)
@@ -701,17 +701,17 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
             (Some(_), _) if sizes == Sizes::Forbidden => {
                 let d = p
                     .dcx()
-                    .err(dim_span, "a global array cannot be given a size")
-                    .with_primary_label("size not allowed here")
+                    .new_err(dim_span, "a global array cannot be given a size")
+                    .with_message("size not allowed here")
                     .with_note("globals are declared unsized: `x: int[]`");
                 p.report(d);
             }
             (Some(_), Some(unsized_span)) => {
                 let d = p
                     .dcx()
-                    .err(dim_span, "an array size cannot follow an unsized dimension")
-                    .with_primary_label("this dimension is sized")
-                    .with_secondary_label(unsized_span, "this one is not")
+                    .new_err(dim_span, "an array size cannot follow an unsized dimension")
+                    .with_message("this dimension is sized")
+                    .with_label(unsized_span, "this one is not")
                     .with_note(
                         "sizes must always come first: [] does not have a size so [size] doesn't know how to allocate",
                     );
