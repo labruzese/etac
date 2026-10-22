@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 use std::fmt;
-use std::ops::{ControlFlow};
+use std::ops::ControlFlow;
 
 use etac_source::{SourceMap, Span};
 
@@ -17,34 +17,29 @@ impl<'ast, 'sm, NodeT> SpanPrinter<'ast, 'sm, NodeT> {
     pub const SPAN_ELIPSE_AT_CHAR_NUM: usize = 120;
     pub const SPAN_ELIPSE_AT_LINE_NUM: usize = 6;
     pub fn new(node: &'ast NodeT, sm: &'sm SourceMap) -> Self {
-        SpanPrinter {
-            node,
-            sm,
-        }
+        SpanPrinter { node, sm }
     }
 }
 
 impl<'ast, 'sm> std::fmt::Display for SpanPrinter<'ast, 'sm, Program> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        SpanPrinterWriter {
-            out: f,
-            printer: self
-        }.visit_program(self.node).continue_ok()
+        SpanPrinterWriter { out: f, printer: self }
+            .visit_program(self.node)
+            .continue_ok()
     }
 }
 
 impl<'ast, 'sm> std::fmt::Display for SpanPrinter<'ast, 'sm, Interface> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        SpanPrinterWriter {
-            out: f,
-            printer: self
-        }.visit_interface(self.node).continue_ok()
+        SpanPrinterWriter { out: f, printer: self }
+            .visit_interface(self.node)
+            .continue_ok()
     }
 }
 
 struct SpanPrinterWriter<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> {
     out: &'fmt mut fmt::Formatter<'buf>,
-    printer: &'prt SpanPrinter<'ast, 'sm, NodeT>
+    printer: &'prt SpanPrinter<'ast, 'sm, NodeT>,
 }
 
 impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> SpanPrinterWriter<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> {
@@ -57,7 +52,12 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> SpanPrinterWriter<'ast, 'sm, 'buf, 'prt
         let s = Self::elipse_lines(&s, seal);
 
         let mut lines = s.lines();
-        Self::into_cf(writeln!(self.out, "{tag:<width$}> {}", Self::elipse_line(lines.next().unwrap_or_default(), seac), width = 10))?;
+        Self::into_cf(writeln!(
+            self.out,
+            "{tag:<width$}> {}",
+            Self::elipse_line(lines.next().unwrap_or_default(), seac),
+            width = 10
+        ))?;
         for line in lines {
             Self::into_cf(writeln!(self.out, "          > {}", Self::elipse_line(line, seac)))?;
         }
@@ -69,9 +69,7 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> SpanPrinterWriter<'ast, 'sm, 'buf, 'prt
         let head = str.match_indices('\n').nth(half - 1).map(|(i, _)| i);
         let tail = str.rmatch_indices('\n').nth(half - 1).map(|(i, _)| i + 1);
         match (head, tail) {
-            (Some(h), Some(t)) if t > h + 1 => {
-                Cow::Owned(format!("{}\n...\n{}", &str[..h], &str[t..]))
-            }
+            (Some(h), Some(t)) if t > h + 1 => Cow::Owned(format!("{}\n...\n{}", &str[..h], &str[t..])),
             _ => Cow::Borrowed(str),
         }
     }
@@ -154,7 +152,6 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> Visitor<'ast> for SpanPrinterWriter<'as
         n.walk(self)
     }
 
-
     fn visit_glob_decl(&mut self, n: &'ast GlobDecl) -> Self::Result {
         let GlobDecl { span, .. } = n;
         self.write("gdecl", span)?;
@@ -226,7 +223,7 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> Visitor<'ast> for SpanPrinterWriter<'as
         self.write("int_lit", span)?;
         n.walk(self)
     }
-    
+
     fn visit_bool_lit(&mut self, n: &'ast BoolLit) -> Self::Result {
         let BoolLit { span, .. } = n;
         self.write("bool_lit", span)?;
@@ -308,4 +305,4 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> Visitor<'ast> for SpanPrinterWriter<'as
         self.write("error", &n.0)?;
         n.walk(self)
     }
- }
+}

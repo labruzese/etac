@@ -58,7 +58,6 @@ pub struct GlobDecl {
     pub val: Option<GlobDeclValue>,
 }
 
-
 // Statements
 
 pub enum StmtKind {

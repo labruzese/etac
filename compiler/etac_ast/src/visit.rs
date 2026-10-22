@@ -1,5 +1,5 @@
-use std::{convert::Infallible, ops::ControlFlow};
 use crate::walk::Walkable;
+use std::{convert::Infallible, ops::ControlFlow};
 
 pub trait VisitorResult {
     type Residual;
@@ -11,15 +11,25 @@ pub trait VisitorResult {
 impl VisitorResult for () {
     type Residual = Infallible;
     fn output() -> Self {}
-    fn from_residual(r: Infallible) -> Self { match r {} }
-    fn branch(self) -> ControlFlow<Infallible> { ControlFlow::Continue(()) }
+    fn from_residual(r: Infallible) -> Self {
+        match r {}
+    }
+    fn branch(self) -> ControlFlow<Infallible> {
+        ControlFlow::Continue(())
+    }
 }
 
 impl<T> VisitorResult for ControlFlow<T> {
     type Residual = T;
-    fn output() -> Self { ControlFlow::Continue(()) }
-    fn from_residual(r: T) -> Self { ControlFlow::Break(r) }
-    fn branch(self) -> ControlFlow<T> { self }
+    fn output() -> Self {
+        ControlFlow::Continue(())
+    }
+    fn from_residual(r: T) -> Self {
+        ControlFlow::Break(r)
+    }
+    fn branch(self) -> ControlFlow<T> {
+        self
+    }
 }
 
 pub trait Visitable<'ast, V: Visitor<'ast>> {
@@ -31,7 +41,7 @@ macro_rules! try_visit {
     ($e:expr) => {
         match $crate::visit::VisitorResult::branch($e) {
             ::core::ops::ControlFlow::Continue(()) => {}
-#[allow(unreachable_code)]
+            #[allow(unreachable_code)]
             ::core::ops::ControlFlow::Break(r) => {
                 return $crate::visit::VisitorResult::from_residual(r);
             }
@@ -112,21 +122,29 @@ ast_visitor! {
 
 impl<'ast, V: Visitor<'ast>, T: Visitable<'ast, V> + ?Sized> Visitable<'ast, V> for Box<T> {
     #[inline]
-    fn visit(&'ast self, v: &mut V) -> V::Result { (**self).visit(v) }
+    fn visit(&'ast self, v: &mut V) -> V::Result {
+        (**self).visit(v)
+    }
 }
 impl<'ast, V: Visitor<'ast>, T: Visitable<'ast, V>> Visitable<'ast, V> for Option<T> {
     fn visit(&'ast self, v: &mut V) -> V::Result {
-        if let Some(x) = self { try_visit!(x.visit(v)); }
+        if let Some(x) = self {
+            try_visit!(x.visit(v));
+        }
         V::Result::output()
     }
 }
 impl<'ast, V: Visitor<'ast>, T: Visitable<'ast, V>> Visitable<'ast, V> for [T] {
     fn visit(&'ast self, v: &mut V) -> V::Result {
-        for x in self { try_visit!(x.visit(v)); }
+        for x in self {
+            try_visit!(x.visit(v));
+        }
         V::Result::output()
     }
 }
 impl<'ast, V: Visitor<'ast>, T: Visitable<'ast, V>> Visitable<'ast, V> for Vec<T> {
     #[inline]
-    fn visit(&'ast self, v: &mut V) -> V::Result { self.as_slice().visit(v) }
+    fn visit(&'ast self, v: &mut V) -> V::Result {
+        self.as_slice().visit(v)
+    }
 }

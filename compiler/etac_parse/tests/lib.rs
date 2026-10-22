@@ -4923,7 +4923,6 @@ fn referr_block01() {
     }
 }
 
-
 #[test]
 fn referr_use01() {
     parsetest! {

@@ -9,8 +9,7 @@ pub struct StringWriter(pub StringBuffer);
 
 impl io::Write for StringWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
-        let s = std::str::from_utf8(buf)
-            .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        let s = std::str::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
         self.0.borrow_mut().push_str(s);
         Ok(buf.len())
     }

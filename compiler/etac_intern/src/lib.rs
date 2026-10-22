@@ -1,10 +1,10 @@
-use std::hash::BuildHasherDefault;
 use lasso::{Rodeo, RodeoReader, Spur};
 use rustc_hash::FxHasher;
+use std::hash::BuildHasherDefault;
 type FxBuild = BuildHasherDefault<FxHasher>;
 
-pub use lasso::Resolver;
 pub use lasso::Interner;
+pub use lasso::Resolver;
 
 pub type Symbol = Spur;
 pub type EtacInterner = Rodeo<Symbol, FxBuild>;

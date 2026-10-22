@@ -4,7 +4,10 @@ use std::path::Path;
 
 use etac_errors::dcx::DiagCtx;
 use etac_intern::EtacInterner;
-use etac_parse::{Parse, result::{ParseResult, Parsed}};
+use etac_parse::{
+    Parse,
+    result::{ParseResult, Parsed},
+};
 use etac_source::SourceMap;
 
 fn accepts<T: Parse>(src: &str) -> bool {

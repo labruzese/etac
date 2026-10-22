@@ -3,16 +3,15 @@
 //! The generator is a deterministic xorshift, so a failure here reproduces exactly.
 
 use etac_errors::dcx::{DiagBuilder, DiagCtx};
-use etac_errors::emitter::EmitConfig;
 use etac_intern::EtacInterner;
 use etac_parse::{Parse, result::ParseResult};
 use etac_source::SourceMap;
 
 /// Every token spelling in the language, plus a few shapes that only matter to recovery.
 const ATOMS: &[&str] = &[
-    "use", "length", "while", "if", "else", "return", "int", "bool", ";", "_", ":", "=", ",", "(",
-    ")", "[", "]", "{", "}", "*", "*>>", "/", "%", "!", "-", "+", "==", "!=", ">", ">=", "<", "<=",
-    "&", "|", "true", "false", "'a'", "\"s\"", "x", "f", "0", "12", "\n",
+    "use", "length", "while", "if", "else", "return", "int", "bool", ";", "_", ":", "=", ",", "(", ")", "[", "]", "{",
+    "}", "*", "*>>", "/", "%", "!", "-", "+", "==", "!=", ">", ">=", "<", "<=", "&", "|", "true", "false", "'a'",
+    "\"s\"", "x", "f", "0", "12", "\n",
 ];
 
 struct Rng(u64);
@@ -72,7 +71,7 @@ fn random_token_soup_terminates() {
     }
 }
 
-/// Every prefix of a real program. 
+/// Every prefix of a real program.
 #[test]
 fn every_prefix_of_a_real_program_terminates() {
     let src = include_str!("real_programs/insertionsort.eta");

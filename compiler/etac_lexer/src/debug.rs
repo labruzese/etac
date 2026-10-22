@@ -1,9 +1,9 @@
 use std::io::Write;
 
-use etac_errors::{dcx::DiagCtx};
-use etac_intern::EtacInterner;
 use crate::token::Token;
 use crate::{EtaLexer, LexResult};
+use etac_errors::dcx::DiagCtx;
+use etac_intern::EtacInterner;
 use etac_source::{FileId, SourceMap, Span};
 
 #[inline]
@@ -14,8 +14,14 @@ fn write_token(write_buf: &mut impl Write, token: Token, span: Span, sm: &Source
 }
 
 /// testing interface for lexer
-pub fn lex<'sm>(out: &mut impl Write, sm: &SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, dcx: &DiagCtx) {
-    let lexer = EtaLexer::new(sm.base_offset(file_id), interner, &dcx);
+pub fn lex<'sm>(
+    out: &mut impl Write,
+    sm: &SourceMap,
+    interner: &mut EtacInterner,
+    file_id: FileId<'sm>,
+    dcx: &DiagCtx,
+) {
+    let lexer = EtaLexer::new(sm.base_offset(file_id), interner, dcx);
 
     let LexResult { tokens, diags } = lexer.lex(&sm.get_source(file_id).source);
 
@@ -25,5 +31,5 @@ pub fn lex<'sm>(out: &mut impl Write, sm: &SourceMap, interner: &mut EtacInterne
 
     for diag in diags {
         let _g = diag.finish();
-    };
+    }
 }

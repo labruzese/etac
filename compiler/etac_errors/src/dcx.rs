@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use etac_source::{SourceMap, Span};
 
 use crate::Level;
-use crate::emitter::{IoEmitter};
+use crate::emitter::IoEmitter;
 
 #[cfg(debug_assertions)]
 use crate::drop_bomb::DropBomb;
@@ -24,7 +24,8 @@ pub struct DiagCtx {
     emitter: IoEmitter,
     err_count: AtomicUsize,
     warn_count: AtomicUsize,
-    #[cfg(debug_assertions)] bomb: DropBomb,
+    #[cfg(debug_assertions)]
+    bomb: DropBomb,
 }
 
 impl Default for DiagCtx {
@@ -40,7 +41,8 @@ impl DiagCtx {
             emitter,
             err_count: 0.into(),
             warn_count: 0.into(),
-            #[cfg(debug_assertions)] bomb: DropBomb::new("DiagCtx dropped without writing diagnostics to emitter"),
+            #[cfg(debug_assertions)]
+            bomb: DropBomb::new("DiagCtx dropped without writing diagnostics to emitter"),
         }
     }
 
@@ -57,7 +59,7 @@ impl DiagCtx {
         DiagBuilder::new_unspanned(self, level, message)
     }
 
-    /// Start building an error at `span`. 
+    /// Start building an error at `span`.
     pub fn new_err(&self, span: Span, msg: impl Into<String>) -> DiagBuilder<'_> {
         DiagBuilder::new(self, Level::Error, span, msg)
     }
@@ -68,7 +70,7 @@ impl DiagCtx {
     }
 
     /// Start building a warning at `span`.
-    pub fn new_warn(& self, span: Span, msg: impl Into<String>) -> DiagBuilder<'_> {
+    pub fn new_warn(&self, span: Span, msg: impl Into<String>) -> DiagBuilder<'_> {
         DiagBuilder::new(self, Level::Warning, span, msg)
     }
 
@@ -96,31 +98,28 @@ impl DiagCtx {
         for diag in self.diagnostics.into_vec().drain(..) {
             self.emitter.emit(source_map, *diag);
         }
-        #[cfg(debug_assertions)] self.bomb.defuse();
+        #[cfg(debug_assertions)]
+        self.bomb.defuse();
     }
 
     /// deliberately don't emit the diagnostics to emitter
     #[allow(unused_mut)]
     pub fn cancel(mut self) {
-        #[cfg(debug_assertions)] self.bomb.defuse();
+        #[cfg(debug_assertions)]
+        self.bomb.defuse();
     }
-
-
 }
 
-/// A diagnostic under construction, knowing its [`DiagCtxt`].
+/// A diagnostic under construction, knowing its [`DiagCtx`].
 ///
-/// [`Drop`] bomb will panic in debug mode if dropped without [`emit`](Diag::emit) or
-/// [`cancel`](Diag::cancel).
-///
-/// The single lifetime is the borrow of the context; `DiagCtxt` is covariant
-/// over its cache lifetime, so `&'dcx DiagCtxt<'ec>` shrinks to
-/// `&'dcx DiagCtxt<'dcx>` at construction.
+/// [`Drop`] bomb will panic in debug mode if dropped without [`finish`](DiagBuilder::finish) or
+/// [`cancel`](DiagBuilder::cancel).
 #[must_use = "a Diag does nothing until you call `.emit()` (or `.cancel()` it)"]
 pub struct DiagBuilder<'dcx> {
     pub(crate) dcx: &'dcx DiagCtx,
     diagnostic: Box<Diagnostic>,
-    #[cfg(debug_assertions)] bomb: DropBomb,
+    #[cfg(debug_assertions)]
+    bomb: DropBomb,
 }
 impl<'dcx> DiagBuilder<'dcx> {
     /// Create a new diagnostic at a location with a message.
@@ -164,7 +163,8 @@ impl<'dcx> DiagBuilder<'dcx> {
     /// Point the primary (red) label at the diagnostic's own span.
     pub fn with_message(mut self, msg: impl Into<String>) -> Self {
         self.diagnostic.labels.push((
-            self.diagnostic.loc
+            self.diagnostic
+                .loc
                 .unwrap_or_else(|| panic!("can not add primary label to a diagnostic without a location")),
             msg.into(),
             ariadne::Color::Red,

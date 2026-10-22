@@ -5,9 +5,9 @@
 use std::fmt;
 
 use etac_errors::dcx::{DiagBuilder, DiagCtx};
-use etac_lexer::token::{Token, TokenKind};
 use etac_lexer::Tok;
 use etac_lexer::Tokens;
+use etac_lexer::token::{Token, TokenKind};
 use etac_source::Span;
 
 use crate::token_set::TokenSet;
@@ -359,11 +359,7 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         let skipped = self.skip_until(stop.union(self.recovery));
         // Nothing was skipped: the offending token is still ahead of us, but it is what
         // the error node stands for.
-        if skipped.lo == skipped.hi {
-            at
-        } else {
-            skipped
-        }
+        if skipped.lo == skipped.hi { at } else { skipped }
     }
 
     // ---- expecting ----

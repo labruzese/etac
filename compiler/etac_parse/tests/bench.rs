@@ -15,7 +15,8 @@ use etac_source::SourceMap;
 #[ignore = "measurement, not an assertion; run with --ignored --nocapture"]
 fn throughput() {
     let mut src = String::new();
-    for _ in 0..200 { // this will generate at least use errors
+    for _ in 0..200 {
+        // this will generate at least use errors
         src.push_str(include_str!("bench/main.eta"));
     }
     let bytes = src.len();
@@ -49,7 +50,11 @@ fn throughput() {
 
     let mb = bytes as f64 / 1_048_576.0;
     eprintln!("source   {bytes} bytes, {ntok} tokens");
-    eprintln!("lex      {:>7.2} ms  {:>6.1} MB/s", lex_ns as f64 / 1e6, mb / (lex_ns as f64 / 1e9));
+    eprintln!(
+        "lex      {:>7.2} ms  {:>6.1} MB/s",
+        lex_ns as f64 / 1e6,
+        mb / (lex_ns as f64 / 1e9)
+    );
     eprintln!(
         "parse    {:>7.2} ms  {:>6.1} MB/s  {:.1} ns/token",
         parse_ns as f64 / 1e6,

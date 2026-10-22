@@ -1,10 +1,10 @@
+use crossbeam_skiplist::SkipMap;
+use dashmap::DashMap;
+use elsa::sync::FrozenMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
-use crossbeam_skiplist::SkipMap;
-use dashmap::DashMap;
-use elsa::sync::FrozenMap;
 
 pub type SourceId<'sm> = FileId<'sm>;
 pub type InterfaceId<'sm> = FileId<'sm>;
@@ -15,7 +15,10 @@ pub struct FileId<'sm> {
     _cache: PhantomData<&'sm SourceMap>,
 }
 impl FileId<'_> {
-    pub const DUMMY: FileId<'static> = FileId { base: u32::MAX, _cache: PhantomData };
+    pub const DUMMY: FileId<'static> = FileId {
+        base: u32::MAX,
+        _cache: PhantomData,
+    };
     pub(crate) fn new(base: u32) -> Self {
         FileId {
             base,
@@ -50,13 +53,7 @@ impl SourceMap {
         let base = self.next_base.fetch_add(len + 1, Ordering::SeqCst);
         self.name_to_id.insert(name.clone(), base);
         self.source_starts.insert(base, ());
-        let record = self.source_texts.insert(
-            base,
-            Box::new(SourceRecord {
-                name,
-                source,
-            }),
-        );
+        let record = self.source_texts.insert(base, Box::new(SourceRecord { name, source }));
         (FileId::new(base), &record.source)
     }
 
@@ -88,7 +85,10 @@ impl SourceMap {
         if let Some(s) = self.lc_cache.get(&id.base) {
             s
         } else {
-            self.lc_cache.insert(id.base, Box::new(ariadne::Source::from(self.get_source(id).source.clone())))
+            self.lc_cache.insert(
+                id.base,
+                Box::new(ariadne::Source::from(self.get_source(id).source.clone())),
+            )
         }
     }
 
@@ -150,9 +150,15 @@ pub struct Span {
     pub hi: u32,
 }
 impl Span {
-    pub const DUMMY: Span = Span { lo: u32::MAX, hi: u32::MAX };
+    pub const DUMMY: Span = Span {
+        lo: u32::MAX,
+        hi: u32::MAX,
+    };
     pub fn new(lo: impl Into<u32>, hi: impl Into<u32>) -> Self {
-        Self { lo: lo.into(), hi: hi.into(), }
+        Self {
+            lo: lo.into(),
+            hi: hi.into(),
+        }
     }
 }
 

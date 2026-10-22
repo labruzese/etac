@@ -1,12 +1,12 @@
 //! The Eta grammar
 
 use etac_ast::ast::*;
-use etac_lexer::token::{Token, TokenKind};
 use etac_lexer::Tok;
+use etac_lexer::token::{Token, TokenKind};
 use etac_source::Span;
 
 use crate::parser::{Expected, List, Parser};
-use crate::token_set::{ts, TokenSet};
+use crate::token_set::{TokenSet, ts};
 
 // ---- first / follow sets ----
 

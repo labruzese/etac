@@ -1,5 +1,5 @@
 use clap::{CommandFactory, Parser};
-use std::{path::PathBuf};
+use std::path::PathBuf;
 
 #[derive(Debug, Clone, Parser)]
 #[command(name = "etac", about = "Rust Implementation of Eta Compiler")]
@@ -16,7 +16,7 @@ pub struct Flags {
     ///
     /// A `use F` declaration searches for `F.eti` next to the using source
     /// file first, then in this directory. The default is the current
-    /// directory in which etac is run. 
+    /// directory in which etac is run.
     #[arg(short = 'l', long = "libpath", value_name = "PATH", default_value = ".")]
     pub lib_path: PathBuf,
 
@@ -44,4 +44,3 @@ pub fn parse_flags() -> Flags {
 
     flags
 }
-

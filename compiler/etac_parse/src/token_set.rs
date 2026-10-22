@@ -41,7 +41,7 @@ impl TokenSet {
     }
 }
 
-/// renders as the tail of an expected message. 
+/// renders as the tail of an expected message.
 impl fmt::Display for TokenSet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         // EOF is in a lot of follow sets and never helps a reader.
@@ -64,7 +64,7 @@ impl fmt::Display for TokenSet {
 /// build a [`TokenSet`] from `Tok![..]` spellings: `ts![if, while, '{', ident]`.
 ///
 /// expands to an inline `const` block, so the bitset is folded at compile time even in
-/// non-`const` position. 
+/// non-`const` position.
 ///
 /// spellings that are more than one Rust token (`*>>`) can't be captured as a `tt`;
 /// write those as a `TokenKind` path instead.

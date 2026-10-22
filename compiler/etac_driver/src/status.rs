@@ -14,7 +14,7 @@ impl From<&DiagCtx> for CompilationFailure {
     }
 }
 pub struct CompilationSuccess {
-    pub warnings: usize
+    pub warnings: usize,
 }
 impl From<&DiagCtx> for CompilationSuccess {
     fn from(value: &DiagCtx) -> Self {

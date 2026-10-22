@@ -1,4 +1,4 @@
-use std::hash::{BuildHasherDefault};
+use std::hash::BuildHasherDefault;
 
 mod state {
     pub trait State: Send + Sync {}
@@ -7,11 +7,11 @@ mod state {
 
     pub struct Parse {
         pub interner: etac_intern::EtacInterner,
-    } 
+    }
 
     pub struct Typecheck {
         pub interner: etac_intern::EtacReader,
-    } 
+    }
 }
 
 const fn assert_send_sync<T: Send + Sync>() {}
@@ -25,8 +25,8 @@ impl Default for EtaCache<state::Parse> {
     fn default() -> Self {
         Self {
             sources: Default::default(),
-            state: state::Parse { 
-                interner: etac_intern::EtacInterner::with_hasher(BuildHasherDefault::new()) 
+            state: state::Parse {
+                interner: etac_intern::EtacInterner::with_hasher(BuildHasherDefault::new()),
             },
         }
     }
@@ -46,5 +46,4 @@ impl EtaCache {
             state,
         }
     }
-
 }

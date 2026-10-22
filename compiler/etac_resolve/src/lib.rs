@@ -15,8 +15,7 @@ pub enum File<'sm> {
 impl<'sm> File<'sm> {
     pub fn id(&self) -> FileId<'sm> {
         match self {
-            File::Program(file_id) |
-            File::Interface(file_id) => *file_id,
+            File::Program(file_id) | File::Interface(file_id) => *file_id,
         }
     }
 }
@@ -120,7 +119,12 @@ impl<'sm> Resolver<'sm> {
 
     /// Read `path_str` from disk and store it in the cache, reusing the
     /// existing [`FileId`] if this path has already been loaded.
-    fn load<'dcx>(&self, sm: &'sm SourceMap, dcx: &'dcx DiagCtx, path_str: &str) -> Result<FileId<'sm>, DiagBuilder<'dcx>> {
+    fn load<'dcx>(
+        &self,
+        sm: &'sm SourceMap,
+        dcx: &'dcx DiagCtx,
+        path_str: &str,
+    ) -> Result<FileId<'sm>, DiagBuilder<'dcx>> {
         if let Some(id) = sm.get_id(path_str) {
             return Ok(id);
         }

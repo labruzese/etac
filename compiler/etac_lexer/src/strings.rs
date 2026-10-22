@@ -2,14 +2,14 @@ use logos::Lexer;
 
 use crate::{internal_error::InternalLexerError, token::Token};
 
-use super::{current_span, Span};
+use super::{Span, current_span};
 
 const VALID_ESCAPES: &str = "valid escapes: '\\n', '\\t', '\\r', '\\\\', '\\'', '\\\"', '\\0', '\\x{..}'";
 
 struct Cursor<'a> {
     input: &'a [u8],
     base: u32, // in global space
-    pos: u32, // in global space
+    pos: u32,  // in global space
 }
 
 impl<'a> Cursor<'a> {
@@ -62,8 +62,8 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
             span: Span::new(open, open + 2),
             message: String::from("expected '{{' after '\\x'"),
             plabel: Some(String::from("at this escape sequence")),
-            note: None
-        })
+            note: None,
+        });
     }
 
     let mut value: u32 = 0;
@@ -87,7 +87,7 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                         span: Span::new(open, close),
                         message: String::from("empty unicode escape expected non-empty hex between '{' and '}'"),
                         plabel: Some(String::from("expected non-empty hex here")),
-                        note: None
+                        note: None,
                     });
                 }
 
@@ -127,7 +127,7 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                         span: Span::new(digits_start, cursor.pos),
                         message: String::from("unicode escape out of range"),
                         plabel: Some(String::from("this isn't a valid codepoint")),
-                        note: Some(String::from("the maximum valid codepoint is U+10FFFF ('\\x{10FFFF}')"))
+                        note: Some(String::from("the maximum valid codepoint is U+10FFFF ('\\x{10FFFF}')")),
                     });
                 }
             }
@@ -140,7 +140,9 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                     span: Span::new(start, end),
                     message: format!("invalid hex digit '{}' in unicode escape: '", ch),
                     plabel: Some(String::from("inside this unicode escape")),
-                    note: Some(String::from("only the digits 0-9 and letters a-f/A-F are allowed inside '\\x{...}")),
+                    note: Some(String::from(
+                        "only the digits 0-9 and letters a-f/A-F are allowed inside '\\x{...}",
+                    )),
                 });
             }
             None => {
@@ -150,7 +152,7 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                     span: Span::new(open, end),
                     message: String::from("unterminated unicode escape"),
                     plabel: Some(String::from("unicode escape unclosed here")),
-                    note: Some(String::from("expected a closing '}' before the end of the literal"))
+                    note: Some(String::from("expected a closing '}' before the end of the literal")),
                 });
             }
         }
@@ -164,13 +166,11 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
     let esc_start = cursor.loc() - 1;
 
     let b_pos = cursor.loc();
-    let b = cursor.next().ok_or_else(|| {
-        InternalLexerError {
-            span: Span::new(esc_start, esc_start),
-            message: String::from("dangling backslash"),
-            plabel: Some(String::from("closing quote is escaped here")),
-            note: Some(String::from("expected an escape character after '\\'")),
-        }
+    let b = cursor.next().ok_or_else(|| InternalLexerError {
+        span: Span::new(esc_start, esc_start),
+        message: String::from("dangling backslash"),
+        plabel: Some(String::from("closing quote is escaped here")),
+        note: Some(String::from("expected an escape character after '\\'")),
     })?;
 
     let esc = match b {
@@ -187,16 +187,18 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
             let cp = parse_hex(cursor, esc_start)?;
             let end = cursor.loc();
 
-            // Reject UTF-16 surrogate halves (U+D800–U+DFFF). These are not valid Unicode scalar values and cannot be 
+            // Reject UTF-16 surrogate halves (U+D800–U+DFFF). These are not valid Unicode scalar values and cannot be
             // represented a `char`.
             if (0xD800..=0xDFFF).contains(&cp) {
                 return Err(InternalLexerError {
                     span: Span::new(esc_start, end),
                     message: String::from("invalid unicode escape"),
                     plabel: Some(String::from("this escape produces a surrogate half")),
-                    note: Some(format!("U+{cp:04X} is a UTF-16 surrogate half and is not a valid \
+                    note: Some(format!(
+                        "U+{cp:04X} is a UTF-16 surrogate half and is not a valid \
                                     Unicode scalar value; surrogate halves (U+D800–U+DFFF) \
-                                    cannot be used in escape sequences"))
+                                    cannot be used in escape sequences"
+                    )),
                 });
             }
 
@@ -275,13 +277,15 @@ pub fn parse_char<'a, 's>(lex: &'a mut Lexer<'s, Token>) -> Result<char, Interna
     };
 
     if !cursor.is_empty() {
-        // Multiple characters (or a character plus trailing junk) inside a single-quoted literal: 
+        // Multiple characters (or a character plus trailing junk) inside a single-quoted literal:
         // span the *entire* literal, including both quotes
         return Err(InternalLexerError {
             span: tok_span,
             message: String::from("too many characters in char literal"),
             plabel: Some(String::from("this literal contains more than one character")),
-            note: Some(String::from(" a char literal must contain exactly one character; did you mean to use a string literal (\"...\") instead?")),
+            note: Some(String::from(
+                " a char literal must contain exactly one character; did you mean to use a string literal (\"...\") instead?",
+            )),
         });
     }
 
@@ -308,8 +312,8 @@ pub fn parse_str(lex: &mut Lexer<'_, Token>) -> Result<String, InternalLexerErro
             // ASCII: push directly, no need to look at UTF-8 continuation bytes.
             b if b.is_ascii() => out.push(b as char),
 
-            // Non-ASCII: walk back one byte (already consumed by `next()`) and re-decode the full UTF-8 sequence as a 
-            // `&str` 
+            // Non-ASCII: walk back one byte (already consumed by `next()`) and re-decode the full UTF-8 sequence as a
+            // `&str`
             _ => {
                 let start = cursor.loc() - 1;
                 let (c, _end) = finish_char(&mut cursor, start);
