@@ -4,72 +4,54 @@
 //! [`DiagCtxt`](crate::DiagCtxt) owns one and routes every diagnostic through it
 
 use std::io::Write;
-use std::{cell::RefCell, rc::Rc};
 
 use ariadne::{IndexType, Label, Report, ReportKind};
 use etac_source::{FileId, SourceMap};
 
 use crate::{Level, dcx::Diagnostic};
 
-/// Can take ownership of a diagnostic to emit it
-pub trait Emitter {
-    fn emit(&mut self, sm: &SourceMap, diag: crate::dcx::Diagnostic);
-}
-
 pub type EmitConfig = ariadne::Config;
 
 /// Renders diagnostics to stderr with source snippets via `ariadne`.
-#[derive(Debug, Default, Clone, Copy)]
-pub struct IoEmitter<W: Write> {
-    writer: W,
+pub struct IoEmitter {
+    writer: Option<Box<dyn Write>>,
     conf: EmitConfig,
 }
 
-impl<W: Write> IoEmitter<W> {
-    pub fn new(writer: W) -> Self {
+impl std::fmt::Debug for IoEmitter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IoEmitter").field("writer", &"Box<dyn Write>").field("conf", &self.conf).finish()
+    }
+}
+
+impl IoEmitter {
+    pub fn new(writer: Box<dyn Write>) -> Self {
         Self::with_config(writer, EmitConfig::default())
     }
-    pub fn with_config(writer: W, conf: EmitConfig) -> Self {
-        Self { writer, conf: conf.with_index_type(IndexType::Byte) }
+    pub fn sink() -> Self {
+        IoEmitter {
+            writer: None, conf: EmitConfig::default()
+        }
+    }
+    pub fn with_config(writer: Box<dyn Write>, conf: EmitConfig) -> Self {
+        Self { writer: Some(writer), conf: conf.with_index_type(IndexType::Byte) }
     }
 }
 
-impl<W: Write> Emitter for IoEmitter<W> {
-    fn emit(&mut self, sm: &SourceMap, diag: crate::dcx::Diagnostic) {
-        diag.render_report(sm, &mut self.writer, self.conf);
+impl Write for IoEmitter {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        self.writer.as_mut().unwrap_or(&mut (Box::new(std::io::sink()) as Box<dyn Write>)).write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.writer.as_mut().unwrap_or(&mut (Box::new(std::io::sink()) as Box<dyn Write>)).flush()
     }
 }
 
-/// Records diagnostics into a shared buffer instead of printing them.
-///
-/// Cloning shares the same underlying buffer (it is an `Rc<RefCell<_>>`), so a test can
-/// keep a handle, hand a clone to the [`DiagCtxt`](crate::DiagCtxt), run a phase, and
-/// then read back exactly what was emitted via [`take`](BufferEmitter::take).
-#[derive(Debug, Clone, Default)]
-pub struct BufferEmitter(Rc<RefCell<Vec<Diagnostic>>>);
-
-impl BufferEmitter {
-    pub fn new() -> Self {
-        Self::default()
-    }
-    /// Drain everything emitted so far, leaving the buffer empty.
-    pub fn take(&self) -> Vec<Diagnostic> {
-        std::mem::take(&mut self.0.borrow_mut())
-    }
-
-    /// Number of diagnostics currently buffered.
-    pub fn len(&self) -> usize {
-        self.0.borrow().len()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.borrow().is_empty()
-    }
-}
-
-impl Emitter for BufferEmitter {
-    fn emit<'sm>(&mut self, _sm: &'sm SourceMap, diagnostic: crate::dcx::Diagnostic) {
-        self.0.borrow_mut().push(diagnostic);
+impl IoEmitter {
+    pub fn emit(&mut self, sm: &SourceMap, diag: crate::dcx::Diagnostic) {
+        let Some(writer) = &mut self.writer else { return };
+        diag.render_report(sm, writer, self.conf);
     }
 }
 

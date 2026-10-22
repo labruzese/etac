@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use etac_source::{SourceMap, Span};
 
 use crate::Level;
-use crate::emitter::{Emitter, IoEmitter};
+use crate::emitter::{IoEmitter};
 
 #[cfg(debug_assertions)]
 use crate::drop_bomb::DropBomb;
@@ -21,7 +21,7 @@ pub struct Diagnostic {
 
 pub struct DiagCtx {
     diagnostics: elsa::sync::FrozenVec<Box<Diagnostic>>,
-    emitter: Box<dyn Emitter>,
+    emitter: IoEmitter,
     err_count: AtomicUsize,
     warn_count: AtomicUsize,
     #[cfg(debug_assertions)] bomb: DropBomb,
@@ -29,18 +29,13 @@ pub struct DiagCtx {
 
 impl Default for DiagCtx {
     fn default() -> Self {
-        Self::new()
+        Self::new(IoEmitter::new(Box::new(std::io::stderr())))
     }
 }
 impl DiagCtx {
-    /// A context that renders to stderr.
-    pub fn new() -> Self {
-        Self::new_with_emitter(Box::new(IoEmitter::new(std::io::stderr())))
-    }
-
     /// A context with a custom sink (example: [`BufferEmitter`](crate::BufferEmitter)).
     #[must_use]
-    pub fn new_with_emitter(emitter: Box<dyn Emitter>) -> Self {
+    pub fn new(emitter: IoEmitter) -> Self {
         Self {
             diagnostics: elsa::sync::FrozenVec::new(),
             emitter,
@@ -50,8 +45,8 @@ impl DiagCtx {
         }
     }
 
-    pub fn change_emitter(&mut self, emitter: Box<dyn Emitter>) {
-        self.emitter = emitter;
+    pub fn borrow_emitter(&mut self) -> &mut IoEmitter {
+        &mut self.emitter
     }
 
     pub fn new_diag(&self, level: Level, span: Span, message: impl Into<String>) -> DiagBuilder<'_> {

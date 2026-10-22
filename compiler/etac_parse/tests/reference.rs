@@ -3,14 +3,13 @@
 use std::path::Path;
 
 use etac_errors::dcx::DiagCtx;
-use etac_errors::emitter::EmitConfig;
 use etac_intern::EtacInterner;
 use etac_parse::{Parse, result::{ParseResult, Parsed}};
 use etac_source::SourceMap;
 
 fn accepts<T: Parse>(src: &str) -> bool {
-    let emitter = etac_debug::sink_emitter(EmitConfig::default().with_color(false));
-    let dcx = DiagCtx::new_with_emitter(Box::new(emitter));
+    let emitter = etac_errors::emitter::IoEmitter::sink();
+    let dcx = DiagCtx::new(emitter);
     let sm = SourceMap::default();
     let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
 

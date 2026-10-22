@@ -239,6 +239,7 @@ version = "0.1.0"
 dependencies = [
  "etac_ast",
  "etac_cache",
+ "etac_debug",
  "etac_errors",
  "etac_intern",
  "etac_lexer",

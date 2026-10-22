@@ -1,5 +1,4 @@
 //! The driver for the compiler
-
 use etac_ast::ast::{Interface, Program};
 use etac_cache::EtaCache;
 use etac_errors::{
@@ -47,7 +46,7 @@ where
 
 pub fn run(flags: &Flags) -> CompilationResult {
     let mut cache = EtaCache::new();
-    let dcx = DiagCtx::new();
+    let dcx = DiagCtx::default();
 
     let mut resolver = Resolver::new(&flags.source_path, &flags.lib_path);
 
@@ -91,42 +90,28 @@ pub fn run(flags: &Flags) -> CompilationResult {
 }
 
 pub fn run_dlex<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: impl IntoIterator<Item = File<'sm>>, dcx: DiagCtx) -> CompilationResult {
-    let mut output = vec![];
-    let mut dcx = dcx;
     for f in fids {
-        let (out, tdcx) = etac_lexer::debug::lex(sm, interner, f.id(), dcx);
-        dcx = tdcx;
-        output.push(out);
+        etac_lexer::debug::lex(&mut std::io::stderr(), sm, interner, f.id(), &dcx);
     }
     let result = match dcx.has_errors() {
         true => Err((&dcx).into()),
         false => Ok((&dcx).into()),
     };
     dcx.emit_diagnostics(sm);
-    for o in output {
-        println!("{}", o.borrow());
-    }
     result
 }
 
 pub fn run_dparse<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: impl IntoIterator<Item = File<'sm>>, dcx: DiagCtx) -> CompilationResult {
-    let mut output = vec![];
-    let mut dcx = dcx;
     for f in fids {
-        let (out, tdcx) = match f {
-            File::Program(file_id) => etac_parse::debug::parse::<Program>(sm, interner, file_id, dcx),
-            File::Interface(file_id) => etac_parse::debug::parse::<Interface>(sm, interner, file_id, dcx),
+        match f {
+            File::Program(file_id) => etac_parse::debug::parse::<Program>(&mut std::io::stderr(), sm, interner, file_id, &dcx),
+            File::Interface(file_id) => etac_parse::debug::parse::<Interface>(&mut std::io::stderr(), sm, interner, file_id, &dcx),
         };
-        dcx = tdcx;
-        output.push(out);
     }
     let result = match dcx.has_errors() {
         true => Err((&dcx).into()),
         false => Ok((&dcx).into()),
     };
     dcx.emit_diagnostics(sm);
-    for o in output {
-        println!("{}", o.borrow());
-    }
     result
 }

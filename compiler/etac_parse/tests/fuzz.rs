@@ -34,8 +34,8 @@ impl Rng {
 /// Parse `src` both ways and throw the diagnostics away. Panics, hangs and debug
 /// assertions are the failure modes under test; the output is not.
 fn fuzz_one(src: &str) {
-    let emitter = etac_debug::sink_emitter(EmitConfig::default().with_color(false));
-    let dcx = DiagCtx::new_with_emitter(Box::new(emitter));
+    let emitter = etac_errors::emitter::IoEmitter::sink();
+    let dcx = DiagCtx::new(emitter);
     let sm = SourceMap::default();
     let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
 

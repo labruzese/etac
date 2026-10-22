@@ -7,7 +7,6 @@
 use std::time::Instant;
 
 use etac_errors::dcx::DiagCtx;
-use etac_errors::emitter::EmitConfig;
 use etac_intern::EtacInterner;
 use etac_parse::{Parse, result::ParseResult};
 use etac_source::SourceMap;
@@ -23,8 +22,8 @@ fn throughput() {
 
     let (mut lex_ns, mut parse_ns, mut ntok) = (u128::MAX, u128::MAX, 0usize);
     for _ in 0..7 {
-        let emitter = etac_debug::sink_emitter(EmitConfig::default().with_color(false));
-        let dcx = DiagCtx::new_with_emitter(Box::new(emitter));
+        let emitter = etac_errors::emitter::IoEmitter::sink();
+        let dcx = DiagCtx::new(emitter);
         let sm = SourceMap::default();
         let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
         let (id, text) = sm.alloc_source("bench.eta".to_owned(), src.clone());

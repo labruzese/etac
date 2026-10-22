@@ -1,11 +1,12 @@
 use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
+use std::sync::LazyLock;
 
 use etac_errors::emitter::EmitConfig;
-use etac_errors::emitter::IoEmitter;
 
-pub struct StringWriter(pub OutputBuffer);
+#[derive(Clone)]
+pub struct StringWriter(pub StringBuffer);
 
 impl io::Write for StringWriter {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
@@ -19,13 +20,5 @@ impl io::Write for StringWriter {
     }
 }
 
-pub type OutputBuffer = Rc<RefCell<String>>;
-
-pub fn string_emitter(config: EmitConfig) -> (OutputBuffer, IoEmitter<StringWriter>) {
-    let out = Rc::new(RefCell::new(String::new()));
-    let emitter = IoEmitter::with_config(StringWriter(out.clone()), config);
-    (out, emitter)
-}
-pub fn sink_emitter(config: EmitConfig) -> IoEmitter<std::io::Sink> {
-    IoEmitter::with_config(std::io::sink(), config)
-}
+pub type StringBuffer = Rc<RefCell<String>>;
+pub const EMIT_CONF_DEBUG: LazyLock<EmitConfig> = LazyLock::new(|| EmitConfig::default().with_color(false).with_compact(false));
