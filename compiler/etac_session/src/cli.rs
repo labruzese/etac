@@ -8,7 +8,7 @@ pub struct Flags {
     ///
     /// Relative source-file paths on the command line are resolved against
     /// this directory. The default is the current directory in which etac is
-    /// run. The course-spec spelling `-sourcepath` is also accepted.
+    /// run.
     #[arg(short = 's', long = "sourcepath", value_name = "PATH", default_value = ".")]
     pub source_path: PathBuf,
 
@@ -16,8 +16,7 @@ pub struct Flags {
     ///
     /// A `use F` declaration searches for `F.eti` next to the using source
     /// file first, then in this directory. The default is the current
-    /// directory in which etac is run. The course-spec spelling `-libpath`
-    /// is also accepted.
+    /// directory in which etac is run. 
     #[arg(short = 'l', long = "libpath", value_name = "PATH", default_value = ".")]
     pub lib_path: PathBuf,
 
@@ -25,11 +24,11 @@ pub struct Flags {
     #[arg(value_name = "SOURCE_FILES")]
     pub source_files: Vec<PathBuf>,
 
-    /// Just run the lexer and print diagnostic output
+    /// Just run the lexer, print diagnostic output, and exit
     #[arg(long)]
     pub dlex: bool,
 
-    /// Just run the paser and print diagnostic output
+    /// Just run the paser, print diagnostic output, and exit
     #[arg(long)]
     pub dparse: bool,
 }
