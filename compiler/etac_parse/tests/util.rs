@@ -17,8 +17,8 @@ macro_rules! parsetest {
             u => panic!("no parser for this file type {}", u),
         };
         let (parse_res, dcx) = match ty {
-            Ft::Prgm => etac_parse::debug::parse_program(&$cache.sources, &mut $cache.state.interner, id),
-            Ft::Intf => etac_parse::debug::parse_interface(&$cache.sources, &mut $cache.state.interner, id),
+            Ft::Prgm => etac_parse::debug::parse_program(&$cache.sources, &mut $cache.state.interner, id, etac_errors::dcx::DiagCtx::default()),
+            Ft::Intf => etac_parse::debug::parse_interface(&$cache.sources, &mut $cache.state.interner, id, etac_errors::dcx::DiagCtx::default()),
         };
         dcx.emit_diagnostics(&$cache.sources);
         let expected: expect_test::Expect = $expected;

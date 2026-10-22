@@ -113,8 +113,6 @@ impl DiagCtx {
 
 }
 
-mod diag_builder {}
-
 /// A diagnostic under construction, knowing its [`DiagCtxt`].
 ///
 /// [`Drop`] bomb will panic in debug mode if dropped without [`emit`](Diag::emit) or

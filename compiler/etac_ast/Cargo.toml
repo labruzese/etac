@@ -5,11 +5,8 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-etac_ast_derive.workspace 	= true
 etac_source.workspace		= true
 etac_intern.workspace 		= true
-pretty.workspace 	  	= true
-pastey.workspace 		= true
 indenter.workspace		= true
 
 [lints]

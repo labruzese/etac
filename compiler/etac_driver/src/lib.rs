@@ -63,25 +63,19 @@ pub fn run(flags: &Flags) -> CompilationResult {
         })
         .collect();
 
+    if flags.dlex {
+        return run_dlex(&cache.sources, &mut cache.state.interner, files, dcx);
+    }
+    if flags.dparse {
+        return run_dparse(&cache.sources, &mut cache.state.interner, files, dcx);
+    }
 
     for file in files {
         match file {
             File::Program(id) => {
-                if flags.dlex {
-                    return run_dlex(&cache.sources, &mut cache.state.interner, id, dcx);
-                }
-                if flags.dparse {
-                    return run_dparse::<Program>(&cache.sources, &mut cache.state.interner, id, dcx);
-                }
                 let _ast: Result<Program> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id);
             }
             File::Interface(id) => {
-                if flags.dlex {
-                    return run_dlex(&cache.sources, &mut cache.state.interner, id, dcx);
-                }
-                if flags.dparse {
-                    return run_dparse::<Interface>(&cache.sources, &mut cache.state.interner, id, dcx);
-                }
                 let _ast: Result<Interface> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id);
             }
         }
@@ -96,29 +90,43 @@ pub fn run(flags: &Flags) -> CompilationResult {
     result
 }
 
-pub fn run_dlex(sm: &SourceMap, interner: &mut EtacInterner, fid: FileId, dcx: DiagCtx) -> CompilationResult {
-    let (debug_out, dcx) = etac_lexer::debug::lex(sm, interner, fid, dcx);
+pub fn run_dlex<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: impl IntoIterator<Item = File<'sm>>, dcx: DiagCtx) -> CompilationResult {
+    let mut output = vec![];
+    let mut dcx = dcx;
+    for f in fids {
+        let (out, tdcx) = etac_lexer::debug::lex(sm, interner, f.id(), dcx);
+        dcx = tdcx;
+        output.push(out);
+    }
     let result = match dcx.has_errors() {
         true => Err((&dcx).into()),
         false => Ok((&dcx).into()),
     };
     dcx.emit_diagnostics(sm);
-    println!("{}", debug_out);
+    for o in output {
+        println!("{}", o);
+    }
     result
 }
 
-pub fn run_dparse<'sm, T>(sm: &'sm SourceMap, interner: &mut EtacInterner, fid: FileId<'sm>, dcx: DiagCtx) -> CompilationResult 
-where
-    T: Parse,
-    for<'a, 'b> etac_ast::display::sexpr::SexpPrinter<'a, 'b, EtacInterner, T>: std::fmt::Display,
-    for<'a, 'b> etac_ast::display::span::SpanPrinter<'a, 'b, T>: std::fmt::Display,
-{
-    let (debug_out, dcx) = etac_parse::debug::parse(sm, interner, fid, dcx);
+pub fn run_dparse<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: impl IntoIterator<Item = File<'sm>>, dcx: DiagCtx) -> CompilationResult {
+    let mut output = vec![];
+    let mut dcx = dcx;
+    for f in fids {
+        let (out, tdcx) = match f {
+            File::Program(file_id) => etac_parse::debug::parse::<Program>(sm, interner, file_id, dcx),
+            File::Interface(file_id) => etac_parse::debug::parse::<Interface>(sm, interner, file_id, dcx),
+        };
+        dcx = tdcx;
+        output.push(out);
+    }
     let result = match dcx.has_errors() {
         true => Err((&dcx).into()),
         false => Ok((&dcx).into()),
     };
     dcx.emit_diagnostics(sm);
-    println!("{}", debug_out);
+    for o in output {
+        println!("{}", o);
+    }
     result
 }

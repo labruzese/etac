@@ -12,6 +12,15 @@ pub enum File<'sm> {
     Interface(InterfaceId<'sm>),
 }
 
+impl<'sm> File<'sm> {
+    pub fn id(&self) -> FileId<'sm> {
+        match self {
+            File::Program(file_id) |
+            File::Interface(file_id) => *file_id,
+        }
+    }
+}
+
 pub struct Resolver<'sm> {
     source_path: PathBuf,
     lib_path: PathBuf,

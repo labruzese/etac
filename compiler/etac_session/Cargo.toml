@@ -5,10 +5,6 @@ edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-etac_cache.workspace  = true
-etac_errors.workspace = true
-etac_lexer.workspace  = true
-etac_parse.workspace  = true
 clap.workspace        = true
 
 [lints]

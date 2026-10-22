@@ -8,8 +8,5 @@ authors.workspace = true
 etac_driver.workspace  = true
 etac_session.workspace = true
 
-[dev-dependencies]
-generate_tests.workspace = true
-
 [lints]
 workspace = true

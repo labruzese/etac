@@ -8,8 +8,5 @@ authors.workspace = true
 etac_source.workspace  = true
 etac_errors.workspace = true
 
-[dev-dependencies]
-tempfile.workspace = true
-
 [lints]
 workspace = true

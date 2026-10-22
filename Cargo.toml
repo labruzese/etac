@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members  = ["compiler/*", "proc_macros/*"]
+members  = ["compiler/*"]
 default-members = ["compiler/etac"]
 
 [workspace.lints.clippy]
@@ -16,15 +16,9 @@ authors = ["Skylar Abruzese"]
 logos 			= { git = "https://github.com/maciejhirsz/logos", branch = "master" }
 ariadne         	= "0.6"
 clap            	= { version = "4.5", features = ["derive"] }
-either          	= "1"
-lalrpop         	= "0.23"
-lalrpop-util    	= { version = "0.21", features = ["lexer", "unicode"] }
 pretty          	= "0.12"
-unicode-width   	= "0.2"
 tempfile 		= "3.27.0"
 elsa 			= "1.11.2"
-equivalent 		= "1.0.2"
-smallvec 		= "1.15.2"
 quote 			= "1.0.46"
 pastey 			= "0.2.3"
 dashmap 		= "6.2.1"
@@ -36,7 +30,6 @@ rustc-hash 		= "2"
 indenter		= { version = "0.3.4", features = ["std"] }
 
 # internal
-etac	      		= { path = "compiler/etac"}
 etac_ast      		= { path = "compiler/etac_ast" }
 etac_cache    		= { path = "compiler/etac_cache" }
 etac_driver   		= { path = "compiler/etac_driver" }
@@ -48,12 +41,7 @@ etac_session  		= { path = "compiler/etac_session" }
 etac_source 		= { path = "compiler/etac_source" }
 etac_resolve  		= { path = "compiler/etac_resolve" }
 
-# internal macros
-etac_types_derive 	= { path = "proc_macros/etac_types_derive" }
-etac_ast_derive		= { path = "proc_macros/etac_ast_derive" }
-
 # debug / testing
 etac_debug      = { path = "compiler/etac_debug" }
-generate_tests  = { path = "proc_macros/generate_tests" }
 expect-test 	= "1.5.1"
 indoc 		= "2"
