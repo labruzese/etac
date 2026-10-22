@@ -6,12 +6,12 @@ authors.workspace = true
 
 [dependencies]
 etac_intern.workspace = true
-etac_debug.workspace  = true
 etac_source.workspace = true
 etac_errors.workspace = true
 logos.workspace       = true
 
 [dev-dependencies]
+etac_debug.workspace  = true
 etac_cache.workspace    = true
 expect-test.workspace 	= true
 indoc.workspace 	= true
