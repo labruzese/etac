@@ -104,7 +104,7 @@ pub fn run_dlex<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: impl
     };
     dcx.emit_diagnostics(sm);
     for o in output {
-        println!("{}", o);
+        println!("{}", o.borrow());
     }
     result
 }
@@ -126,7 +126,7 @@ pub fn run_dparse<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: im
     };
     dcx.emit_diagnostics(sm);
     for o in output {
-        println!("{}", o);
+        println!("{}", o.borrow());
     }
     result
 }

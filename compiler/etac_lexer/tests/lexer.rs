@@ -12,9 +12,9 @@ macro_rules! lextest {
     (@item $cache:ident, $ids:ident, $n:ident; $name:literal { $src:expr, $expected:expr } $($rest:tt)*) => {
         $ids.push_back($cache.sources.store_source($name, $src.to_owned()).0);
         let expected: expect_test::Expect = $expected;
-        let (actual, dcx) = etac_lexer::debug::lex(&$cache.sources, &mut $cache.state.interner, $ids.pop_front().unwrap(), etac_errors::dcx::DiagCtx::default());
+        let (actual_buf, dcx) = etac_lexer::debug::lex(&$cache.sources, &mut $cache.state.interner, $ids.pop_front().unwrap(), etac_errors::dcx::DiagCtx::default());
         dcx.emit_diagnostics(&$cache.sources);
-        expected.assert_eq(&actual);
+        expected.assert_eq(&actual_buf.borrow());
         lextest!(@item $cache, $ids, $n; $($rest)*);
     };
     (@item $cache:ident, $ids:ident, $n:ident; { $src:expr, $expected:expr } $($rest:tt)*) => {
@@ -22,9 +22,9 @@ macro_rules! lextest {
         $n += 1;
         $ids.push_back($cache.sources.alloc_source(name, $src.to_owned()).0);
         let expected: expect_test::Expect = $expected;
-        let (actual, dcx) = etac_lexer::debug::lex(&$cache.sources, &mut $cache.state.interner, $ids.pop_front().unwrap(), etac_errors::dcx::DiagCtx::default());
+        let (actual_buf, dcx) = etac_lexer::debug::lex(&$cache.sources, &mut $cache.state.interner, $ids.pop_front().unwrap(), etac_errors::dcx::DiagCtx::default());
         dcx.emit_diagnostics(&$cache.sources);
-        expected.assert_eq(&actual);
+        expected.assert_eq(&actual_buf.borrow());
         lextest!(@item $cache, $ids, $n; $($rest)*);
     };
     (@item $cache:ident, $ids:ident, $n:ident;) => {};

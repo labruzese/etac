@@ -2,6 +2,7 @@ use std::fmt::Write;
 use std::{cell::RefCell, fmt::Display};
 
 use etac_ast::display::{sexpr::SexpPrinter, span::SpanPrinter};
+use etac_debug::OutputBuffer;
 use etac_errors::{dcx::{DiagBuilder, DiagCtx}, emitter::EmitConfig};
 use etac_intern::EtacInterner;
 use etac_lexer::EtaLexer;
@@ -38,7 +39,7 @@ fn write_parse<'sm, T>(
     }
 }
 
-pub fn parse<'sm, T>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, mut dcx: DiagCtx) -> (String, DiagCtx)
+pub fn parse<'sm, T>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, mut dcx: DiagCtx) -> (OutputBuffer, DiagCtx)
 where
     T: Parse,
     for<'a, 'b> etac_ast::display::sexpr::SexpPrinter<'a, 'b, EtacInterner, T>: std::fmt::Display,
@@ -62,13 +63,13 @@ where
     };
     write_parse(&out, status, tree, file_id, sm, interner);
 
-    (out.take(), dcx)
+    (out, dcx)
 }
 
-pub fn parse_program<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, dcx: DiagCtx) -> (String, DiagCtx) {
+pub fn parse_program<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, dcx: DiagCtx) -> (OutputBuffer, DiagCtx) {
     parse::<etac_ast::ast::Program>(sm, interner, file_id, dcx)
 }
 
-pub fn parse_interface<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, dcx: DiagCtx) -> (String, DiagCtx) {
+pub fn parse_interface<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, dcx: DiagCtx) -> (OutputBuffer, DiagCtx) {
     parse::<etac_ast::ast::Interface>(sm, interner, file_id, dcx)
 }

@@ -16,13 +16,13 @@ macro_rules! parsetest {
             n if n.ends_with(".eti") => (Ft::Intf, $cache.sources.alloc_source(n.to_owned(), $src.to_owned()).0),
             u => panic!("no parser for this file type {}", u),
         };
-        let (parse_res, dcx) = match ty {
+        let (output_buf, dcx) = match ty {
             Ft::Prgm => etac_parse::debug::parse_program(&$cache.sources, &mut $cache.state.interner, id, etac_errors::dcx::DiagCtx::default()),
             Ft::Intf => etac_parse::debug::parse_interface(&$cache.sources, &mut $cache.state.interner, id, etac_errors::dcx::DiagCtx::default()),
         };
         dcx.emit_diagnostics(&$cache.sources);
         let expected: expect_test::Expect = $expected;
-        expected.assert_eq(&parse_res);
+        expected.assert_eq(&output_buf.borrow());
         parsetest!(@item $cache, $n; $($rest)*);
     };
     (@item $cache:ident, $n:ident;) => {};

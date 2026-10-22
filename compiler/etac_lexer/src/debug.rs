@@ -1,6 +1,7 @@
 use std::fmt::Write;
 use std::cell::RefCell;
 
+use etac_debug::OutputBuffer;
 use etac_errors::{dcx::DiagCtx, emitter::EmitConfig};
 use etac_intern::EtacInterner;
 use crate::token::Token;
@@ -15,7 +16,7 @@ fn write_token(write_buf: &RefCell<String>, token: Token, span: Span, sm: &Sourc
 }
 
 /// testing interface for lexer
-pub fn lex<'sm>(sm: &SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, mut dcx: DiagCtx) -> (String, DiagCtx) {
+pub fn lex<'sm>(sm: &SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>, mut dcx: DiagCtx) -> (OutputBuffer, DiagCtx) {
     let (out, emitter) = etac_debug::string_emitter(EmitConfig::default().with_color(false).with_compact(false));
     dcx.change_emitter(Box::new(emitter));
 
@@ -31,5 +32,5 @@ pub fn lex<'sm>(sm: &SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm
         let _g = diag.finish();
     }
 
-    (out.take(), dcx)
+    (out, dcx)
 }
