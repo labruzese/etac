@@ -63,12 +63,25 @@ pub fn run(flags: &Flags) -> CompilationResult {
         })
         .collect();
 
+
     for file in files {
         match file {
             File::Program(id) => {
+                if flags.dlex {
+                    return run_dlex(&cache.sources, &mut cache.state.interner, id, dcx);
+                }
+                if flags.dparse {
+                    return run_dparse::<Program>(&cache.sources, &mut cache.state.interner, id, dcx);
+                }
                 let _ast: Result<Program> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id);
             }
             File::Interface(id) => {
+                if flags.dlex {
+                    return run_dlex(&cache.sources, &mut cache.state.interner, id, dcx);
+                }
+                if flags.dparse {
+                    return run_dparse::<Interface>(&cache.sources, &mut cache.state.interner, id, dcx);
+                }
                 let _ast: Result<Interface> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id);
             }
         }
@@ -80,5 +93,32 @@ pub fn run(flags: &Flags) -> CompilationResult {
     };
 
     dcx.emit_diagnostics(&cache.sources);
+    result
+}
+
+pub fn run_dlex(sm: &SourceMap, interner: &mut EtacInterner, fid: FileId, dcx: DiagCtx) -> CompilationResult {
+    let (debug_out, dcx) = etac_lexer::debug::lex(sm, interner, fid, dcx);
+    let result = match dcx.has_errors() {
+        true => Err((&dcx).into()),
+        false => Ok((&dcx).into()),
+    };
+    dcx.emit_diagnostics(sm);
+    println!("{}", debug_out);
+    result
+}
+
+pub fn run_dparse<'sm, T>(sm: &'sm SourceMap, interner: &mut EtacInterner, fid: FileId<'sm>, dcx: DiagCtx) -> CompilationResult 
+where
+    T: Parse,
+    for<'a, 'b> etac_ast::display::sexpr::SexpPrinter<'a, 'b, EtacInterner, T>: std::fmt::Display,
+    for<'a, 'b> etac_ast::display::span::SpanPrinter<'a, 'b, T>: std::fmt::Display,
+{
+    let (debug_out, dcx) = etac_parse::debug::parse(sm, interner, fid, dcx);
+    let result = match dcx.has_errors() {
+        true => Err((&dcx).into()),
+        false => Ok((&dcx).into()),
+    };
+    dcx.emit_diagnostics(sm);
+    println!("{}", debug_out);
     result
 }

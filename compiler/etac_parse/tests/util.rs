@@ -1,45 +1,3 @@
-use etac_errors::{dcx::{DiagBuilder, DiagCtx}, emitter::EmitConfig};
-use etac_intern::EtacInterner;
-use etac_lexer::EtaLexer;
-use etac_parse::{Parse, result::{Parsed, ParseResult}};
-use etac_source::{FileId, SourceMap};
-
-fn run<'sm, T>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String
-where
-    T: Parse,
-    for<'a, 'b> etac_ast::display::sexpr::SexpPrinter<'a, 'b, EtacInterner, T>: std::fmt::Display,
-    for<'a, 'b> etac_ast::display::span::SpanPrinter<'a, 'b, T>: std::fmt::Display,
-{
-    let (out, emitter) = etac_test::string_emitter(EmitConfig::default().with_color(false).with_compact(false));
-    let dcx = DiagCtx::new_with_emitter(Box::new(emitter));
-    // Lex first, then parse: the parser walks a finished token array.
-    let lexed = EtaLexer::new(sm.base_offset(file_id), interner, &dcx).lex(&sm.get_source(file_id).source);
-    for d in Vec::from(lexed.diags) {
-        let _ = d.finish();
-    }
-
-    let ParseResult { parse, mut diags } = T::parse(&lexed.tokens, &dcx);
-    diags.drain(..).map(DiagBuilder::finish).reduce(|_, g| g);
-
-    let (status, tree) = match &parse {
-        Parsed::Ok(t) => ("clean", Some(t)),
-        Parsed::Recovered(t) => ("recovered", Some(t)),
-        Parsed::Failed => ("failed", None),
-    };
-    etac_test::write_parse(&out, status, tree, file_id, sm, interner);
-
-    dcx.emit_diagnostics(sm);
-    out.take()
-}
-
-pub fn parse_program<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String {
-    run::<etac_ast::ast::Program>(sm, interner, file_id)
-}
-
-pub fn parse_interface<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, file_id: FileId<'sm>) -> String {
-    run::<etac_ast::ast::Interface>(sm, interner, file_id)
-}
-
 #[allow(unused_macros)]
 macro_rules! parsetest {
     // --- single-item shortcuts (braces optional) ---
@@ -58,10 +16,11 @@ macro_rules! parsetest {
             n if n.ends_with(".eti") => (Ft::Intf, $cache.sources.alloc_source(n.to_owned(), $src.to_owned()).0),
             u => panic!("no parser for this file type {}", u),
         };
-        let parse_res = match ty {
-            Ft::Prgm => util::parse_program(&$cache.sources, &mut $cache.state.interner, id),
-            Ft::Intf => util::parse_interface(&$cache.sources, &mut $cache.state.interner, id),
+        let (parse_res, dcx) = match ty {
+            Ft::Prgm => etac_parse::debug::parse_program(&$cache.sources, &mut $cache.state.interner, id),
+            Ft::Intf => etac_parse::debug::parse_interface(&$cache.sources, &mut $cache.state.interner, id),
         };
+        dcx.emit_diagnostics(&$cache.sources);
         let expected: expect_test::Expect = $expected;
         expected.assert_eq(&parse_res);
         parsetest!(@item $cache, $n; $($rest)*);

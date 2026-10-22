@@ -277,6 +277,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "etac_debug"
+version = "0.1.0"
+dependencies = [
+ "etac_ast",
+ "etac_errors",
+ "etac_intern",
+ "etac_source",
+]
+
+[[package]]
 name = "etac_driver"
 version = "0.1.0"
 dependencies = [
@@ -315,10 +325,10 @@ name = "etac_lexer"
 version = "0.1.0"
 dependencies = [
  "etac_cache",
+ "etac_debug",
  "etac_errors",
  "etac_intern",
  "etac_source",
- "etac_test",
  "expect-test",
  "indoc",
  "logos",
@@ -330,11 +340,11 @@ version = "0.1.0"
 dependencies = [
  "etac_ast",
  "etac_cache",
+ "etac_debug",
  "etac_errors",
  "etac_intern",
  "etac_lexer",
  "etac_source",
- "etac_test",
  "expect-test",
  "indoc",
  "regex",
@@ -368,16 +378,6 @@ dependencies = [
  "crossbeam-skiplist",
  "dashmap",
  "elsa",
-]
-
-[[package]]
-name = "etac_test"
-version = "0.1.0"
-dependencies = [
- "etac_ast",
- "etac_errors",
- "etac_intern",
- "etac_source",
 ]
 
 [[package]]

@@ -15,6 +15,7 @@ mod parser;
 mod token_set;
 
 pub mod result;
+pub mod debug;
 
 /// A syntactic category that can be parsed from a token stream.
 ///

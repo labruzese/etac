@@ -52,8 +52,8 @@ etac_resolve  		= { path = "compiler/etac_resolve" }
 etac_types_derive 	= { path = "proc_macros/etac_types_derive" }
 etac_ast_derive		= { path = "proc_macros/etac_ast_derive" }
 
-# testing
+# debug / testing
+etac_debug      = { path = "compiler/etac_debug" }
 generate_tests  = { path = "proc_macros/generate_tests" }
-etac_test       = { path = "compiler/etac_test" }
 expect-test 	= "1.5.1"
 indoc 		= "2"

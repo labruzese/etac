@@ -50,6 +50,10 @@ impl DiagCtx {
         }
     }
 
+    pub fn change_emitter(&mut self, emitter: Box<dyn Emitter>) {
+        self.emitter = emitter;
+    }
+
     pub fn new_diag(&self, level: Level, span: Span, message: impl Into<String>) -> DiagBuilder<'_> {
         DiagBuilder::new(self, level, span, message)
     }

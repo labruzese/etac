@@ -14,6 +14,7 @@ use internal_error::{InternalLexerError};
 use logos::Lexer;
 
 pub mod token;
+pub mod debug;
 
 use crate::token::{Token, TokenKind};
 

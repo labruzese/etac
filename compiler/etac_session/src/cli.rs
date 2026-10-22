@@ -24,6 +24,14 @@ pub struct Flags {
     /// Source files to compile (relative paths resolve against --sourcepath).
     #[arg(value_name = "SOURCE_FILES")]
     pub source_files: Vec<PathBuf>,
+
+    /// Just run the lexer and print diagnostic output
+    #[arg(long)]
+    pub dlex: bool,
+
+    /// Just run the paser and print diagnostic output
+    #[arg(long)]
+    pub dparse: bool,
 }
 
 #[must_use]

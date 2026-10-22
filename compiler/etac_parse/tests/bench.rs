@@ -23,7 +23,7 @@ fn throughput() {
 
     let (mut lex_ns, mut parse_ns, mut ntok) = (u128::MAX, u128::MAX, 0usize);
     for _ in 0..7 {
-        let emitter = etac_test::sink_emitter(EmitConfig::default().with_color(false));
+        let emitter = etac_debug::sink_emitter(EmitConfig::default().with_color(false));
         let dcx = DiagCtx::new_with_emitter(Box::new(emitter));
         let sm = SourceMap::default();
         let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());

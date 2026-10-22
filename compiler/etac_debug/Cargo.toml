@@ -1,5 +1,5 @@
 [package]
-name = "etac_test"
+name = "etac_debug"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
