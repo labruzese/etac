@@ -89,9 +89,10 @@ pub fn run(flags: &Flags) -> CompilationResult {
     result
 }
 
+// info to stdout diags to emit stream which is set to stderr above
 pub fn run_dlex<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: impl IntoIterator<Item = File<'sm>>, dcx: DiagCtx) -> CompilationResult {
     for f in fids {
-        etac_lexer::debug::lex(&mut std::io::stderr(), sm, interner, f.id(), &dcx);
+        etac_lexer::debug::lex(&mut std::io::stdout(), sm, interner, f.id(), &dcx);
     }
     let result = match dcx.has_errors() {
         true => Err((&dcx).into()),
@@ -101,11 +102,12 @@ pub fn run_dlex<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: impl
     result
 }
 
+// info to stdout diags to emit stream which is set to stderr above
 pub fn run_dparse<'sm>(sm: &'sm SourceMap, interner: &mut EtacInterner, fids: impl IntoIterator<Item = File<'sm>>, dcx: DiagCtx) -> CompilationResult {
     for f in fids {
         match f {
-            File::Program(file_id) => etac_parse::debug::parse::<Program>(&mut std::io::stderr(), sm, interner, file_id, &dcx),
-            File::Interface(file_id) => etac_parse::debug::parse::<Interface>(&mut std::io::stderr(), sm, interner, file_id, &dcx),
+            File::Program(file_id) => etac_parse::debug::parse::<Program>(&mut std::io::stdout(), sm, interner, file_id, &dcx),
+            File::Interface(file_id) => etac_parse::debug::parse::<Interface>(&mut std::io::stdout(), sm, interner, file_id, &dcx),
         };
     }
     let result = match dcx.has_errors() {

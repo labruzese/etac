@@ -33,7 +33,6 @@ impl Default for DiagCtx {
     }
 }
 impl DiagCtx {
-    /// A context with a custom sink (example: [`BufferEmitter`](crate::BufferEmitter)).
     #[must_use]
     pub fn new(emitter: IoEmitter) -> Self {
         Self {
@@ -45,6 +44,7 @@ impl DiagCtx {
         }
     }
 
+    // if you want to write to the same output stream as the diagnostics
     pub fn borrow_emitter(&mut self) -> &mut IoEmitter {
         &mut self.emitter
     }
