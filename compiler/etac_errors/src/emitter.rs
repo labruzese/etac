@@ -1,7 +1,4 @@
 //! Diagnostic sinks.
-//!
-//! An [`Emitter`] is the *only* thing that turns a [`Diagnostic`] into output. The
-//! [`DiagCtxt`](crate::DiagCtxt) owns one and routes every diagnostic through it
 
 use std::io::Write;
 
@@ -86,7 +83,7 @@ impl Diagnostic {
             }
             b.finish()
         } else {
-            let mut b = Report::build(kind, (FileId::DUMMY, 0..0)).with_message(&self.message);
+            let mut b = Report::build(kind, (FileId::DUMMY, 0..0)).with_config(conf).with_message(&self.message);
             if let Some(c) = &self.code {
                 b = b.with_code(c);
             }
