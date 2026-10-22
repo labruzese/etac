@@ -16,7 +16,7 @@ macro_rules! parsetest {
             n if n.ends_with(".eti") => (Ft::Intf, $cache.sources.alloc_source(n.to_owned(), $src.to_owned()).0),
             u => panic!("no parser for this file type {}", u),
         };
-        let emitter = etac_errors::emitter::IoEmitter::with_config(Box::new($writer.clone()), *etac_debug::EMIT_CONF_DEBUG);
+        let emitter = etac_errors::emitter::IoEmitter::with_config(Box::new($writer.clone()), etac_debug::EMIT_CONF_DEBUG);
         let dcx = etac_errors::dcx::DiagCtx::new(emitter); // we need a new context every time cause
                                                            // we flush the diagnostics for every
                                                            // file which consumes them. same thing

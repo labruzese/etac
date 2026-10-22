@@ -1,7 +1,6 @@
 use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
-use std::sync::LazyLock;
 
 use etac_errors::emitter::EmitConfig;
 
@@ -21,4 +20,4 @@ impl io::Write for StringWriter {
 }
 
 pub type StringBuffer = Rc<RefCell<String>>;
-pub const EMIT_CONF_DEBUG: LazyLock<EmitConfig> = LazyLock::new(|| EmitConfig::default().with_color(false).with_compact(false));
+pub const EMIT_CONF_DEBUG: EmitConfig = EmitConfig::new().with_color(false).with_compact(false);

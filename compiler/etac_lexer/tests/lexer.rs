@@ -13,7 +13,7 @@ macro_rules! lextest {
         $ids.push_back($cache.sources.store_source($name, $src.to_owned()).0);
         let expected: expect_test::Expect = $expected;
         etac_lexer::debug::lex(&mut $writer, &$cache.sources, &mut $cache.state.interner, $ids.pop_front().unwrap(), &$dcx);
-        let emitter = etac_errors::emitter::IoEmitter::with_config(Box::new($writer.clone()), *etac_debug::EMIT_CONF_DEBUG);
+        let emitter = etac_errors::emitter::IoEmitter::with_config(Box::new($writer.clone()), etac_debug::EMIT_CONF_DEBUG);
         let dcx = etac_errors::dcx::DiagCtx::new(emitter);
         dcx.emit_diagnostics(&$cache.sources);
         expected.assert_eq(&actual_buf.borrow());
@@ -24,7 +24,7 @@ macro_rules! lextest {
         $n += 1;
         $ids.push_back($cache.sources.alloc_source(name, $src.to_owned()).0);
         let expected: expect_test::Expect = $expected;
-        let emitter = etac_errors::emitter::IoEmitter::with_config(Box::new($writer.clone()), *etac_debug::EMIT_CONF_DEBUG);
+        let emitter = etac_errors::emitter::IoEmitter::with_config(Box::new($writer.clone()), etac_debug::EMIT_CONF_DEBUG);
         let dcx = etac_errors::dcx::DiagCtx::new(emitter);
         etac_lexer::debug::lex(&mut $writer, &$cache.sources, &mut $cache.state.interner, $ids.pop_front().unwrap(), &dcx);
         dcx.emit_diagnostics(&$cache.sources);
