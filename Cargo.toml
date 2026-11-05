@@ -22,6 +22,7 @@ crossbeam-skiplist 	= "0.1.3"
 lasso 			= "0.7"
 rustc-hash 		= "2"
 indenter		= { version = "0.3.4", features = ["std"] }
+paste 			= "1.0.15"
 
 # internal
 etac_ast      		= { path = "compiler/etac_ast" }

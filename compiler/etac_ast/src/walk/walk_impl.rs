@@ -1,14 +1,32 @@
-use crate::visit;
-use crate::visit::{Visitor, VisitorResult};
-
-pub trait Walkable<'ast, V: Visitor<'ast>> {
-    fn walk(&'ast self, v: &mut V) -> V::Result;
-}
+use super::{Walkable, WalkableMut, WalkableOwned};
+use crate::visit::{Visitor, VisitorMut, VisitorOwned, VisitorResult};
 
 macro_rules! impl_walk {
     ($ty:ty, |$s:ident, $v:ident| $body:block) => {
         impl<'ast, V: Visitor<'ast>> Walkable<'ast, V> for $ty {
             fn walk(&'ast $s, $v: &mut V) -> V::Result {
+                #[allow(unused_imports)]
+                use $crate::visit as visit;
+                #[allow(unused_variables)]
+                $body
+                #[allow(unreachable_code)]
+                V::Result::output()
+            }
+        }
+        impl<V: VisitorMut> WalkableMut<V> for $ty {
+            fn walk_mut(&mut $s, $v: &mut V) -> V::Result {
+                #[allow(unused_imports)]
+                use $crate::visit_mut as visit;
+                #[allow(unused_variables)]
+                $body
+                #[allow(unreachable_code)]
+                V::Result::output()
+            }
+        }
+        impl<V: VisitorOwned> WalkableOwned<V> for $ty {
+            fn walk_owned($s, $v: &mut V) -> V::Result {
+                #[allow(unused_imports)]
+                use $crate::visit_owned as visit;
                 #[allow(unused_variables)]
                 $body
                 #[allow(unreachable_code)]
@@ -22,6 +40,16 @@ macro_rules! atom {
     ($ty:ty) => {
         impl<'ast, V: Visitor<'ast>> Walkable<'ast, V> for $ty {
             fn walk(&'ast self, _v: &mut V) -> V::Result {
+                V::Result::output()
+            }
+        }
+        impl<V: VisitorMut> WalkableMut<V> for $ty {
+            fn walk_mut(&mut self, _v: &mut V) -> V::Result {
+                V::Result::output()
+            }
+        }
+        impl<V: VisitorOwned> WalkableOwned<V> for $ty {
+            fn walk_owned(self, _v: &mut V) -> V::Result {
                 V::Result::output()
             }
         }

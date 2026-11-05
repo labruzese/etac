@@ -2,3 +2,4 @@
 *.lexed
 scripts/ethScript.results
 /generate_tests/target
+/Cargo.lock
