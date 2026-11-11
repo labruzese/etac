@@ -1,0 +1,13 @@
+[package]
+name = "etac_typck"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+etac_ast.workspace = true
+etac_source.workspace = true
+etac_intern.workspace = true
+
+[lints]
+workspace = true

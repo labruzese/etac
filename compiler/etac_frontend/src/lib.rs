@@ -30,7 +30,7 @@ use etac_intern::EtacInterner;
 use etac_lexer::{EtaLexer, Tokens};
 use etac_source::{FileId, InterfaceId, SourceId, SourceMap};
 
-use crate::{
+use etac_parse::{
     Parse,
     result::{ParseResult, Parsed},
 };
@@ -100,7 +100,7 @@ impl<W: Write> Hooks for Debugger<'_, W> {
 
     fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId<'_>, parse: &Parsed<T>) {
         if self.trees {
-            crate::debug::write_parse(&mut self.out, self.sm, symbols, file, parse);
+            etac_parse::debug::write_parse(&mut self.out, self.sm, symbols, file, parse);
         }
     }
 }
@@ -165,3 +165,4 @@ impl<'a, H: Hooks> Frontend<'a, H> {
         }
     }
 }
+

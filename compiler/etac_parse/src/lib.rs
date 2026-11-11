@@ -15,15 +15,12 @@ use etac_source::SourceMap;
 use crate::parser::Parser;
 use crate::result::{ParseResult, Parsed};
 
-pub mod frontend;
 mod grammar;
 mod parser;
 mod token_set;
 
 pub mod debug;
 pub mod result;
-
-pub use crate::frontend::{Debugger, Frontend, Hooks};
 
 /// A syntactic category that can be parsed from a token stream.
 ///

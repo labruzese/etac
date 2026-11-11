@@ -35,6 +35,7 @@ etac_parse    		= { path = "compiler/etac_parse" }
 etac_session  		= { path = "compiler/etac_session" }
 etac_source 		= { path = "compiler/etac_source" }
 etac_resolve  		= { path = "compiler/etac_resolve" }
+etac_frontend		= { path = "compiler/etac_frontend" }
 
 # debug / testing
 etac_debug      = { path = "compiler/etac_debug" }

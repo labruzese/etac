@@ -1,7 +1,7 @@
 //! The driver for the compiler
 use etac_cache::EtaCache;
 use etac_errors::dcx::DiagCtx;
-use etac_parse::{Debugger, Frontend};
+use etac_frontend::{Debugger, Frontend};
 use etac_resolve::{File, Resolver};
 use etac_session::cli::Flags;
 
