@@ -2,17 +2,17 @@
 #![allow(clippy::cast_possible_truncation)]
 #![recursion_limit = "512"]
 
-use std::num::ParseIntError;
+use std::{io::Write, num::ParseIntError};
 
 use etac_errors::dcx::{DiagBuilder, DiagCtx};
 use etac_intern::EtacInterner;
-use etac_source::Span;
+use etac_source::{FileId, SourceMap, Span};
 
 mod internal_error;
 use internal_error::InternalLexerError;
 use logos::Lexer;
 
-pub mod debug;
+mod debug;
 pub mod token;
 
 use crate::token::{Token, TokenKind};
@@ -79,6 +79,25 @@ impl<'src, 'dcx> EtaLexer<'dcx, &'src mut EtacInterner> {
                 data: data.into_boxed_slice(),
             },
             diags: diags.into_boxed_slice(),
+        }
+    }
+
+    pub fn debug_lex<'sm>(
+        self,
+        out: &mut impl Write,
+        sm: &SourceMap,
+        interner: &mut EtacInterner,
+        file_id: FileId<'sm>,
+        dcx: &DiagCtx,
+    ) {
+        let LexResult { tokens, diags } = self.lex(&sm.get_source(file_id).source);
+
+        for (token, span) in tokens.data {
+            debug::write_token(out, token, span, sm, interner);
+        }
+
+        for diag in diags {
+            let _g = diag.finish();
         }
     }
 }

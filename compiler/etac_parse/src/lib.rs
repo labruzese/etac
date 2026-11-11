@@ -14,7 +14,7 @@ mod grammar;
 mod parser;
 mod token_set;
 
-pub mod debug;
+mod debug;
 pub mod result;
 
 /// A syntactic category that can be parsed from a token stream.
@@ -23,6 +23,15 @@ pub mod result;
 /// `Program::parse(&tokens, &dcx)` or be generic over the two.
 pub trait Parse: Sized {
     fn parse<'dcx>(tokens: &Tokens, dcx: &'dcx DiagCtx) -> ParseResult<'dcx, Self>;
+    pub fn debug_parse<'sm>(
+        out: &mut impl Write,
+        sm: &'sm SourceMap,
+        interner: &mut EtacInterner,
+        file_id: FileId<'sm>,
+        dcx: &DiagCtx,
+    ) where
+        for<'a, 'b> etac_ast::display::sexpr::SexpPrinter<'a, 'b, EtacInterner, Self>: std::fmt::Display,
+        for<'a, 'b> etac_ast::display::span::SpanPrinter<'a, 'b, Self>: std::fmt::Display;
 }
 
 macro_rules! impl_parse {
@@ -34,6 +43,18 @@ macro_rules! impl_parse {
                 let diags = p.finish_parse();
                 let parse = if diags.is_empty() { Parsed::Ok(out) } else { Parsed::Recovered(out) };
                 ParseResult { parse, diags }
+            }
+            pub fn debug_parse<'sm>(
+                out: &mut impl Write,
+                sm: &'sm SourceMap,
+                interner: &mut EtacInterner,
+                file_id: FileId<'sm>,
+                dcx: &DiagCtx,
+            ) where
+                for<'a, 'b> etac_ast::display::sexpr::SexpPrinter<'a, 'b, EtacInterner, Self>: std::fmt::Display,
+                for<'a, 'b> etac_ast::display::span::SpanPrinter<'a, 'b, Self>: std::fmt::Display
+            {
+                debug::parse(out, sm, interner, file_id, dcx)
             }
         })+
     };

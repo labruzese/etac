@@ -1,4 +1,6 @@
 //! The driver for the compiler
+use std::collections::HashMap;
+
 use etac_ast::ast::{Interface, Program};
 use etac_cache::EtaCache;
 use etac_errors::{
@@ -69,13 +71,23 @@ pub fn run(flags: &Flags) -> CompilationResult {
         return run_dparse(&cache.sources, &mut cache.state.interner, files, dcx);
     }
 
+    let asts = Vec::new();
+    let interface_map = HashMap::<Spur, Interface>::new();
+
     for file in files {
         match file {
             File::Program(id) => {
-                let _ast: Result<Program> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id);
+                let Ok(ast): Result<Program> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id) else {
+                    continue;
+                };
+                asts.push(ast);
             }
             File::Interface(id) => {
-                let _ast: Result<Interface> = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id);
+                let Ok(ast) = parse_one(&cache.sources, &mut cache.state.interner, &dcx, id) else {
+                    continue;
+                };
+                let name = cache.sources.get_source(id).name;
+                interface_map.insert(cache.state.interner.get_or_intern(name), ast);
             }
         }
     }

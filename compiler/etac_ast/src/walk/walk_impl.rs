@@ -1,6 +1,21 @@
 use super::{Walkable, WalkableMut, WalkableOwned};
 use crate::visit::{Visitor, VisitorMut, VisitorOwned, VisitorResult};
 
+// `impl_walk! {Ty, |self, v| { ... }}` implements `Walkable`, `WalkableMut` and `WalkableOwned` for `Ty`, all from
+// one body. The body is pasted into each impl unchanged, but:
+//
+// - `self` is `&Ty`, `&mut Ty` or `Ty`, so the same destructuring pattern binds the fields as `&`, `&mut` or owned
+//   values.
+// - `visit!` is rebound to `visit!`, `visit_mut!` or `visit_owned!`, so the same `visit!(v, a, b)` call visits the
+//   fields with the matching flavor of visitor.
+//
+// When writing a body:
+//
+// - Destructure the node exhaustively (`let Ty { span: _, a, b } = self;`, without `..`), so that adding a field to the
+//   node is a compile error here until someone decides whether the field should be visited.
+// - Visit the children in the order a pass should see them. This is the traversal order documented on the `walk`
+//   module, so update those docs and leave an `NB:` comment when it differs from the order of the fields.
+// - Don't produce a value: `V::Result::output()` is appended after the body.
 macro_rules! impl_walk {
     ($ty:ty, |$s:ident, $v:ident| $body:block) => {
         impl<'ast, V: Visitor<'ast>> Walkable<'ast, V> for $ty {
@@ -36,6 +51,7 @@ macro_rules! impl_walk {
     };
 }
 
+// `atom! {Ty}` implements the three walk traits for a leaf node, one with no children to visit.
 macro_rules! atom {
     ($ty:ty) => {
         impl<'ast, V: Visitor<'ast>> Walkable<'ast, V> for $ty {
@@ -56,7 +72,21 @@ macro_rules! atom {
     };
 }
 
-use crate::ast::*;
+// ast specfic impls
+
+impl_walk! {crate::ast::Program, |self, v| {
+    let crate::ast::Program { span: _, uses, definitions } = self;
+    visit!(v, uses, definitions)
+}}
+
+impl_walk! {crate::ast::Use, |self, v| {
+    let crate::ast::Use { span: _, interface } = self;
+    visit!(v, interface)
+}}
+
+// hir impls
+
+use crate::hir::*;
 
 atom! {Ident}
 atom! {IntLit}
@@ -67,7 +97,7 @@ atom! {UOpKind}
 atom! {BinOpKind}
 atom! {Error}
 
-impl_walk! {Program, |self, v| {
+impl_walk! {crate::hir::Program, |self, v| {
     let Program { span: _, uses, definitions } = self;
     visit!(v, uses, definitions)
 }}
@@ -77,7 +107,7 @@ impl_walk! {Interface, |self, v| {
     visit!(v, items)
 }}
 
-impl_walk! {Use, |self, v| {
+impl_walk! {crate::hir::Use, |self, v| {
     let Use { span: _, interface } = self;
     visit!(v, interface)
 }}
