@@ -237,6 +237,7 @@ impl_walk! {TargetKind, |self, v| {
         TargetKind::LValue(lvalue_kind) => visit!(v, lvalue_kind),
         TargetKind::Decl(decl)          => visit!(v, decl),
         TargetKind::Discard(_span)      => {}
+        TargetKind::Error(error)        => visit!(v, error),
     }
 }}
 

@@ -627,7 +627,7 @@ fn into_target(p: &mut Parser, item: TargetItem) -> TargetKind {
             ExprKind::Index(ix) => TargetKind::LValue(LValueKind::Index(ix)),
             ExprKind::Call(c) => TargetKind::LValue(LValueKind::ProcCall(c)),
             // Already reported by whoever produced it.
-            ExprKind::Error(e) => TargetKind::Discard(e.0),
+            ExprKind::Error(e) => TargetKind::Error(e),
             other => {
                 let span = expr_span(&other);
                 let d = p
@@ -636,7 +636,7 @@ fn into_target(p: &mut Parser, item: TargetItem) -> TargetKind {
                     .with_message("not a valid assignment target")
                     .with_note("assign to a variable, an array element, or `_`");
                 p.report(d);
-                TargetKind::Discard(span)
+                TargetKind::Error(Error(span))
             }
         },
     }

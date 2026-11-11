@@ -359,6 +359,7 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
             TargetKind::LValue(l) => l.visit(self),
             TargetKind::Decl(d) => d.visit(self),
             TargetKind::Discard(_) => self.atom("_"),
+            TargetKind::Error(e) => e.visit(self),
         }
     }
 

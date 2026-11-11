@@ -138,6 +138,8 @@ pub enum TargetKind {
     LValue(LValueKind),
     Decl(Decl),
     Discard(Span),
+    /// Something that can't be assigned to. Already reported.
+    Error(Error),
 }
 
 pub enum LValueKind {

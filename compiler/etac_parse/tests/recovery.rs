@@ -77,7 +77,7 @@ fn assign_to_non_lvalue() {
               (defs
                 (method (decl f (params) (returns))
                   (block
-                    (assign (targets _) (values 3))))))
+                    (assign (targets (error)) (values 3))))))
             program   > f() {
                       >     g() + 1 = 3
                       > }
@@ -91,7 +91,7 @@ fn assign_to_non_lvalue() {
                       > }
             assign    > g() + 1 = 3
             int_lit   > 3
-            discard   > g() + 1
+            error     > g() + 1
 
             Error: cannot assign to a binary expression
                ╭─[ src0.eta:2:5 ]
