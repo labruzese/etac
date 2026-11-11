@@ -1,5 +1,6 @@
 use crossbeam_skiplist::SkipMap;
 use dashmap::DashMap;
+use dashmap::mapref::entry::Entry;
 use elsa::sync::FrozenMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -32,6 +33,10 @@ pub struct SourceRecord {
     pub source: Arc<str>,
 }
 
+/// The text of every file in a compilation, addressed by [`FileId`] and by [`Span`].
+///
+/// Every method takes `&self` and the map is `Send + Sync`, so the threads of a compilation can share one and add
+/// files to it as they find them. A file never changes or goes away once it is in the map.
 #[derive(Default)]
 pub struct SourceMap {
     lc_cache: FrozenMap<u32, Box<ariadne::Source<Arc<str>>>>,
@@ -44,17 +49,60 @@ const fn assert_send_sync<T: Send + Sync>() {}
 const _: () = assert_send_sync::<SourceMap>();
 
 impl SourceMap {
+    /// Add a file to the map, and make `display_name` name it.
+    ///
+    /// This always adds a file: if the name was already taken, it now names the new one. To add a file only the first
+    /// time its name comes up, use [`get_or_load`](Self::get_or_load).
     pub fn alloc_source(&self, display_name: String, text: String) -> (FileId<'_>, &str) {
         let name: Arc<str> = Arc::from(display_name);
+        let (base, source) = self.store(name.clone(), text);
+        self.name_to_id.insert(name, base);
+        (FileId::new(base), source)
+    }
+
+    /// The file called `display_name`, calling `read` for its text if the map does not have it yet.
+    ///
+    /// However many threads ask for the same name at once, `read` runs once and they all get the same id. If `read`
+    /// fails nothing is stored, and the next call tries again.
+    ///
+    /// `read` runs while the name is locked, so it must not use this map.
+    pub fn get_or_load<E>(
+        &self,
+        display_name: &str,
+        read: impl FnOnce() -> Result<String, E>,
+    ) -> Result<FileId<'_>, E> {
+        if let Some(id) = self.get_id(display_name) {
+            return Ok(id);
+        }
+        match self.name_to_id.entry(Arc::from(display_name)) {
+            Entry::Occupied(known) => Ok(FileId::new(*known.get())),
+            Entry::Vacant(slot) => {
+                let (base, _) = self.store(slot.key().clone(), read()?);
+                slot.insert(base);
+                Ok(FileId::new(base))
+            }
+        }
+    }
+
+    /// Give `text` a range of offsets and store it. The caller publishes the name.
+    fn store(&self, name: Arc<str>, text: String) -> (u32, &str) {
         let source: Arc<str> = Arc::from(text);
 
-        let len = u32::try_from(source.len()).expect("text maximum is 4GB (u32::MAX bytes)");
-        // +1 keeps bases unique even for empty files.
-        let base = self.next_base.fetch_add(len + 1, Ordering::SeqCst);
-        self.name_to_id.insert(name.clone(), base);
-        self.source_starts.insert(base, ());
+        // +1 keeps bases unique even for empty files, and puts a file's end-of-file offset inside its own range.
+        let len = u32::try_from(source.len())
+            .ok()
+            .and_then(|len| len.checked_add(1))
+            .expect("a source file is at most 4GB");
+        let base = self
+            .next_base
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |base| base.checked_add(len))
+            .expect("a compilation reads at most 4GB of source text");
+
+        // The text goes in before anything that leads to it: a thread that finds this base, through the start table
+        // here or through the name the caller publishes afterwards, always finds the text behind it.
         let record = self.source_texts.insert(base, Box::new(SourceRecord { name, source }));
-        (FileId::new(base), &record.source)
+        self.source_starts.insert(base, ());
+        (base, &record.source)
     }
 
     pub fn get_id(&self, display_name: &str) -> Option<FileId<'_>> {
@@ -165,5 +213,44 @@ impl Span {
 impl From<std::ops::Range<u32>> for Span {
     fn from(value: std::ops::Range<u32>) -> Self {
         Span::new(value.start, value.end)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::atomic::AtomicUsize;
+
+    #[test]
+    fn a_file_is_loaded_once_however_many_threads_ask() {
+        let sm = SourceMap::default();
+        let reads = AtomicUsize::new(0);
+        let ids = std::thread::scope(|threads| {
+            let workers: Vec<_> = (0..16)
+                .map(|_| {
+                    threads.spawn(|| {
+                        sm.get_or_load("a.eta", || {
+                            reads.fetch_add(1, Ordering::SeqCst);
+                            Ok::<_, std::convert::Infallible>("f() { }".to_owned())
+                        })
+                        .unwrap()
+                    })
+                })
+                .collect();
+            workers.into_iter().map(|w| w.join().unwrap()).collect::<Vec<_>>()
+        });
+
+        assert_eq!(reads.load(Ordering::SeqCst), 1);
+        assert!(ids.iter().all(|id| *id == ids[0]));
+        assert_eq!(&*sm.get_source(ids[0]).source, "f() { }");
+    }
+
+    #[test]
+    fn a_failed_load_stores_nothing() {
+        let sm = SourceMap::default();
+        assert_eq!(sm.get_or_load("a.eta", || Err("unreadable")), Err("unreadable"));
+        assert!(sm.get_id("a.eta").is_none());
+        let id = sm.get_or_load("a.eta", || Ok::<_, ()>(String::new())).unwrap();
+        assert_eq!(sm.get_id("a.eta"), Some(id));
     }
 }

@@ -14,10 +14,10 @@ fn accepts<T: Parse>(src: &str) -> bool {
     let emitter = etac_errors::emitter::IoEmitter::sink();
     let dcx = DiagCtx::new(emitter);
     let sm = SourceMap::default();
-    let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
+    let interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
 
     let (id, text) = sm.alloc_source("corpus.eta".to_owned(), src.to_owned());
-    let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &mut interner, &dcx).lex(text);
+    let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
     let lexed_clean = lexed.diags.is_empty();
     for d in Vec::from(lexed.diags) {
         d.cancel();

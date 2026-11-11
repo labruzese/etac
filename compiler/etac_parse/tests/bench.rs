@@ -26,11 +26,11 @@ fn throughput() {
         let emitter = etac_errors::emitter::IoEmitter::sink();
         let dcx = DiagCtx::new(emitter);
         let sm = SourceMap::default();
-        let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
+        let interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
         let (id, text) = sm.alloc_source("bench.eta".to_owned(), src.clone());
 
         let t0 = Instant::now();
-        let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &mut interner, &dcx).lex(text);
+        let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
         let t1 = Instant::now();
         let ParseResult { parse: _, diags } = etac_ast::ast::Program::parse(&lexed.tokens, &dcx);
         let t2 = Instant::now();

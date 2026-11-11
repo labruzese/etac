@@ -37,8 +37,8 @@ pub struct Tokens {
     pub data: Box<[(Token, Span)]>,
 }
 
-impl<'src, 'dcx> EtaLexer<'dcx, &'src mut EtacInterner> {
-    pub fn new(base: u32, interner: &'src mut EtacInterner, dcx: &'dcx DiagCtx) -> Self {
+impl<'src, 'dcx> EtaLexer<'dcx, &'src EtacInterner> {
+    pub fn new(base: u32, interner: &'src EtacInterner, dcx: &'dcx DiagCtx) -> Self {
         Self { base, interner, dcx }
     }
 

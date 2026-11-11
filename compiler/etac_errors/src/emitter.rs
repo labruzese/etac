@@ -11,7 +11,7 @@ pub type EmitConfig = ariadne::Config;
 
 /// Renders diagnostics to stderr with source snippets via `ariadne`.
 pub struct IoEmitter {
-    writer: Option<Box<dyn Write>>,
+    writer: Option<Box<dyn Write + Send>>,
     conf: EmitConfig,
 }
 
@@ -25,7 +25,7 @@ impl std::fmt::Debug for IoEmitter {
 }
 
 impl IoEmitter {
-    pub fn new(writer: Box<dyn Write>) -> Self {
+    pub fn new(writer: Box<dyn Write + Send>) -> Self {
         Self::with_config(writer, EmitConfig::default())
     }
     pub fn sink() -> Self {
@@ -34,7 +34,7 @@ impl IoEmitter {
             conf: EmitConfig::default(),
         }
     }
-    pub fn with_config(writer: Box<dyn Write>, conf: EmitConfig) -> Self {
+    pub fn with_config(writer: Box<dyn Write + Send>, conf: EmitConfig) -> Self {
         Self {
             writer: Some(writer),
             conf: conf.with_index_type(IndexType::Byte),
@@ -44,17 +44,17 @@ impl IoEmitter {
 
 impl Write for IoEmitter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.writer
-            .as_mut()
-            .unwrap_or(&mut (Box::new(std::io::sink()) as Box<dyn Write>))
-            .write(buf)
+        match &mut self.writer {
+            Some(writer) => writer.write(buf),
+            None => Ok(buf.len()),
+        }
     }
 
     fn flush(&mut self) -> std::io::Result<()> {
-        self.writer
-            .as_mut()
-            .unwrap_or(&mut (Box::new(std::io::sink()) as Box<dyn Write>))
-            .flush()
+        match &mut self.writer {
+            Some(writer) => writer.flush(),
+            None => Ok(()),
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-use lasso::{Rodeo, RodeoReader, Spur};
+use lasso::{RodeoReader, Spur, ThreadedRodeo};
 use rustc_hash::FxHasher;
 use std::hash::BuildHasherDefault;
 type FxBuild = BuildHasherDefault<FxHasher>;
@@ -7,7 +7,8 @@ pub use lasso::Interner;
 pub use lasso::Resolver;
 
 pub type Symbol = Spur;
-pub type EtacInterner = Rodeo<Symbol, FxBuild>;
+/// The interner. It hands out symbols through `&self`, so every thread of a compilation can share the one.
+pub type EtacInterner = ThreadedRodeo<Symbol, FxBuild>;
 pub type EtacReader = RodeoReader<Symbol, FxBuild>;
 
 pub mod state {

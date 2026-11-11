@@ -1,4 +1,5 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, PoisonError};
 
 use etac_source::{SourceMap, Span};
 
@@ -19,14 +20,22 @@ pub struct Diagnostic {
     pub note: Option<String>,
 }
 
+/// Collects the diagnostics of a compilation, and writes them out at the end.
+///
+/// Reporting goes through `&self` and the context is `Send + Sync`, so every thread of a compilation reports to the
+/// same one.
 pub struct DiagCtx {
     diagnostics: elsa::sync::FrozenVec<Box<Diagnostic>>,
-    emitter: IoEmitter,
+    emitter: Mutex<IoEmitter>,
     err_count: AtomicUsize,
     warn_count: AtomicUsize,
     #[cfg(debug_assertions)]
     bomb: DropBomb,
 }
+
+const fn assert_send_sync<T: Send + Sync>() {}
+const _: () = assert_send_sync::<DiagCtx>();
+const _: () = assert_send_sync::<DiagBuilder<'static>>();
 
 impl Default for DiagCtx {
     fn default() -> Self {
@@ -38,7 +47,7 @@ impl DiagCtx {
     pub fn new(emitter: IoEmitter) -> Self {
         Self {
             diagnostics: elsa::sync::FrozenVec::new(),
-            emitter,
+            emitter: Mutex::new(emitter),
             err_count: 0.into(),
             warn_count: 0.into(),
             #[cfg(debug_assertions)]
@@ -48,7 +57,7 @@ impl DiagCtx {
 
     // if you want to write to the same output stream as the diagnostics
     pub fn borrow_emitter(&mut self) -> &mut IoEmitter {
-        &mut self.emitter
+        self.emitter.get_mut().unwrap_or_else(PoisonError::into_inner)
     }
 
     pub fn new_diag(&self, level: Level, span: Span, message: impl Into<String>) -> DiagBuilder<'_> {
@@ -95,8 +104,9 @@ impl DiagCtx {
     }
 
     pub fn emit_diagnostics(mut self, source_map: &SourceMap) {
-        for diag in self.diagnostics.into_vec().drain(..) {
-            self.emitter.emit(source_map, *diag);
+        let emitter = self.emitter.get_mut().unwrap_or_else(PoisonError::into_inner);
+        for diag in self.diagnostics.into_vec() {
+            emitter.emit(source_map, *diag);
         }
         #[cfg(debug_assertions)]
         self.bomb.defuse();

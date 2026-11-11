@@ -296,7 +296,7 @@ tokens! {
         #[derive(Debug, Clone, Copy, PartialEq, Logos)]
         #[logos(skip r"[ \t\n\f\r]+")]
         #[logos(skip(r"//[^\n]*", allow_greedy = true))]
-        #[logos(extras = (u32, &'s mut EtacInterner))]
+        #[logos(extras = (u32, &'s EtacInterner))]
         #[logos(error(InternalLexerError, internal_error_unknown_token))]
     }
 

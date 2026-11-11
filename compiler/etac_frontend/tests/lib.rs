@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use etac_debug::{StringBuffer, StringWriter};
+use etac_debug::StringWriter;
 use etac_errors::{dcx::DiagCtx, emitter::IoEmitter};
 use etac_frontend::{Debugger, Frontend};
 use etac_intern::EtacInterner;
@@ -16,10 +16,10 @@ fn interner() -> EtacInterner {
 fn an_interface_is_parsed_and_diagnosed_once() {
     let dcx = DiagCtx::new(IoEmitter::sink());
     let sm = SourceMap::default();
-    let mut interner = interner();
+    let interner = interner();
     let (id, _) = sm.alloc_source("bad.eti".to_owned(), "f(x: int) +".to_owned());
 
-    let mut frontend = Frontend::new(&sm, &mut interner, &dcx, ());
+    let frontend = Frontend::new(&sm, &interner, &dcx, ());
     let first = frontend.interface(id).expect("the parser recovers");
     let errors = dcx.err_count();
     assert!(errors > 0, "the interface has a syntax error");
@@ -34,18 +34,18 @@ fn an_interface_is_parsed_and_diagnosed_once() {
 #[test]
 fn the_debugger_dumps_only_what_it_is_asked_to() {
     let dump = |tokens: bool, trees: bool| {
-        let out = StringWriter(StringBuffer::default());
+        let out = StringWriter::default();
         let dcx = DiagCtx::new(IoEmitter::sink());
         let sm = SourceMap::default();
-        let mut interner = interner();
+        let interner = interner();
         let (id, _) = sm.alloc_source("f.eti".to_owned(), "f()".to_owned());
 
         let debugger = Debugger::new(out.clone(), &sm).tokens(tokens).trees(trees);
-        Frontend::new(&sm, &mut interner, &dcx, debugger)
+        Frontend::new(&sm, &interner, &dcx, debugger)
             .interface(id)
             .expect("a clean parse");
         dcx.cancel();
-        out.0.take()
+        out.take()
     };
 
     assert_eq!(dump(false, false), "");
@@ -64,4 +64,55 @@ fn the_debugger_dumps_only_what_it_is_asked_to() {
 
     // tokens first, then the tree: each hook runs right after its phase
     assert_eq!(dump(true, true), tokens + &trees);
+}
+
+#[test]
+fn threads_share_one_frontend() {
+    let out = StringWriter::default();
+    let dcx = DiagCtx::new(IoEmitter::sink());
+    let sm = SourceMap::default();
+    let interner = interner();
+    let (bad, _) = sm.alloc_source("bad.eti".to_owned(), "f(x: int) +".to_owned());
+    let programs: Vec<_> = (0..8)
+        .map(|i| {
+            sm.alloc_source(format!("p{i}.eta"), format!("f{i}(shared: int) {{ }}"))
+                .0
+        })
+        .collect();
+
+    let frontend = Frontend::new(&sm, &interner, &dcx, Debugger::new(out.clone(), &sm).trees(true));
+    let interfaces = std::thread::scope(|threads| {
+        let workers: Vec<_> = programs
+            .iter()
+            .map(|&program| {
+                let frontend = &frontend;
+                threads.spawn(move || {
+                    frontend.program(program).expect("the parser recovers");
+                    frontend.interface(bad).expect("the parser recovers")
+                })
+            })
+            .collect();
+        workers.into_iter().map(|w| w.join().unwrap()).collect::<Vec<_>>()
+    });
+
+    assert!(
+        interfaces.iter().all(|i| Arc::ptr_eq(i, &interfaces[0])),
+        "every thread shares the one tree"
+    );
+    assert_eq!(
+        dcx.err_count(),
+        1,
+        "the interface is diagnosed once, whoever asked first"
+    );
+
+    // one dump per file, each in one piece
+    let dump = out.take();
+    assert_eq!(dump.matches(": parse(").count(), programs.len() + 1, "{dump}");
+    for i in 0..programs.len() {
+        assert!(
+            dump.contains(&format!("(method (decl f{i} (params (: shared int))")),
+            "{dump}"
+        );
+    }
+    dcx.cancel();
 }

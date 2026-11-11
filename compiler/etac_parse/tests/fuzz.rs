@@ -36,10 +36,10 @@ fn fuzz_one(src: &str) {
     let emitter = etac_errors::emitter::IoEmitter::sink();
     let dcx = DiagCtx::new(emitter);
     let sm = SourceMap::default();
-    let mut interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
+    let interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
 
     let (id, text) = sm.alloc_source("fuzz.eta".to_owned(), src.to_owned());
-    let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &mut interner, &dcx).lex(text);
+    let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
     for d in Vec::from(lexed.diags) {
         d.cancel();
     }

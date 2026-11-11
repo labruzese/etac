@@ -125,13 +125,8 @@ impl<'sm> Resolver<'sm> {
         dcx: &'dcx DiagCtx,
         path_str: &str,
     ) -> Result<FileId<'sm>, DiagBuilder<'dcx>> {
-        if let Some(id) = sm.get_id(path_str) {
-            return Ok(id);
-        }
-        match std::fs::read_to_string(path_str) {
-            Ok(contents) => Ok(sm.alloc_source(path_str.to_string(), contents).0),
-            Err(ioe) => Err(dcx.new_err_io(ioe)),
-        }
+        sm.get_or_load(path_str, || std::fs::read_to_string(path_str))
+            .map_err(|ioe| dcx.new_err_io(ioe))
     }
 }
 

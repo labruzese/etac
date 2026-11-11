@@ -9,8 +9,12 @@
 //! needs beyond what a phase produced, such as where to write, belongs to the hook object and not to the lexer or
 //! parser.
 //!
+//! A `Frontend` works through `&self` and is `Send + Sync`, like the source map, interner and diagnostic context it
+//! borrows, so threads that parse different files can share one. An interface two of them ask for at the same time is
+//! still parsed once, and a hook is never run by two threads at once.
+//!
 //! ```ignore
-//! fn lower<H: Hooks>(frontend: &mut Frontend<'_, H>, resolver: &mut Resolver<'_>, ...) {
+//! fn lower<H: Hooks>(frontend: &Frontend<'_, H>, resolver: &mut Resolver<'_>, ...) {
 //!     // for each `use` in a program:
 //!     let id = resolver.resolve_use(frontend.sm, frontend.dcx, from, name, span)?;
 //!     let interface = frontend.interface(id)?; // lexed, parsed, dumped and diagnosed once
@@ -19,7 +23,7 @@
 
 use std::collections::HashMap;
 use std::io::Write;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use etac_ast::ast::{Interface, Program};
 use etac_errors::{
@@ -110,51 +114,63 @@ impl<W: Write> Hooks for Debugger<'_, W> {
 /// See the [module docs](crate::frontend).
 pub struct Frontend<'a, H = ()> {
     pub sm: &'a SourceMap,
-    pub interner: &'a mut EtacInterner,
+    pub interner: &'a EtacInterner,
     pub dcx: &'a DiagCtx,
-    pub hooks: H,
-    /// Every interface parsed so far, so that a file is only ever parsed, and its errors reported, once.
-    interfaces: HashMap<InterfaceId<'a>, Result<Arc<Interface>, ErrorGuaranteed>>,
+    /// Locked for each call, so that a hook has `&mut self` and what it writes for one file stays in one piece.
+    hooks: Mutex<H>,
+    /// Every interface asked for so far, so that a file is only ever parsed, and its errors reported, once. The cell
+    /// is what makes that hold across threads: whoever gets there first parses, and the rest wait for its tree.
+    interfaces: Mutex<HashMap<InterfaceId<'a>, InterfaceCell>>,
 }
 
+type InterfaceCell = Arc<OnceLock<Result<Arc<Interface>, ErrorGuaranteed>>>;
+
+const fn assert_send_sync<T: Send + Sync>() {}
+const _: () = assert_send_sync::<Frontend<'static, ()>>();
+const _: () = assert_send_sync::<Frontend<'static, Debugger<'static, std::io::Stdout>>>();
+
 impl<'a, H: Hooks> Frontend<'a, H> {
-    pub fn new(sm: &'a SourceMap, interner: &'a mut EtacInterner, dcx: &'a DiagCtx, hooks: H) -> Self {
+    pub fn new(sm: &'a SourceMap, interner: &'a EtacInterner, dcx: &'a DiagCtx, hooks: H) -> Self {
         Frontend {
             sm,
             interner,
             dcx,
-            hooks,
-            interfaces: HashMap::new(),
+            hooks: Mutex::new(hooks),
+            interfaces: Mutex::default(),
         }
     }
 
     /// Lex and parse an `.eta` file.
     ///
     /// The parser recovers from errors, so there is a tree even when it reported some. `Err` means there is none.
-    pub fn program(&mut self, file: SourceId<'a>) -> Result<Program, ErrorGuaranteed> {
+    pub fn program(&self, file: SourceId<'a>) -> Result<Program, ErrorGuaranteed> {
         self.parse_file(file)
     }
 
     /// Lex and parse an `.eti` file, or return the tree from the first time it was asked for.
     ///
     /// Each interface is parsed once, however many programs `use` it, and they all share the one tree.
-    pub fn interface(&mut self, file: InterfaceId<'a>) -> Result<Arc<Interface>, ErrorGuaranteed> {
-        if let Some(parsed) = self.interfaces.get(&file) {
-            return parsed.clone();
-        }
-        let parsed = self.parse_file(file).map(Arc::new);
-        self.interfaces.insert(file, parsed.clone());
-        parsed
+    pub fn interface(&self, file: InterfaceId<'a>) -> Result<Arc<Interface>, ErrorGuaranteed> {
+        // Only hold the table for the lookup: parsing happens with it unlocked, inside the file's own cell.
+        let cell = {
+            let mut interfaces = self.interfaces.lock().unwrap_or_else(PoisonError::into_inner);
+            interfaces.entry(file).or_default().clone()
+        };
+        cell.get_or_init(|| self.parse_file(file).map(Arc::new)).clone()
     }
 
-    fn parse_file<T: Parse>(&mut self, file: FileId<'a>) -> Result<T, ErrorGuaranteed> {
+    fn hooks(&self) -> std::sync::MutexGuard<'_, H> {
+        self.hooks.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn parse_file<T: Parse>(&self, file: FileId<'a>) -> Result<T, ErrorGuaranteed> {
         let source = self.sm.get_source(file);
         let lexed = EtaLexer::new(self.sm.base_offset(file), self.interner, self.dcx).lex(&source.source);
-        self.hooks.lexed(self.interner, file, &lexed.tokens);
+        self.hooks().lexed(self.interner, file, &lexed.tokens);
         let lex_guarantee = lexed.diags.into_iter().map(DiagBuilder::finish).last();
 
         let ParseResult { parse, diags } = T::parse(&lexed.tokens, self.dcx);
-        self.hooks.parsed(self.interner, file, &parse);
+        self.hooks().parsed(self.interner, file, &parse);
         let parse_guarantee = diags.into_iter().map(DiagBuilder::finish).last();
 
         match parse {

@@ -12,7 +12,7 @@ mod status;
 type CompilationResult = std::result::Result<CompilationSuccess, CompilationFailure>;
 
 pub fn run(flags: &Flags) -> CompilationResult {
-    let mut session = Session::new();
+    let session = Session::new();
     let dcx = DiagCtx::default();
 
     let mut resolver = Resolver::new(&flags.source_path, &flags.lib_path);
@@ -34,7 +34,7 @@ pub fn run(flags: &Flags) -> CompilationResult {
         let debugger = Debugger::new(std::io::stdout(), &session.sources)
             .tokens(flags.dlex)
             .trees(flags.dparse);
-        let mut frontend = Frontend::new(&session.sources, &mut session.state.interner, &dcx, debugger);
+        let frontend = Frontend::new(&session.sources, &session.state.interner, &dcx, debugger);
 
         let mut programs = Vec::new();
         for file in files {
@@ -51,7 +51,7 @@ pub fn run(flags: &Flags) -> CompilationResult {
             }
         }
 
-        // TODO: lower `programs` to the HIR here. Lowering takes `&mut frontend` and `&mut resolver`, so an
+        // TODO: lower `programs` to the HIR here. Lowering takes `&frontend` and `&mut resolver`, so an
         // interface it finds through a `use` is lexed and parsed by the same frontend, hooks included.
     }
 

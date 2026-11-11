@@ -23,7 +23,7 @@ macro_rules! parsetest {
                                                            // in lextest!
         {
             let debugger = etac_frontend::Debugger::new($writer.clone(), &$session.sources).trees(true);
-            let mut frontend = etac_frontend::Frontend::new(&$session.sources, &mut $session.state.interner, &dcx, debugger);
+            let frontend = etac_frontend::Frontend::new(&$session.sources, &$session.state.interner, &dcx, debugger);
             match ty {
                 Ft::Prgm => drop(frontend.program(id)),
                 Ft::Intf => drop(frontend.interface(id)),
@@ -31,7 +31,7 @@ macro_rules! parsetest {
         }
         dcx.emit_diagnostics(&$session.sources);
         let expected: expect_test::Expect = $expected;
-        expected.assert_eq(&$writer.0.take()); // clear the buffer we compare one file output at a
+        expected.assert_eq(&$writer.take()); // clear the buffer we compare one file output at a
                                                // time
         parsetest!(@item $writer, $session, $n; $($rest)*);
     };
@@ -40,7 +40,7 @@ macro_rules! parsetest {
     // --- wrapped/general entry point ---
     (@wrap $($rest:tt)*) => {{
         let mut writer = etac_debug::StringWriter(etac_debug::StringBuffer::default());
-        let mut session = etac_session::Session::default();
+        let session = etac_session::Session::default();
         let mut n: usize = 0;
         parsetest!(@item writer, session, n; $($rest)*);
     }};
