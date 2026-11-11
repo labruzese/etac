@@ -17,7 +17,7 @@ pub fn run(flags: &Flags) -> CompilationResult {
 
     let mut resolver = Resolver::new(&flags.source_path, &flags.lib_path);
 
-    let files: Vec<File<'_>> = flags
+    let files: Vec<File> = flags
         .source_files
         .iter()
         .filter_map(|path| match resolver.classify_cli(&session.sources, &dcx, path) {

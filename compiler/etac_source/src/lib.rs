@@ -2,29 +2,30 @@ use crossbeam_skiplist::SkipMap;
 use dashmap::DashMap;
 use dashmap::mapref::entry::Entry;
 use elsa::sync::FrozenMap;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 
-pub type SourceId<'sm> = FileId<'sm>;
-pub type InterfaceId<'sm> = FileId<'sm>;
+/// The [`FileId`] of an `.eta` file.
+pub type SourceId = FileId;
+/// The [`FileId`] of an `.eti` file.
+pub type InterfaceId = FileId;
 
+/// Names a file in a [`SourceMap`].
+///
+/// An id is a plain value: it borrows nothing, so it can be stored in trees and tables that outlive any one borrow of
+/// the map. It only means something to the map that handed it out.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct FileId<'sm> {
-    pub base: u32,
-    _cache: PhantomData<&'sm SourceMap>,
+pub struct FileId {
+    /// The offset of the file's first byte, which is what a [`Span`] into the file counts from.
+    base: u32,
 }
-impl FileId<'_> {
-    pub const DUMMY: FileId<'static> = FileId {
-        base: u32::MAX,
-        _cache: PhantomData,
-    };
+impl FileId {
+    /// The id of no file. Looking it up in a map panics.
+    pub const DUMMY: FileId = FileId { base: u32::MAX };
+
     pub(crate) fn new(base: u32) -> Self {
-        FileId {
-            base,
-            _cache: PhantomData,
-        }
+        FileId { base }
     }
 }
 
@@ -53,7 +54,7 @@ impl SourceMap {
     ///
     /// This always adds a file: if the name was already taken, it now names the new one. To add a file only the first
     /// time its name comes up, use [`get_or_load`](Self::get_or_load).
-    pub fn alloc_source(&self, display_name: String, text: String) -> (FileId<'_>, &str) {
+    pub fn alloc_source(&self, display_name: String, text: String) -> (FileId, &str) {
         let name: Arc<str> = Arc::from(display_name);
         let (base, source) = self.store(name.clone(), text);
         self.name_to_id.insert(name, base);
@@ -66,11 +67,7 @@ impl SourceMap {
     /// fails nothing is stored, and the next call tries again.
     ///
     /// `read` runs while the name is locked, so it must not use this map.
-    pub fn get_or_load<E>(
-        &self,
-        display_name: &str,
-        read: impl FnOnce() -> Result<String, E>,
-    ) -> Result<FileId<'_>, E> {
+    pub fn get_or_load<E>(&self, display_name: &str, read: impl FnOnce() -> Result<String, E>) -> Result<FileId, E> {
         if let Some(id) = self.get_id(display_name) {
             return Ok(id);
         }
@@ -105,21 +102,21 @@ impl SourceMap {
         (base, &record.source)
     }
 
-    pub fn get_id(&self, display_name: &str) -> Option<FileId<'_>> {
+    pub fn get_id(&self, display_name: &str) -> Option<FileId> {
         self.name_to_id.get(display_name).map(|e| FileId::new(*e.value()))
     }
 
-    pub fn get_source<'ec>(&'ec self, id: FileId<'ec>) -> &'ec SourceRecord {
+    pub fn get_source(&self, id: FileId) -> &SourceRecord {
         self.source_texts
             .get(&id.base)
-            .expect("FileId constructed outside this cache passed")
+            .expect("this FileId is not from this source map")
     }
 
-    pub fn base_offset(&self, id: FileId<'_>) -> u32 {
+    pub fn base_offset(&self, id: FileId) -> u32 {
         id.base
     }
 
-    pub fn local_span(&self, span: Span) -> (FileId<'_>, std::ops::Range<usize>) {
+    pub fn local_span(&self, span: Span) -> (FileId, std::ops::Range<usize>) {
         let entry = self
             .source_starts
             .upper_bound(std::ops::Bound::Included(&span.lo))
@@ -129,7 +126,7 @@ impl SourceMap {
         (id, (span.lo - base) as usize..(span.hi - base) as usize)
     }
 
-    pub fn ariadne_source(&self, id: FileId<'_>) -> &ariadne::Source<Arc<str>> {
+    pub fn ariadne_source(&self, id: FileId) -> &ariadne::Source<Arc<str>> {
         if let Some(s) = self.lc_cache.get(&id.base) {
             s
         } else {
@@ -158,12 +155,12 @@ impl SourceMap {
     }
 }
 
-impl<'sm> ariadne::Cache<FileId<'sm>> for &SourceMap {
+impl ariadne::Cache<FileId> for &SourceMap {
     type Storage = Arc<str>;
-    fn fetch(&mut self, id: &FileId<'sm>) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
+    fn fetch(&mut self, id: &FileId) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
         Ok::<_, std::convert::Infallible>(self.ariadne_source(*id))
     }
-    fn display<'a>(&self, id: &'a FileId<'sm>) -> Option<impl std::fmt::Display + 'a> {
+    fn display<'a>(&self, id: &'a FileId) -> Option<impl std::fmt::Display + 'a> {
         Some(self.get_source(*id).name.clone())
     }
 }

@@ -76,7 +76,7 @@ impl Diagnostic {
         &self,
         sm: &'sm SourceMap,
         conf: EmitConfig,
-    ) -> ariadne::Report<'sm, (etac_source::FileId<'sm>, std::ops::Range<usize>)> {
+    ) -> ariadne::Report<'sm, (FileId, std::ops::Range<usize>)> {
         let kind = match self.level {
             Level::Error => ReportKind::Error,
             Level::Warning => ReportKind::Warning,

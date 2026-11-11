@@ -14,7 +14,7 @@
 //! still parsed once, and a hook is never run by two threads at once.
 //!
 //! ```ignore
-//! fn lower<H: Hooks>(frontend: &Frontend<'_, H>, resolver: &mut Resolver<'_>, ...) {
+//! fn lower<H: Hooks>(frontend: &Frontend<'_, H>, resolver: &mut Resolver, ...) {
 //!     // for each `use` in a program:
 //!     let id = resolver.resolve_use(frontend.sm, frontend.dcx, from, name, span)?;
 //!     let interface = frontend.interface(id)?; // lexed, parsed, dumped and diagnosed once
@@ -45,12 +45,12 @@ use etac_parse::{
 /// can't change it.
 pub trait Hooks {
     /// `file` has been lexed into `tokens`.
-    fn lexed(&mut self, symbols: &EtacInterner, file: FileId<'_>, tokens: &Tokens) {
+    fn lexed(&mut self, symbols: &EtacInterner, file: FileId, tokens: &Tokens) {
         let _ = (symbols, file, tokens);
     }
 
     /// `file` has been parsed.
-    fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId<'_>, parse: &Parsed<T>) {
+    fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId, parse: &Parsed<T>) {
         let _ = (symbols, file, parse);
     }
 }
@@ -96,13 +96,13 @@ impl<'sm, W: Write> Debugger<'sm, W> {
 }
 
 impl<W: Write> Hooks for Debugger<'_, W> {
-    fn lexed(&mut self, symbols: &EtacInterner, _file: FileId<'_>, tokens: &Tokens) {
+    fn lexed(&mut self, symbols: &EtacInterner, _file: FileId, tokens: &Tokens) {
         if self.tokens {
             etac_lexer::debug::write_tokens(&mut self.out, self.sm, symbols, tokens);
         }
     }
 
-    fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId<'_>, parse: &Parsed<T>) {
+    fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId, parse: &Parsed<T>) {
         if self.trees {
             etac_parse::debug::write_parse(&mut self.out, self.sm, symbols, file, parse);
         }
@@ -120,7 +120,7 @@ pub struct Frontend<'a, H = ()> {
     hooks: Mutex<H>,
     /// Every interface asked for so far, so that a file is only ever parsed, and its errors reported, once. The cell
     /// is what makes that hold across threads: whoever gets there first parses, and the rest wait for its tree.
-    interfaces: Mutex<HashMap<InterfaceId<'a>, InterfaceCell>>,
+    interfaces: Mutex<HashMap<InterfaceId, InterfaceCell>>,
 }
 
 type InterfaceCell = Arc<OnceLock<Result<Arc<Interface>, ErrorGuaranteed>>>;
@@ -143,14 +143,14 @@ impl<'a, H: Hooks> Frontend<'a, H> {
     /// Lex and parse an `.eta` file.
     ///
     /// The parser recovers from errors, so there is a tree even when it reported some. `Err` means there is none.
-    pub fn program(&self, file: SourceId<'a>) -> Result<Program, ErrorGuaranteed> {
+    pub fn program(&self, file: SourceId) -> Result<Program, ErrorGuaranteed> {
         self.parse_file(file)
     }
 
     /// Lex and parse an `.eti` file, or return the tree from the first time it was asked for.
     ///
     /// Each interface is parsed once, however many programs `use` it, and they all share the one tree.
-    pub fn interface(&self, file: InterfaceId<'a>) -> Result<Arc<Interface>, ErrorGuaranteed> {
+    pub fn interface(&self, file: InterfaceId) -> Result<Arc<Interface>, ErrorGuaranteed> {
         // Only hold the table for the lookup: parsing happens with it unlocked, inside the file's own cell.
         let cell = {
             let mut interfaces = self.interfaces.lock().unwrap_or_else(PoisonError::into_inner);
@@ -163,7 +163,7 @@ impl<'a, H: Hooks> Frontend<'a, H> {
         self.hooks.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    fn parse_file<T: Parse>(&self, file: FileId<'a>) -> Result<T, ErrorGuaranteed> {
+    fn parse_file<T: Parse>(&self, file: FileId) -> Result<T, ErrorGuaranteed> {
         let source = self.sm.get_source(file);
         let lexed = EtaLexer::new(self.sm.base_offset(file), self.interner, self.dcx).lex(&source.source);
         self.hooks().lexed(self.interner, file, &lexed.tokens);

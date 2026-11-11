@@ -7,26 +7,26 @@ use etac_errors::dcx::{DiagBuilder, DiagCtx};
 use etac_source::{FileId, InterfaceId, SourceId, SourceMap, Span};
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub enum File<'sm> {
-    Program(SourceId<'sm>),
-    Interface(InterfaceId<'sm>),
+pub enum File {
+    Program(SourceId),
+    Interface(InterfaceId),
 }
 
-impl<'sm> File<'sm> {
-    pub fn id(&self) -> FileId<'sm> {
+impl File {
+    pub fn id(&self) -> FileId {
         match self {
             File::Program(file_id) | File::Interface(file_id) => *file_id,
         }
     }
 }
 
-pub struct Resolver<'sm> {
+pub struct Resolver {
     source_path: PathBuf,
     lib_path: PathBuf,
-    seen: HashSet<FileId<'sm>>,
+    seen: HashSet<FileId>,
 }
 
-impl<'sm> Resolver<'sm> {
+impl Resolver {
     #[must_use]
     pub fn new(source_path: &Path, lib_path: &Path) -> Self {
         Self {
@@ -44,10 +44,10 @@ impl<'sm> Resolver<'sm> {
     /// name, unknown extension, or an I/O error).
     pub fn classify_cli<'dcx>(
         &mut self,
-        sm: &'sm SourceMap,
+        sm: &SourceMap,
         dcx: &'dcx DiagCtx,
         path: &Path,
-    ) -> Result<Option<File<'sm>>, DiagBuilder<'dcx>> {
+    ) -> Result<Option<File>, DiagBuilder<'dcx>> {
         let path = resolve_against(&self.source_path, path);
         let Some(path_str) = path.to_str() else {
             return Err(dcx.new_err_unspanned(format!("non-UTF8 file name {}", path.to_string_lossy())));
@@ -80,12 +80,12 @@ impl<'sm> Resolver<'sm> {
     /// `at`, naming every location searched).
     pub fn resolve_use<'dcx>(
         &mut self,
-        sm: &'sm SourceMap,
+        sm: &SourceMap,
         dcx: &'dcx DiagCtx,
-        from: SourceId<'sm>,
+        from: SourceId,
         name: &str,
         at: Span,
-    ) -> Result<Option<InterfaceId<'sm>>, DiagBuilder<'dcx>> {
+    ) -> Result<Option<InterfaceId>, DiagBuilder<'dcx>> {
         let file_name = format!("{name}.eti");
         let from_path = sm.get_source(from).name.to_string();
         let from_dir = Path::new(&from_path).parent().unwrap_or_else(|| Path::new(""));
@@ -119,12 +119,7 @@ impl<'sm> Resolver<'sm> {
 
     /// Read `path_str` from disk and store it in the cache, reusing the
     /// existing [`FileId`] if this path has already been loaded.
-    fn load<'dcx>(
-        &self,
-        sm: &'sm SourceMap,
-        dcx: &'dcx DiagCtx,
-        path_str: &str,
-    ) -> Result<FileId<'sm>, DiagBuilder<'dcx>> {
+    fn load<'dcx>(&self, sm: &SourceMap, dcx: &'dcx DiagCtx, path_str: &str) -> Result<FileId, DiagBuilder<'dcx>> {
         sm.get_or_load(path_str, || std::fs::read_to_string(path_str))
             .map_err(|ioe| dcx.new_err_io(ioe))
     }

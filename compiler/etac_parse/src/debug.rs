@@ -12,7 +12,7 @@ pub fn write_parse<T: Parse>(
     out: &mut impl Write,
     sm: &SourceMap,
     symbols: &EtacInterner,
-    file: FileId<'_>,
+    file: FileId,
     parse: &Parsed<T>,
 ) {
     let name = &sm.get_source(file).name;
