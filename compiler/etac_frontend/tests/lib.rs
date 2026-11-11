@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use etac_debug::{StringBuffer, StringWriter};
 use etac_errors::{dcx::DiagCtx, emitter::IoEmitter};
+use etac_frontend::{Debugger, Frontend};
 use etac_intern::EtacInterner;
-use etac_parse::{Debugger, Frontend};
 use etac_source::SourceMap;
 
 fn interner() -> EtacInterner {

@@ -22,8 +22,8 @@ macro_rules! parsetest {
                                                            // file which consumes them. same thing
                                                            // in lextest!
         {
-            let debugger = etac_parse::Debugger::new($writer.clone(), &$cache.sources).trees(true);
-            let mut frontend = etac_parse::Frontend::new(&$cache.sources, &mut $cache.state.interner, &dcx, debugger);
+            let debugger = etac_frontend::Debugger::new($writer.clone(), &$cache.sources).trees(true);
+            let mut frontend = etac_frontend::Frontend::new(&$cache.sources, &mut $cache.state.interner, &dcx, debugger);
             match ty {
                 Ft::Prgm => drop(frontend.program(id)),
                 Ft::Intf => drop(frontend.interface(id)),

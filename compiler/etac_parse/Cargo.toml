@@ -17,6 +17,7 @@ indoc.workspace = true
 etac_cache.workspace = true
 etac_ast.workspace = true
 etac_debug.workspace = true
+etac_frontend.workspace = true
 regex = "1.13.1"
 
 [lints]

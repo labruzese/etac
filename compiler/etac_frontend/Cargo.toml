@@ -12,5 +12,8 @@ etac_lexer.workspace = true
 etac_parse.workspace = true
 etac_source.workspace = true
 
+[dev-dependencies]
+etac_debug.workspace = true
+
 [lints]
 workspace = true

@@ -165,4 +165,3 @@ impl<'a, H: Hooks> Frontend<'a, H> {
         }
     }
 }
-
