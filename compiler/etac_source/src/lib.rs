@@ -40,7 +40,8 @@ pub struct SourceRecord {
 /// files to it as they find them. A file never changes or goes away once it is in the map.
 #[derive(Default)]
 pub struct SourceMap {
-    lc_cache: FrozenMap<u32, Box<ariadne::Source<Arc<str>>>>,
+    /// Where each line of a file starts, worked out the first time a location in the file is asked for.
+    line_starts: FrozenMap<u32, Vec<u32>>,
     source_starts: SkipMap<u32, ()>,
     source_texts: FrozenMap<u32, Box<SourceRecord>>,
     name_to_id: DashMap<Arc<str>, u32>,
@@ -126,26 +127,31 @@ impl SourceMap {
         (id, (span.lo - base) as usize..(span.hi - base) as usize)
     }
 
-    pub fn ariadne_source(&self, id: FileId) -> &ariadne::Source<Arc<str>> {
-        if let Some(s) = self.lc_cache.get(&id.base) {
-            s
+    /// The offset within the file of the start of each of its lines.
+    fn line_starts(&self, id: FileId) -> &[u32] {
+        if let Some(starts) = self.line_starts.get(&id.base) {
+            starts
         } else {
-            self.lc_cache.insert(
-                id.base,
-                Box::new(ariadne::Source::from(self.get_source(id).source.clone())),
-            )
+            self.line_starts
+                .insert(id.base, line_starts(&self.get_source(id).source))
         }
+    }
+
+    /// The 1-based `(line, column)` of an offset into a file. Columns count bytes.
+    fn line_column(&self, id: FileId, offset: usize) -> (u32, u32) {
+        let starts = self.line_starts(id);
+        let offset = u32::try_from(offset).expect("offsets into a file fit in a u32");
+        // the last line that starts at or before the offset; line 0 starts at 0, so there always is one
+        let line = starts.partition_point(|start| *start <= offset) - 1;
+        (line as u32 + 1, offset - starts[line] + 1)
     }
 
     pub fn span_location(&self, span: Span) -> SpanLocation {
         let (fid, lspan) = self.local_span(span);
-        let asource = self.ariadne_source(fid);
-        let (_, sl, sc) = asource.get_byte_line(lspan.start).unwrap();
-        let (_, el, ec) = asource.get_byte_line(lspan.end).unwrap();
         SpanLocation {
             file: self.get_source(fid).name.clone(),
-            start: (sl as u32 + 1, sc as u32 + 1), // ariadne is 0 indexed
-            end: (el as u32 + 1, ec as u32 + 1),   // ariadne is 0 indexed
+            start: self.line_column(fid, lspan.start),
+            end: self.line_column(fid, lspan.end),
         }
     }
 
@@ -155,14 +161,32 @@ impl SourceMap {
     }
 }
 
-impl ariadne::Cache<FileId> for &SourceMap {
-    type Storage = Arc<str>;
-    fn fetch(&mut self, id: &FileId) -> Result<&ariadne::Source<Self::Storage>, impl std::fmt::Debug> {
-        Ok::<_, std::convert::Infallible>(self.ariadne_source(*id))
+/// Where each line of `text` starts.
+///
+/// A line ends at a line feed, a carriage return (with the line feed after it, if there is one), a vertical tab, a
+/// form feed, or one of the Unicode line terminators U+0085, U+2028 and U+2029. These are the terminators the
+/// diagnostic renderer breaks lines on, so the line numbers printed here and in a rendered diagnostic agree.
+///
+/// A terminator at the very end of the text does not start another line: the end of `"a\n"` is on line 1.
+fn line_starts(text: &str) -> Vec<u32> {
+    let mut starts = vec![0];
+    let mut chars = text.char_indices().peekable();
+    while let Some((at, c)) = chars.next() {
+        let mut next = at + c.len_utf8();
+        match c {
+            '\r' => {
+                if chars.next_if(|&(_, c)| c == '\n').is_some() {
+                    next += 1;
+                }
+            }
+            '\n' | '\x0B' | '\x0C' | '\u{0085}' | '\u{2028}' | '\u{2029}' => {}
+            _ => continue,
+        }
+        if next < text.len() {
+            starts.push(next as u32);
+        }
     }
-    fn display<'a>(&self, id: &'a FileId) -> Option<impl std::fmt::Display + 'a> {
-        Some(self.get_source(*id).name.clone())
-    }
+    starts
 }
 
 pub struct SpanLocation {
@@ -240,6 +264,34 @@ mod tests {
         assert_eq!(reads.load(Ordering::SeqCst), 1);
         assert!(ids.iter().all(|id| *id == ids[0]));
         assert_eq!(&*sm.get_source(ids[0]).source, "f() { }");
+    }
+
+    #[test]
+    fn lines_break_on_every_terminator() {
+        assert_eq!(line_starts(""), [0]);
+        assert_eq!(line_starts("a"), [0]);
+        assert_eq!(line_starts("a\n"), [0]);
+        assert_eq!(line_starts("a\nb"), [0, 2]);
+        assert_eq!(line_starts("a\r\nb\rc\n\nd"), [0, 3, 5, 7, 8]);
+        assert_eq!(
+            line_starts("a\x0Bb\x0Cc\u{85}d\u{2028}e\u{2029}f"),
+            [0, 2, 4, 7, 11, 15]
+        );
+    }
+
+    #[test]
+    fn locations_are_one_based() {
+        let sm = SourceMap::default();
+        let (_, _) = sm.alloc_source("skip.eta".to_owned(), "xx".to_owned());
+        let (id, text) = sm.alloc_source("a.eta".to_owned(), "ab\ncd\n".to_owned());
+        let base = sm.base_offset(id);
+        let at = |lo: usize, hi: usize| {
+            sm.span_location(Span::new(base + lo as u32, base + hi as u32))
+                .to_string()
+        };
+        assert_eq!(at(0, 2), "a.eta:1:1..1:3");
+        assert_eq!(at(3, 5), "a.eta:2:1..2:3");
+        assert_eq!(at(text.len(), text.len()), "a.eta:2:4..2:4");
     }
 
     #[test]

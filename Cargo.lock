@@ -327,7 +327,6 @@ dependencies = [
 name = "etac_source"
 version = "0.1.0"
 dependencies = [
- "ariadne",
  "crossbeam-skiplist",
  "dashmap",
  "elsa",

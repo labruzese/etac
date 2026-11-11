@@ -15,9 +15,26 @@ pub struct Diagnostic {
     pub level: Level,
     pub message: String,
     pub loc: Option<Span>,
-    pub labels: Vec<(Span, String, ariadne::Color)>,
+    pub labels: Vec<Label>,
     pub code: Option<String>,
     pub note: Option<String>,
+}
+
+/// A message attached to a piece of source.
+#[derive(Debug)]
+pub struct Label {
+    pub span: Span,
+    pub message: String,
+    pub kind: LabelKind,
+}
+
+/// What a [`Label`] is for. How each kind looks is up to the emitter.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LabelKind {
+    /// Points at the diagnostic's own span: what went wrong.
+    Primary,
+    /// Points somewhere else that helps explain it.
+    Secondary,
 }
 
 /// Collects the diagnostics of a compilation, and writes them out at the end.
@@ -105,9 +122,7 @@ impl DiagCtx {
 
     pub fn emit_diagnostics(mut self, source_map: &SourceMap) {
         let emitter = self.emitter.get_mut().unwrap_or_else(PoisonError::into_inner);
-        for diag in self.diagnostics.into_vec() {
-            emitter.emit(source_map, *diag);
-        }
+        emitter.emit(source_map, self.diagnostics.into_vec().into_iter().map(|diag| *diag));
         #[cfg(debug_assertions)]
         self.bomb.defuse();
     }
@@ -170,21 +185,26 @@ impl<'dcx> DiagBuilder<'dcx> {
         self.diagnostic.level
     }
 
-    /// Point the primary (red) label at the diagnostic's own span.
+    /// Point the primary label at the diagnostic's own span.
     pub fn with_message(mut self, msg: impl Into<String>) -> Self {
-        self.diagnostic.labels.push((
-            self.diagnostic
+        self.diagnostic.labels.push(Label {
+            span: self
+                .diagnostic
                 .loc
                 .unwrap_or_else(|| panic!("can not add primary label to a diagnostic without a location")),
-            msg.into(),
-            ariadne::Color::Red,
-        ));
+            message: msg.into(),
+            kind: LabelKind::Primary,
+        });
         self
     }
 
-    /// Add a secondary (yellow) label at another span.
+    /// Add a secondary label at another span.
     pub fn with_label(mut self, span: Span, msg: impl Into<String>) -> Self {
-        self.diagnostic.labels.push((span, msg.into(), ariadne::Color::Yellow));
+        self.diagnostic.labels.push(Label {
+            span,
+            message: msg.into(),
+            kind: LabelKind::Secondary,
+        });
         self
     }
 
