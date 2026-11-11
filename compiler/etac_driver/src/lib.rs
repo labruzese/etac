@@ -39,11 +39,7 @@ pub fn run(flags: &Flags) -> CompilationResult {
         let mut programs = Vec::new();
         for file in files {
             match file {
-                File::Program(id) => {
-                    if let Ok(ast) = frontend.program(id) {
-                        programs.push((id, ast));
-                    }
-                }
+                File::Program(id) => programs.push((id, frontend.program(id))),
                 // nothing uses an interface named on the command line, it only gets checked
                 File::Interface(id) => {
                     let _ = frontend.interface(id);

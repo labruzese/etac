@@ -17,7 +17,7 @@
 //! fn lower<H: Hooks>(frontend: &Frontend<'_, H>, resolver: &mut Resolver, ...) {
 //!     // for each `use` in a program:
 //!     let id = resolver.resolve_use(frontend.sm, frontend.dcx, from, name, span)?;
-//!     let interface = frontend.interface(id)?; // lexed, parsed, dumped and diagnosed once
+//!     let interface = frontend.interface(id).tree; // lexed, parsed, dumped and diagnosed once
 //! }
 //! ```
 
@@ -109,6 +109,25 @@ impl<W: Write> Hooks for Debugger<'_, W> {
     }
 }
 
+/// A file the [`Frontend`] has lexed and parsed.
+///
+/// There is always a tree, because the lexer and the parser both recover from the errors they report. `errors` says
+/// whether they had to, for this file alone: a caller that must not build on a broken tree checks it here rather
+/// than asking the [`DiagCtx`], which counts the errors of every file.
+#[derive(Debug, Clone)]
+pub struct ParsedFile<T> {
+    pub tree: T,
+    /// Proof that lexing or parsing this file reported an error, if either did.
+    pub errors: Option<ErrorGuaranteed>,
+}
+
+impl<T> ParsedFile<T> {
+    /// Whether the file lexed and parsed without an error.
+    pub fn is_clean(&self) -> bool {
+        self.errors.is_none()
+    }
+}
+
 /// Lexes and parses files out of a [`SourceMap`], reporting their diagnostics to a [`DiagCtx`].
 ///
 /// See the [module docs](crate::frontend).
@@ -123,7 +142,7 @@ pub struct Frontend<'a, H = ()> {
     interfaces: Mutex<HashMap<InterfaceId, InterfaceCell>>,
 }
 
-type InterfaceCell = Arc<OnceLock<Result<Arc<Interface>, ErrorGuaranteed>>>;
+type InterfaceCell = Arc<OnceLock<ParsedFile<Arc<Interface>>>>;
 
 const fn assert_send_sync<T: Send + Sync>() {}
 const _: () = assert_send_sync::<Frontend<'static, ()>>();
@@ -141,43 +160,46 @@ impl<'a, H: Hooks> Frontend<'a, H> {
     }
 
     /// Lex and parse an `.eta` file.
-    ///
-    /// The parser recovers from errors, so there is a tree even when it reported some. `Err` means there is none.
-    pub fn program(&self, file: SourceId) -> Result<Program, ErrorGuaranteed> {
+    pub fn program(&self, file: SourceId) -> ParsedFile<Program> {
         self.parse_file(file)
     }
 
     /// Lex and parse an `.eti` file, or return the tree from the first time it was asked for.
     ///
     /// Each interface is parsed once, however many programs `use` it, and they all share the one tree.
-    pub fn interface(&self, file: InterfaceId) -> Result<Arc<Interface>, ErrorGuaranteed> {
+    pub fn interface(&self, file: InterfaceId) -> ParsedFile<Arc<Interface>> {
         // Only hold the table for the lookup: parsing happens with it unlocked, inside the file's own cell.
         let cell = {
             let mut interfaces = self.interfaces.lock().unwrap_or_else(PoisonError::into_inner);
             interfaces.entry(file).or_default().clone()
         };
-        cell.get_or_init(|| self.parse_file(file).map(Arc::new)).clone()
+        cell.get_or_init(|| {
+            let ParsedFile { tree, errors } = self.parse_file(file);
+            ParsedFile {
+                tree: Arc::new(tree),
+                errors,
+            }
+        })
+        .clone()
     }
 
     fn hooks(&self) -> std::sync::MutexGuard<'_, H> {
         self.hooks.lock().unwrap_or_else(PoisonError::into_inner)
     }
 
-    fn parse_file<T: Parse>(&self, file: FileId) -> Result<T, ErrorGuaranteed> {
+    fn parse_file<T: Parse>(&self, file: FileId) -> ParsedFile<T> {
         let source = self.sm.get_source(file);
         let lexed = EtaLexer::new(self.sm.base_offset(file), self.interner, self.dcx).lex(&source.source);
         self.hooks().lexed(self.interner, file, &lexed.tokens);
-        let lex_guarantee = lexed.diags.into_iter().map(DiagBuilder::finish).last();
+        let lex_errors = lexed.diags.into_iter().map(DiagBuilder::finish).last();
 
         let ParseResult { parse, diags } = T::parse(&lexed.tokens, self.dcx);
         self.hooks().parsed(self.interner, file, &parse);
-        let parse_guarantee = diags.into_iter().map(DiagBuilder::finish).last();
+        let parse_errors = diags.into_iter().map(DiagBuilder::finish).last();
 
-        match parse {
-            Parsed::Ok(tree) | Parsed::Recovered(tree) => Ok(tree),
-            Parsed::Failed => Err(parse_guarantee
-                .or(lex_guarantee)
-                .expect("a failed parse must have reported at least one diagnostic")),
+        ParsedFile {
+            tree: parse.into_tree(),
+            errors: lex_errors.or(parse_errors),
         }
     }
 }

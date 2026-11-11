@@ -20,12 +20,14 @@ fn an_interface_is_parsed_and_diagnosed_once() {
     let (id, _) = sm.alloc_source("bad.eti".to_owned(), "f(x: int) +".to_owned());
 
     let frontend = Frontend::new(&sm, &interner, &dcx, ());
-    let first = frontend.interface(id).expect("the parser recovers");
+    let first = frontend.interface(id);
     let errors = dcx.err_count();
     assert!(errors > 0, "the interface has a syntax error");
+    assert!(!first.is_clean(), "and the file says so itself");
 
-    let second = frontend.interface(id).expect("the parser recovers");
-    assert!(Arc::ptr_eq(&first, &second), "every use shares the one tree");
+    let second = frontend.interface(id);
+    assert!(Arc::ptr_eq(&first.tree, &second.tree), "every use shares the one tree");
+    assert!(!second.is_clean(), "the errors are remembered along with the tree");
     assert_eq!(dcx.err_count(), errors, "asking again must not report again");
 
     dcx.cancel();
@@ -41,9 +43,7 @@ fn the_debugger_dumps_only_what_it_is_asked_to() {
         let (id, _) = sm.alloc_source("f.eti".to_owned(), "f()".to_owned());
 
         let debugger = Debugger::new(out.clone(), &sm).tokens(tokens).trees(trees);
-        Frontend::new(&sm, &interner, &dcx, debugger)
-            .interface(id)
-            .expect("a clean parse");
+        assert!(Frontend::new(&sm, &interner, &dcx, debugger).interface(id).is_clean());
         dcx.cancel();
         out.take()
     };
@@ -87,8 +87,8 @@ fn threads_share_one_frontend() {
             .map(|&program| {
                 let frontend = &frontend;
                 threads.spawn(move || {
-                    frontend.program(program).expect("the parser recovers");
-                    frontend.interface(bad).expect("the parser recovers")
+                    assert!(frontend.program(program).is_clean());
+                    frontend.interface(bad).tree
                 })
             })
             .collect();
@@ -114,5 +114,19 @@ fn threads_share_one_frontend() {
             "{dump}"
         );
     }
+    dcx.cancel();
+}
+
+#[test]
+fn a_lex_error_alone_makes_a_file_unclean() {
+    let dcx = DiagCtx::new(IoEmitter::sink());
+    let sm = SourceMap::default();
+    let interner = interner();
+    // `@` is not a token, and the parser stays quiet about a token the lexer already reported
+    let (id, _) = sm.alloc_source("lex.eta".to_owned(), "f() { x: int = @ }".to_owned());
+
+    let parsed = Frontend::new(&sm, &interner, &dcx, ()).program(id);
+    assert!(!parsed.is_clean());
+    assert_eq!(dcx.err_count(), 1);
     dcx.cancel();
 }
