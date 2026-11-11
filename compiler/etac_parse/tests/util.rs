@@ -21,17 +21,21 @@ macro_rules! parsetest {
                                                            // we flush the diagnostics for every
                                                            // file which consumes them. same thing
                                                            // in lextest!
-        match ty {
-            Ft::Prgm => etac_parse::debug::parse_program(&mut $writer, &$cache.sources, &mut $cache.state.interner, id, &dcx),
-            Ft::Intf => etac_parse::debug::parse_interface(&mut $writer, &$cache.sources, &mut $cache.state.interner, id, &dcx),
-        };
+        {
+            let debugger = etac_parse::Debugger::new($writer.clone(), &$cache.sources).trees(true);
+            let mut frontend = etac_parse::Frontend::new(&$cache.sources, &mut $cache.state.interner, &dcx, debugger);
+            match ty {
+                Ft::Prgm => drop(frontend.program(id)),
+                Ft::Intf => drop(frontend.interface(id)),
+            };
+        }
         dcx.emit_diagnostics(&$cache.sources);
         let expected: expect_test::Expect = $expected;
         expected.assert_eq(&$writer.0.take()); // clear the buffer we compare one file output at a
                                                // time
-        parsetest!(@item $cache, $n; $($rest)*);
+        parsetest!(@item $writer, $cache, $n; $($rest)*);
     };
-    (@item $cache:ident, $n:ident;) => {};
+    (@item $writer:ident, $cache:ident, $n:ident;) => {};
 
     // --- wrapped/general entry point ---
     (@wrap $($rest:tt)*) => {{

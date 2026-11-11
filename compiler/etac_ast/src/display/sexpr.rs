@@ -31,7 +31,7 @@ impl<'ast, 'sym, R: etac_intern::Resolver> std::fmt::Display for SexpPrinter<'as
             out: f,
             depth: 0,
         }
-        .visit_program(self.ty)
+        .visit_program_ast(self.ty)
         .continue_ok()
     }
 }
@@ -128,7 +128,7 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
 
     // ---- Top level ----
 
-    fn visit_program(&mut self, n: &'ast Program) -> Self::Result {
+    fn visit_program_ast(&mut self, n: &'ast Program) -> Self::Result {
         let Program {
             span: _,
             uses,
@@ -150,7 +150,7 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
         sexp_block!(self, "interface", items)
     }
 
-    fn visit_use(&mut self, n: &'ast Use) -> Self::Result {
+    fn visit_use_ast(&mut self, n: &'ast Use) -> Self::Result {
         let Use { span: _, interface } = n;
         sexp!(self, "use", interface)
     }

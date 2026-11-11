@@ -84,8 +84,7 @@ macro_rules! try_visit {
 ///
 /// `visit!(v, a, b, c)` is shorthand for `try_visit!(a.visit(v)); try_visit!(b.visit(v)); try_visit!(c.visit(v));`
 /// (see [`try_visit!`](crate::try_visit!)). Each node is a reference to anything
-/// [`Visitable`](crate::visit::Visitable), which includes a couple containers for nodes (see
-/// [`VisitResult`](mod@super::visitable)).
+/// [`Visitable`](crate::visit::Visitable), which includes a couple containers for nodes (listed in its docs).
 ///
 /// The most common use is to visit some of a node's children by hand:
 ///

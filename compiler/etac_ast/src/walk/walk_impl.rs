@@ -107,10 +107,27 @@ impl_walk! {Interface, |self, v| {
     visit!(v, items)
 }}
 
-impl_walk! {crate::hir::Use, |self, v| {
-    let Use { span: _, interface } = self;
-    visit!(v, interface)
-}}
+// NB: written out by hand instead of with `impl_walk!`, because the interface is behind an `Arc` shared by every `use`
+// of the same file. A borrowed visitor walks into it; a mutable or owned visitor can't, so for those it is a leaf.
+impl<'ast, V: Visitor<'ast>> Walkable<'ast, V> for crate::hir::Use {
+    fn walk(&'ast self, v: &mut V) -> V::Result {
+        let Use { span: _, interface } = self;
+        crate::visit!(v, &**interface);
+        V::Result::output()
+    }
+}
+impl<V: VisitorMut> WalkableMut<V> for crate::hir::Use {
+    fn walk_mut(&mut self, _v: &mut V) -> V::Result {
+        let Use { span: _, interface: _ } = self;
+        V::Result::output()
+    }
+}
+impl<V: VisitorOwned> WalkableOwned<V> for crate::hir::Use {
+    fn walk_owned(self, _v: &mut V) -> V::Result {
+        let Use { span: _, interface: _ } = self;
+        V::Result::output()
+    }
+}
 
 impl_walk! {DefinitionKind, |self, v| {
     match self {

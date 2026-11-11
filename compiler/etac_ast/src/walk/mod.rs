@@ -18,6 +18,9 @@
 //! `x: int = x + 1`, the `x` in `x + 1` is visited before the declaration of `x`, and in `a: int[n]`, `n` is visited
 //! before `a`.
 //!
+//! The interface of a lowered [`hir::Use`](crate::hir::Use) is shared between every `use` of the same file, so only
+//! [`Walkable`] descends into it. [`WalkableMut`] and [`WalkableOwned`] treat that `use` as a leaf.
+//!
 //! A child in an `Option` is skipped when the option is `None`, and the elements of a `Vec` are visited front to
 //! back. The leaf nodes ([`Ident`], [`IntLit`], [`BoolLit`], [`CharLit`], [`StringLit`], [`UOpKind`], [`BinOpKind`]
 //! and [`Error`]) have no children, so walking them does nothing. Spans are never visited.
@@ -37,4 +40,3 @@ mod walk_impl;
 mod walk_trait;
 
 pub use walk_trait::*;
-pub use walk_impl::*;

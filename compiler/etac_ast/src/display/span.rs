@@ -24,7 +24,7 @@ impl<'ast, 'sm, NodeT> SpanPrinter<'ast, 'sm, NodeT> {
 impl<'ast, 'sm> std::fmt::Display for SpanPrinter<'ast, 'sm, Program> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         SpanPrinterWriter { out: f, printer: self }
-            .visit_program(self.node)
+            .visit_program_ast(self.node)
             .continue_ok()
     }
 }
@@ -122,7 +122,7 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> SpanPrinterWriter<'ast, 'sm, 'buf, 'prt
 impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> Visitor<'ast> for SpanPrinterWriter<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> {
     type Result = ControlFlow<fmt::Error>;
 
-    fn visit_program(&mut self, n: &'ast Program) -> Self::Result {
+    fn visit_program_ast(&mut self, n: &'ast Program) -> Self::Result {
         let Program { span, .. } = n;
         self.write("program", span)?;
         n.walk(self)
@@ -134,7 +134,7 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> Visitor<'ast> for SpanPrinterWriter<'as
         n.walk(self)
     }
 
-    fn visit_use(&mut self, n: &'ast Use) -> Self::Result {
+    fn visit_use_ast(&mut self, n: &'ast Use) -> Self::Result {
         let Use { span, .. } = n;
         self.write("use", span)?;
         n.walk(self)

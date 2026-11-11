@@ -24,11 +24,11 @@ pub struct Flags {
     #[arg(value_name = "SOURCE_FILES")]
     pub source_files: Vec<PathBuf>,
 
-    /// Just run the lexer, print diagnostic output, and exit
+    /// Print the tokens of every file that gets lexed
     #[arg(long)]
     pub dlex: bool,
 
-    /// Just run the paser, print diagnostic output, and exit
+    /// Print the syntax tree of every file that gets parsed
     #[arg(long)]
     pub dparse: bool,
 }

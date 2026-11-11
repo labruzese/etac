@@ -30,7 +30,7 @@ macro_rules! ast_visitor {
                 type Result: VisitorResult;
                 $(
                     #[doc = concat!(
-                        "Called for each [`", stringify!($ty), "`](crate::ast::", stringify!($ty), "). ",
+                        "Called for each [`", stringify!($ty), "`](crate::", stringify!($ty), "). ",
                         "By default, walks its children with [`Walkable::walk`]."
                     )]
                     fn $m(&mut self, node: &'ast $ty) -> Self::Result {
@@ -55,7 +55,7 @@ macro_rules! ast_visitor {
                 type Result: VisitorResult;
                 $(
                     #[doc = concat!(
-                        "Called for each [`", stringify!($ty), "`](crate::ast::", stringify!($ty), "), ",
+                        "Called for each [`", stringify!($ty), "`](crate::", stringify!($ty), "), ",
                         "with mutable access to it. By default, walks its children with [`WalkableMut::walk_mut`]."
                     )]
                     fn [<$m _mut>](&mut self, node: &mut $ty) -> Self::Result {
@@ -80,7 +80,7 @@ macro_rules! ast_visitor {
                 type Result: VisitorResult;
                 $(
                     #[doc = concat!(
-                        "Called for each [`", stringify!($ty), "`](crate::ast::", stringify!($ty), "), ",
+                        "Called for each [`", stringify!($ty), "`](crate::", stringify!($ty), "), ",
                         "taking ownership of it. By default, walks its children with [`WalkableOwned::walk_owned`]."
                     )]
                     fn [<$m _owned>](&mut self, node: $ty) -> Self::Result {
@@ -106,9 +106,8 @@ macro_rules! ast_visitor {
     }
 }
 
-
-use crate::hir;
 use crate::ast;
+use crate::hir;
 ast_visitor! {
     ast::Program           => visit_program_ast,
     ast::Use               => visit_use_ast,
@@ -155,4 +154,3 @@ ast_visitor! {
     hir::BinOpKind         => visit_bin_op_kind,
     hir::Error             => visit_error,
 }
-
