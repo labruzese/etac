@@ -12,7 +12,7 @@ logos.workspace       = true
 
 [dev-dependencies]
 etac_debug.workspace  = true
-etac_cache.workspace    = true
+etac_session.workspace  = true
 expect-test.workspace 	= true
 indoc.workspace 	= true
 

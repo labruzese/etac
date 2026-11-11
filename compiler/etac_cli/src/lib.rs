@@ -1,3 +1,5 @@
+//! The `etac` command line.
+
 use clap::{CommandFactory, Parser};
 use std::path::PathBuf;
 

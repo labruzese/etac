@@ -26,7 +26,7 @@ paste 			= "1.0.15"
 
 # internal
 etac_ast      		= { path = "compiler/etac_ast" }
-etac_cache    		= { path = "compiler/etac_cache" }
+etac_cli      		= { path = "compiler/etac_cli" }
 etac_driver   		= { path = "compiler/etac_driver" }
 etac_errors   		= { path = "compiler/etac_errors" }
 etac_intern		= { path = "compiler/etac_intern" }

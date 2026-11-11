@@ -6,14 +6,14 @@ macro_rules! parsetest {
     };
 
     // --- @item rules must come BEFORE the general catch-all ---
-    (@item $writer:ident, $cache:ident, $n:ident; $name:literal { $src:expr, $expected:expr } $($rest:tt)*) => {
+    (@item $writer:ident, $session:ident, $n:ident; $name:literal { $src:expr, $expected:expr } $($rest:tt)*) => {
         enum Ft { Prgm, Intf }
         let (ty, id) = match $name {
-            ".eta" => (Ft::Prgm, $cache.sources.alloc_source(format!("src{}{}", { $n += 1; $n - 1 }, $name), $src.to_owned()).0),
-            ".eti" => (Ft::Intf, $cache.sources.alloc_source(format!("src{}{}", { $n += 1; $n - 1 }, $name), $src.to_owned()).0),
+            ".eta" => (Ft::Prgm, $session.sources.alloc_source(format!("src{}{}", { $n += 1; $n - 1 }, $name), $src.to_owned()).0),
+            ".eti" => (Ft::Intf, $session.sources.alloc_source(format!("src{}{}", { $n += 1; $n - 1 }, $name), $src.to_owned()).0),
             n if regex::regex!(r"src\d+\.(eti|eta)").is_match(n) => panic!("this file name is reserved for unnamed files"),
-            n if n.ends_with(".eta") => (Ft::Prgm, $cache.sources.alloc_source(n.to_owned(), $src.to_owned()).0),
-            n if n.ends_with(".eti") => (Ft::Intf, $cache.sources.alloc_source(n.to_owned(), $src.to_owned()).0),
+            n if n.ends_with(".eta") => (Ft::Prgm, $session.sources.alloc_source(n.to_owned(), $src.to_owned()).0),
+            n if n.ends_with(".eti") => (Ft::Intf, $session.sources.alloc_source(n.to_owned(), $src.to_owned()).0),
             u => panic!("no parser for this file type {}", u),
         };
         let emitter = etac_errors::emitter::IoEmitter::with_config(Box::new($writer.clone()), etac_debug::EMIT_CONF_DEBUG);
@@ -22,27 +22,27 @@ macro_rules! parsetest {
                                                            // file which consumes them. same thing
                                                            // in lextest!
         {
-            let debugger = etac_frontend::Debugger::new($writer.clone(), &$cache.sources).trees(true);
-            let mut frontend = etac_frontend::Frontend::new(&$cache.sources, &mut $cache.state.interner, &dcx, debugger);
+            let debugger = etac_frontend::Debugger::new($writer.clone(), &$session.sources).trees(true);
+            let mut frontend = etac_frontend::Frontend::new(&$session.sources, &mut $session.state.interner, &dcx, debugger);
             match ty {
                 Ft::Prgm => drop(frontend.program(id)),
                 Ft::Intf => drop(frontend.interface(id)),
             };
         }
-        dcx.emit_diagnostics(&$cache.sources);
+        dcx.emit_diagnostics(&$session.sources);
         let expected: expect_test::Expect = $expected;
         expected.assert_eq(&$writer.0.take()); // clear the buffer we compare one file output at a
                                                // time
-        parsetest!(@item $writer, $cache, $n; $($rest)*);
+        parsetest!(@item $writer, $session, $n; $($rest)*);
     };
-    (@item $writer:ident, $cache:ident, $n:ident;) => {};
+    (@item $writer:ident, $session:ident, $n:ident;) => {};
 
     // --- wrapped/general entry point ---
     (@wrap $($rest:tt)*) => {{
         let mut writer = etac_debug::StringWriter(etac_debug::StringBuffer::default());
-        let mut cache = etac_cache::EtaCache::default();
+        let mut session = etac_session::Session::default();
         let mut n: usize = 0;
-        parsetest!(@item writer, cache, n; $($rest)*);
+        parsetest!(@item writer, session, n; $($rest)*);
     }};
 
     // --- top-level catch-all for multi-item / already-braced calls ---

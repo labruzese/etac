@@ -1,12 +1,11 @@
 [package]
-name = "etac_cache"
+name = "etac_cli"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 
 [dependencies]
-etac_source.workspace 	     = true
-etac_intern.workspace 	     = true
+clap.workspace        = true
 
 [lints]
 workspace = true

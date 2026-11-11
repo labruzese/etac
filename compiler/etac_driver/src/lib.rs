@@ -1,9 +1,9 @@
 //! The driver for the compiler
-use etac_cache::EtaCache;
+use etac_cli::Flags;
 use etac_errors::dcx::DiagCtx;
 use etac_frontend::{Debugger, Frontend};
 use etac_resolve::{File, Resolver};
-use etac_session::cli::Flags;
+use etac_session::Session;
 
 pub use crate::status::{CompilationFailure, CompilationSuccess};
 
@@ -12,7 +12,7 @@ mod status;
 type CompilationResult = std::result::Result<CompilationSuccess, CompilationFailure>;
 
 pub fn run(flags: &Flags) -> CompilationResult {
-    let mut cache = EtaCache::new();
+    let mut session = Session::new();
     let dcx = DiagCtx::default();
 
     let mut resolver = Resolver::new(&flags.source_path, &flags.lib_path);
@@ -20,7 +20,7 @@ pub fn run(flags: &Flags) -> CompilationResult {
     let files: Vec<File<'_>> = flags
         .source_files
         .iter()
-        .filter_map(|path| match resolver.classify_cli(&cache.sources, &dcx, path) {
+        .filter_map(|path| match resolver.classify_cli(&session.sources, &dcx, path) {
             Ok(file) => file,
             Err(diag) => {
                 let _ = diag.finish();
@@ -31,10 +31,10 @@ pub fn run(flags: &Flags) -> CompilationResult {
 
     {
         // debug info goes to stdout, diagnostics to the dcx's emitter (stderr)
-        let debugger = Debugger::new(std::io::stdout(), &cache.sources)
+        let debugger = Debugger::new(std::io::stdout(), &session.sources)
             .tokens(flags.dlex)
             .trees(flags.dparse);
-        let mut frontend = Frontend::new(&cache.sources, &mut cache.state.interner, &dcx, debugger);
+        let mut frontend = Frontend::new(&session.sources, &mut session.state.interner, &dcx, debugger);
 
         let mut programs = Vec::new();
         for file in files {
@@ -60,6 +60,6 @@ pub fn run(flags: &Flags) -> CompilationResult {
         false => Ok((&dcx).into()),
     };
 
-    dcx.emit_diagnostics(&cache.sources);
+    dcx.emit_diagnostics(&session.sources);
     result
 }

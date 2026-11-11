@@ -205,8 +205,8 @@ dependencies = [
 name = "etac"
 version = "0.1.0"
 dependencies = [
+ "etac_cli",
  "etac_driver",
- "etac_session",
 ]
 
 [[package]]
@@ -219,11 +219,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "etac_cache"
+name = "etac_cli"
 version = "0.1.0"
 dependencies = [
- "etac_intern",
- "etac_source",
+ "clap",
 ]
 
 [[package]]
@@ -238,7 +237,7 @@ name = "etac_driver"
 version = "0.1.0"
 dependencies = [
  "etac_ast",
- "etac_cache",
+ "etac_cli",
  "etac_errors",
  "etac_frontend",
  "etac_intern",
@@ -281,10 +280,10 @@ dependencies = [
 name = "etac_lexer"
 version = "0.1.0"
 dependencies = [
- "etac_cache",
  "etac_debug",
  "etac_errors",
  "etac_intern",
+ "etac_session",
  "etac_source",
  "expect-test",
  "indoc",
@@ -296,12 +295,12 @@ name = "etac_parse"
 version = "0.1.0"
 dependencies = [
  "etac_ast",
- "etac_cache",
  "etac_debug",
  "etac_errors",
  "etac_frontend",
  "etac_intern",
  "etac_lexer",
+ "etac_session",
  "etac_source",
  "expect-test",
  "indoc",
@@ -320,7 +319,8 @@ dependencies = [
 name = "etac_session"
 version = "0.1.0"
 dependencies = [
- "clap",
+ "etac_intern",
+ "etac_source",
 ]
 
 [[package]]

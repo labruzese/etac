@@ -5,7 +5,7 @@ const ANSI_BOLD_RED: &str = "\x1b[1;31m";
 const ANSI_RESET: &str = "\x1b[0m";
 
 fn main() -> std::process::ExitCode {
-    match etac_driver::run(&etac_session::cli::parse_flags()) {
+    match etac_driver::run(&etac_cli::parse_flags()) {
         Ok(CompilationSuccess { warnings }) => {
             eprintln!("{ANSI_BOLD_GREEN}Compiled with {warnings} warnings{ANSI_RESET}");
             std::process::ExitCode::SUCCESS
