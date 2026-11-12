@@ -311,6 +311,7 @@ dependencies = [
 name = "etac_resolve"
 version = "0.1.0"
 dependencies = [
+ "etac_debug",
  "etac_errors",
  "etac_source",
 ]

@@ -101,7 +101,9 @@ impl Resolver {
                 let Some(candidate_str) = candidate.to_str() else {
                     continue;
                 };
-                let iid = self.load(sm, dcx, candidate_str)?;
+                let iid = self
+                    .load(sm, dcx, candidate_str)
+                    .map_err(|diag| diag.with_label(at, "needed by this `use`"))?;
                 return Ok(self.seen.insert(iid).then_some(iid));
             }
         }
@@ -121,7 +123,7 @@ impl Resolver {
     /// existing [`FileId`] if this path has already been loaded.
     fn load<'dcx>(&self, sm: &SourceMap, dcx: &'dcx DiagCtx, path_str: &str) -> Result<FileId, DiagBuilder<'dcx>> {
         sm.get_or_load(path_str, || std::fs::read_to_string(path_str))
-            .map_err(|ioe| dcx.new_err_io(ioe))
+            .map_err(|ioe| dcx.new_err_io(path_str, ioe))
     }
 }
 

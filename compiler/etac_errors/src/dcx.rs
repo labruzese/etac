@@ -86,8 +86,9 @@ impl DiagCtx {
         DiagBuilder::new(self, Level::Warning, span, msg)
     }
 
-    pub fn new_err_io(&self, io_err: std::io::Error) -> DiagBuilder<'_> {
-        self.new_err_unspanned(io_err.to_string())
+    /// Start building the error for a file that could not be read.
+    pub fn new_err_io(&self, path: impl std::fmt::Display, io_err: std::io::Error) -> DiagBuilder<'_> {
+        self.new_err_unspanned(format!("cannot read `{path}`: {io_err}"))
     }
 
     pub fn err_count(&self) -> usize {
