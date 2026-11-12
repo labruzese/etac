@@ -99,3 +99,16 @@ fn a_label_on_a_diagnostic_without_a_location_is_shown_where_it_points() {
     assert!(out.contains("a.eta:2:9"), "{out}");
     assert!(out.contains("but see this"), "{out}");
 }
+
+#[test]
+fn diagnostics_come_out_in_source_order() {
+    let out = render(|dcx, span| {
+        let _ = dcx.new_err(span(Y.0, Y.1), "third: line 2, reported first").finish();
+        let _ = dcx.new_err(span(0, 1), "second: line 1").finish();
+        let _ = dcx.new_err(span(Y.0, Y.1), "fourth: line 2, reported later").finish();
+        let _ = dcx.new_err_unspanned("first: no location").finish();
+    });
+    let position = |text: &str| out.find(text).unwrap_or_else(|| panic!("{out}"));
+    let order = ["first", "second", "third", "fourth"].map(position);
+    assert!(order.is_sorted(), "{out}");
+}

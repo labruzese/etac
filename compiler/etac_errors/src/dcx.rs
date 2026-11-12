@@ -103,9 +103,17 @@ impl DiagCtx {
         self.err_count() > 0
     }
 
+    /// Write every diagnostic reported so far to the emitter, in the order they appear in the source.
     pub fn emit_diagnostics(mut self, source_map: &SourceMap) {
+        // In source order, whatever order they were reported in: a file's lexical errors are all reported before
+        // its syntax errors, and threads report as they go. Spans are offsets into the whole compilation, so this
+        // also keeps each file's diagnostics together. Those without a location come first, and the sort is stable,
+        // so diagnostics at the same place stay in the order they were reported.
+        let mut diagnostics = self.diagnostics.into_vec();
+        diagnostics.sort_by_key(|diag| diag.loc.map(|loc| loc.lo));
+
         let emitter = self.emitter.get_mut().unwrap_or_else(PoisonError::into_inner);
-        emitter.emit(source_map, self.diagnostics.into_vec().into_iter().map(|diag| *diag));
+        emitter.emit(source_map, diagnostics.into_iter().map(|diag| *diag));
         #[cfg(debug_assertions)]
         self.bomb.defuse();
     }
