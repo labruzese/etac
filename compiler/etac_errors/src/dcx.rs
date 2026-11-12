@@ -1,3 +1,4 @@
+use std::marker::PhantomData;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Mutex, PoisonError};
 
@@ -8,7 +9,7 @@ use crate::emitter::IoEmitter;
 
 #[cfg(debug_assertions)]
 use crate::drop_bomb::DropBomb;
-use crate::guarentee::ErrorGuaranteed;
+use crate::guarentee::{EmissionGuarantee, ErrorGuaranteed, Recorded};
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -82,7 +83,7 @@ impl DiagCtx {
     }
 
     /// Start building a warning at `span`.
-    pub fn new_warn(&self, span: Span, msg: impl Into<String>) -> DiagBuilder<'_> {
+    pub fn new_warn(&self, span: Span, msg: impl Into<String>) -> DiagBuilder<'_, ()> {
         DiagBuilder::new(self, Level::Warning, span, msg)
     }
 
@@ -131,17 +132,20 @@ impl DiagCtx {
 /// [`Drop`] bomb will panic in debug mode if dropped without [`finish`](DiagBuilder::finish) or
 /// [`cancel`](DiagBuilder::cancel).
 #[must_use = "a diagnostic is not reported until you `.finish()` it (or `.cancel()` it)"]
-pub struct DiagBuilder<'dcx> {
+pub struct DiagBuilder<'dcx, G: EmissionGuarantee = ErrorGuaranteed> {
     pub(crate) dcx: &'dcx DiagCtx,
     diagnostic: Box<Diagnostic>,
+    /// What [`finish`](Self::finish) returns: proof of an error if this is one, and nothing if it is a warning.
+    guarantee: PhantomData<G>,
     #[cfg(debug_assertions)]
     bomb: DropBomb,
 }
-impl<'dcx> DiagBuilder<'dcx> {
+impl<'dcx, G: EmissionGuarantee> DiagBuilder<'dcx, G> {
     /// Create a new diagnostic at a location with a message.
     fn new(dcx: &'dcx DiagCtx, level: Level, span: Span, message: impl Into<String>) -> Self {
         Self {
             dcx,
+            guarantee: PhantomData,
             diagnostic: Box::new(Diagnostic {
                 level,
                 message: message.into(),
@@ -158,6 +162,7 @@ impl<'dcx> DiagBuilder<'dcx> {
     fn new_unspanned(dcx: &'dcx DiagCtx, level: Level, message: impl Into<String>) -> Self {
         Self {
             dcx,
+            guarantee: PhantomData,
             diagnostic: Box::new(Diagnostic {
                 level,
                 message: message.into(),
@@ -200,9 +205,10 @@ impl<'dcx> DiagBuilder<'dcx> {
         self
     }
 
-    /// Emit a fully-built diagnostic.
-    #[must_use = "consider returning this guarentee as a proof that you have already emitted for this error"]
-    pub fn finish(#[allow(unused_mut)] mut self) -> ErrorGuaranteed {
+    /// Report a fully-built diagnostic.
+    ///
+    /// For an error this returns the [`ErrorGuaranteed`] that proves it was reported. A warning returns `()`.
+    pub fn finish(#[allow(unused_mut)] mut self) -> G {
         let level = self.diagnostic.level;
         match level {
             Level::Error => self.dcx.err_count.fetch_add(1, Ordering::Release),
@@ -213,7 +219,7 @@ impl<'dcx> DiagBuilder<'dcx> {
         self.bomb.defuse();
 
         self.dcx.diagnostics.push(self.diagnostic);
-        ErrorGuaranteed::new()
+        G::emitted(Recorded(()))
     }
 
     /// Throw the diagnostic away deliberately (drop without panic in debug mode)
