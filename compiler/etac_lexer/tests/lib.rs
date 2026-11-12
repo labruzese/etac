@@ -340,7 +340,7 @@ fn error_escape_x() {
         expect![[r#"
             src0:1:1..1:5        Error
             src0:1:6..1:6        EOF
-            Error: expected '{{' after '\x'
+            Error: expected '{' after '\x'
                ╭─[ src0:1:2 ]
                │
              1 │ "\x"
@@ -1604,6 +1604,48 @@ fn integer_literal_bounds() {
                │           ╰─────────── this integer is too large
                │ 
                │ Note: an `int` is 64 bits: from -9223372036854775808 to 9223372036854775807
+            ───╯
+        "#]]
+    }
+}
+
+#[test]
+fn escape_and_char_error_messages() {
+    lextest! {
+        indoc![r#"
+            '\xq'
+            '\x{zz}'
+            'ab'
+        "#],
+        expect![[r#"
+            src0:1:1..1:6        Error
+            src0:2:1..2:9        Error
+            src0:3:1..3:5        Error
+            src0:3:6..3:6        EOF
+            Error: expected '{' after '\x'
+               ╭─[ src0:1:2 ]
+               │
+             1 │ '\xq'
+               │  ─┬  
+               │   ╰── at this escape sequence
+            ───╯
+            Error: invalid hex digit 'z' in unicode escape
+               ╭─[ src0:2:5 ]
+               │
+             2 │ '\x{zz}'
+               │     ┬  
+               │     ╰── inside this unicode escape
+               │ 
+               │ Note: only the digits 0-9 and letters a-f/A-F are allowed inside '\x{...}'
+            ───╯
+            Error: too many characters in char literal
+               ╭─[ src0:3:1 ]
+               │
+             3 │ 'ab'
+               │ ──┬─  
+               │   ╰─── this literal contains more than one character
+               │ 
+               │ Note: a char literal must contain exactly one character; did you mean to use a string literal ("...") instead?
             ───╯
         "#]]
     }

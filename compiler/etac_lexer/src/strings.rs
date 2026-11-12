@@ -60,7 +60,7 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
     if cursor.next() != Some(b'{') {
         return Err(InternalLexerError {
             span: Span::new(open, open + 2),
-            message: String::from("expected '{{' after '\\x'"),
+            message: String::from("expected '{' after '\\x'"),
             plabel: Some(String::from("at this escape sequence")),
             note: None,
         });
@@ -138,10 +138,10 @@ fn parse_hex(cursor: &mut Cursor, open: u32) -> Result<u32, InternalLexerError> 
                 let (ch, end) = finish_char(cursor, start);
                 return Err(InternalLexerError {
                     span: Span::new(start, end),
-                    message: format!("invalid hex digit '{}' in unicode escape: '", ch),
+                    message: format!("invalid hex digit '{ch}' in unicode escape"),
                     plabel: Some(String::from("inside this unicode escape")),
                     note: Some(String::from(
-                        "only the digits 0-9 and letters a-f/A-F are allowed inside '\\x{...}",
+                        "only the digits 0-9 and letters a-f/A-F are allowed inside '\\x{...}'",
                     )),
                 });
             }
@@ -284,7 +284,7 @@ pub fn parse_char<'a, 's>(lex: &'a mut Lexer<'s, Token>) -> Result<char, Interna
             message: String::from("too many characters in char literal"),
             plabel: Some(String::from("this literal contains more than one character")),
             note: Some(String::from(
-                " a char literal must contain exactly one character; did you mean to use a string literal (\"...\") instead?",
+                "a char literal must contain exactly one character; did you mean to use a string literal (\"...\") instead?",
             )),
         });
     }
