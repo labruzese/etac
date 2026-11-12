@@ -5,7 +5,7 @@ const ANSI_BOLD_RED: &str = "\x1b[1;31m";
 const ANSI_RESET: &str = "\x1b[0m";
 
 fn main() -> std::process::ExitCode {
-    // the same rule the diagnostics follow, so the summary never has colors they do not
+    // in accordance with [`etac_errors::emitter`]
     let paint = |color: &'static str| {
         if etac_errors::emitter::stderr_wants_color() {
             (color, ANSI_RESET)

@@ -15,9 +15,6 @@ pub struct Program {
     pub definitions: Vec<DefinitionKind>,
 }
 
-/// A `use` whose interface has been found and parsed.
-///
-/// The interface is shared: every `use` of the same file, in any program, points at the one parse of it.
 pub struct Use {
     pub span: Span,
     pub interface: Arc<Interface>,
