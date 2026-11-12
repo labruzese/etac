@@ -737,3 +737,59 @@ fn bare_discard() {
         "#]]
     }
 }
+
+#[test]
+fn call_as_assignment_target() {
+    parsetest! {
+        ".eta",
+        indoc![r#"
+            f() {
+                g() = 1
+                g()[0] = 2
+            }
+        "#],
+        expect![[r#"
+            src0.eta: parse(recovered)
+            (program
+              (uses)
+              (defs
+                (method (decl f (params) (returns))
+                  (block
+                    (assign (targets (error)) (values 1))
+                    (assign (targets (index (call g) 0)) (values 2))))))
+            program   > f() {
+                      >     g() = 1
+                      >     g()[0] = 2
+                      > }
+            method    > f() {
+                      >     g() = 1
+                      >     g()[0] = 2
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     g() = 1
+                      >     g()[0] = 2
+                      > }
+            assign    > g() = 1
+            int_lit   > 1
+            error     > g()
+            assign    > g()[0] = 2
+            int_lit   > 2
+            expr_idx  > g()[0]
+            pcall     > g()
+            id        > g
+            int_lit   > 0
+
+            Error: cannot assign to a procedure call
+               ╭─[ src0.eta:2:5 ]
+               │
+             2 │     g() = 1
+               │     ─┬─  
+               │      ╰─── not a valid assignment target
+               │ 
+               │ Note: assign to a variable, an array element, or `_`
+            ───╯
+        "#]]
+    }
+}

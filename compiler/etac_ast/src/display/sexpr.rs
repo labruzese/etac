@@ -366,7 +366,6 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
     fn visit_lvalue_kind(&mut self, n: &'ast LValueKind) -> Self::Result {
         match n {
             LValueKind::Id(i) => i.visit(self),
-            LValueKind::ProcCall(c) => c.visit(self),
             LValueKind::Index(x) => x.visit(self),
         }
     }

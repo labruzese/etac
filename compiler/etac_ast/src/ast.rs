@@ -146,9 +146,12 @@ pub enum TargetKind {
     Error(Error),
 }
 
+/// Something that can be assigned to: a variable, or an element of an array.
+///
+/// The array being indexed can be any expression, including a call (`f()[0] = 1`), but a call on its own is not
+/// assignable.
 pub enum LValueKind {
     Id(Ident),
-    ProcCall(ProcCall),
     Index(ExprIndex),
 }
 

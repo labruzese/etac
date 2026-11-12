@@ -244,7 +244,6 @@ impl_walk! {TargetKind, |self, v| {
 impl_walk! {LValueKind, |self, v| {
     match self {
         LValueKind::Id(ident)           => visit!(v, ident),
-        LValueKind::ProcCall(proc_call) => visit!(v, proc_call),
         LValueKind::Index(expr_index)   => visit!(v, expr_index),
     }
 }}

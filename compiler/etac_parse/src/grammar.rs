@@ -678,7 +678,6 @@ fn into_target(p: &mut Parser, item: TargetItem) -> TargetKind {
         TargetItem::Expr(e) => match e {
             ExprKind::Id(i) => TargetKind::LValue(LValueKind::Id(i)),
             ExprKind::Index(ix) => TargetKind::LValue(LValueKind::Index(ix)),
-            ExprKind::Call(c) => TargetKind::LValue(LValueKind::ProcCall(c)),
             // Already reported by whoever produced it.
             ExprKind::Error(e) => TargetKind::Error(e),
             other => {
