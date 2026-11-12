@@ -1445,3 +1445,118 @@ fn unicode_bmp_char() {
         "#]]
     }
 }
+
+#[test]
+fn unterminated_string() {
+    lextest! {
+        indoc![r#"
+            x = "abc
+            y = 2
+        "#],
+        expect![[r#"
+            src0:1:1..1:2        Identifier(x)
+            src0:1:3..1:4        Assign
+            src0:1:5..1:9        Error
+            src0:2:1..2:2        Identifier(y)
+            src0:2:3..2:4        Assign
+            src0:2:5..2:6        IntLiteral(2)
+            src0:2:7..2:7        EOF
+            Error: unterminated string literal
+               ╭─[ src0:1:5 ]
+               │
+             1 │ x = "abc
+               │     ──┬─  
+               │       ╰─── no closing " after this one
+               │ 
+               │ Note: a string literal can run over several lines, so if this one looks closed, an earlier one is missing its "
+            ───╯
+        "#]]
+    }
+}
+
+#[test]
+fn unterminated_string_after_a_multiline_one() {
+    lextest! {
+        indoc![r#"
+            x = "abc
+            y = "def"
+            z = 3
+        "#],
+        expect![[r#"
+            src0:1:1..1:2        Identifier(x)
+            src0:1:3..1:4        Assign
+            src0:1:5..2:6        StrLiteral(abc\ny = )
+            src0:2:6..2:9        Identifier(def)
+            src0:2:9..2:10       Error
+            src0:3:1..3:2        Identifier(z)
+            src0:3:3..3:4        Assign
+            src0:3:5..3:6        IntLiteral(3)
+            src0:3:7..3:7        EOF
+            Error: unterminated string literal
+               ╭─[ src0:2:9 ]
+               │
+             2 │ y = "def"
+               │         ┬  
+               │         ╰── no closing " after this one
+               │ 
+               │ Note: a string literal can run over several lines, so if this one looks closed, an earlier one is missing its "
+            ───╯
+        "#]]
+    }
+}
+
+#[test]
+fn unterminated_string_ending_in_a_backslash() {
+    lextest! {
+        indoc![r#"
+            x = "abc\
+            y = 2
+        "#],
+        expect![[r#"
+            src0:1:1..1:2        Identifier(x)
+            src0:1:3..1:4        Assign
+            src0:1:5..1:10       Error
+            src0:2:1..2:2        Identifier(y)
+            src0:2:3..2:4        Assign
+            src0:2:5..2:6        IntLiteral(2)
+            src0:2:7..2:7        EOF
+            Error: unterminated string literal
+               ╭─[ src0:1:5 ]
+               │
+             1 │ x = "abc\
+               │     ──┬──  
+               │       ╰──── no closing " after this one
+               │ 
+               │ Note: a string literal can run over several lines, so if this one looks closed, an earlier one is missing its "
+            ───╯
+        "#]]
+    }
+}
+
+#[test]
+fn unterminated_char() {
+    lextest! {
+        indoc![r#"
+            x = 'a
+            y = 2
+        "#],
+        expect![[r#"
+            src0:1:1..1:2        Identifier(x)
+            src0:1:3..1:4        Assign
+            src0:1:5..1:7        Error
+            src0:2:1..2:2        Identifier(y)
+            src0:2:3..2:4        Assign
+            src0:2:5..2:6        IntLiteral(2)
+            src0:2:7..2:7        EOF
+            Error: unterminated character literal
+               ╭─[ src0:1:5 ]
+               │
+             1 │ x = 'a
+               │     ─┬  
+               │      ╰── no closing ' after this one
+               │ 
+               │ Note: a character literal can run over several lines, so if this one looks closed, an earlier one is missing its '
+            ───╯
+        "#]]
+    }
+}

@@ -324,3 +324,24 @@ pub fn parse_str(lex: &mut Lexer<'_, Token>) -> Result<String, InternalLexerErro
 
     Ok(out)
 }
+
+/// A `"` with no closing `"` anywhere after it.
+pub fn unterminated_str(lex: &mut Lexer<'_, Token>) -> Result<etac_intern::Symbol, InternalLexerError> {
+    Err(unterminated(lex, "string", '"'))
+}
+
+/// A `'` with no closing `'` anywhere after it.
+pub fn unterminated_char(lex: &mut Lexer<'_, Token>) -> Result<char, InternalLexerError> {
+    Err(unterminated(lex, "character", '\''))
+}
+
+fn unterminated(lex: &Lexer<'_, Token>, what: &str, quote: char) -> InternalLexerError {
+    InternalLexerError {
+        span: current_span(lex),
+        message: format!("unterminated {what} literal"),
+        plabel: Some(format!("no closing {quote} after this one")),
+        note: Some(format!(
+            "a {what} literal can run over several lines, so if this one looks closed, an earlier one is missing its {quote}"
+        )),
+    }
+}

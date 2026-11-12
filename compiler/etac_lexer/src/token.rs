@@ -350,7 +350,11 @@ tokens! {
     #[pat(bool_lit)]
     BoolLiteral(bool),
 
+    // A literal may run over several lines, so a quote is only unterminated when there is no closing quote anywhere
+    // after it: the longest match wins, and a closed literal is always longer than the rule for an open one, which
+    // stops at the end of the line. Stopping there lets lexing carry on from the next line.
     #[regex(r"'([^'\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*'", crate::strings::parse_char)]
+    #[regex(r"'([^'\\\n\r]|\\.)*\\?", crate::strings::unterminated_char)]
     #[name("a character literal")]
     #[pat(char_lit)]
     CharLiteral(char),
@@ -358,6 +362,7 @@ tokens! {
     #[regex(r#""([^"\\]|\\(.|x\{[0-9A-Fa-f]{1,6}\}))*""#, |lex| {
         crate::strings::parse_str(lex).map(|s| lex.extras.1.get_or_intern(&s))
     })]
+    #[regex(r#""([^"\\\n\r]|\\.)*\\?"#, crate::strings::unterminated_str)]
     #[name("a string literal")]
     #[pat(str_lit)]
     StrLiteral(Symbol),
