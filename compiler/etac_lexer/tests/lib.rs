@@ -414,7 +414,7 @@ fn escapes() {
             src0:4:1..4:9        CharLiteral(\u{b5})
             src0:5:1..5:5        StrLiteral(\t)
             src0:6:1..6:5        CharLiteral(\t)
-            src0:7:1..7:7        StrLiteral(\u{e9}\u{e7})
+            src0:7:1..7:5        StrLiteral(\u{e9}\u{e7})
             src0:8:1..8:5        Error
             src0:8:7..8:7        EOF
             Error: unknown escape: '\q' is not a recognized escape sequence
@@ -1307,22 +1307,22 @@ fn supplementary_char() {
             src0:2:6..2:7        Colon
             src0:2:7..2:10       KwInt
             src0:2:11..2:12      Assign
-            src0:2:13..2:19      CharLiteral(\u{1f600})
-            src0:2:19..2:20      SemiColon
+            src0:2:13..2:16      CharLiteral(\u{1f600})
+            src0:2:16..2:17      SemiColon
             src0:3:5..3:6        Identifier(b)
             src0:3:6..3:7        Colon
             src0:3:7..3:10       KwInt
             src0:3:11..3:12      Assign
-            src0:3:13..3:19      CharLiteral(\u{1f170})
-            src0:3:19..3:20      SemiColon
+            src0:3:13..3:16      CharLiteral(\u{1f170})
+            src0:3:16..3:17      SemiColon
             src0:4:5..4:6        Identifier(c)
             src0:4:6..4:7        Colon
             src0:4:7..4:10       KwInt
             src0:4:10..4:11      LBracket
             src0:4:11..4:12      RBracket
             src0:4:13..4:14      Assign
-            src0:4:15..4:33      StrLiteral(Hello \u{1f600} World)
-            src0:4:33..4:34      SemiColon
+            src0:4:15..4:30      StrLiteral(Hello \u{1f600} World)
+            src0:4:30..4:31      SemiColon
             src0:5:1..5:2        BlockClose
             src0:5:3..5:3        EOF
         "#]]
@@ -1440,8 +1440,8 @@ fn unicode_bmp_char() {
             'é'
         "#],
         expect![[r#"
-            src0:1:1..1:5        CharLiteral(\u{e9})
-            src0:1:6..1:6        EOF
+            src0:1:1..1:4        CharLiteral(\u{e9})
+            src0:1:5..1:5        EOF
         "#]]
     }
 }

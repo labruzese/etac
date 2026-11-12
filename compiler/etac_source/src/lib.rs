@@ -137,13 +137,20 @@ impl SourceMap {
         }
     }
 
-    /// The 1-based `(line, column)` of an offset into a file. Columns count bytes.
+    /// The 1-based `(line, column)` of an offset into a file.
+    ///
+    /// Columns count characters, not bytes, so the column of a token does not depend on how the text before it on
+    /// the line is encoded. This is also how the diagnostic renderer counts.
     fn line_column(&self, id: FileId, offset: usize) -> (u32, u32) {
         let starts = self.line_starts(id);
-        let offset = u32::try_from(offset).expect("offsets into a file fit in a u32");
         // the last line that starts at or before the offset; line 0 starts at 0, so there always is one
-        let line = starts.partition_point(|start| *start <= offset) - 1;
-        (line as u32 + 1, offset - starts[line] + 1)
+        let line = starts.partition_point(|start| *start as usize <= offset) - 1;
+        let line_start = starts[line] as usize;
+        let before = self.get_source(id).source[line_start..]
+            .char_indices()
+            .take_while(|(at, _)| line_start + at < offset)
+            .count();
+        (line as u32 + 1, before as u32 + 1)
     }
 
     pub fn span_location(&self, span: Span) -> SpanLocation {
@@ -292,6 +299,22 @@ mod tests {
         assert_eq!(at(0, 2), "a.eta:1:1..1:3");
         assert_eq!(at(3, 5), "a.eta:2:1..2:3");
         assert_eq!(at(text.len(), text.len()), "a.eta:2:4..2:4");
+    }
+
+    #[test]
+    fn columns_count_characters() {
+        let sm = SourceMap::default();
+        // `é` is 2 bytes and `→` is 3
+        let (id, text) = sm.alloc_source("a.eta".to_owned(), "é→x\n→y".to_owned());
+        let base = sm.base_offset(id);
+        let at = |needle: char| {
+            let lo = text.find(needle).unwrap();
+            let span = Span::new(base + lo as u32, base + (lo + needle.len_utf8()) as u32);
+            sm.span_location(span).to_string()
+        };
+        assert_eq!(at('é'), "a.eta:1:1..1:2");
+        assert_eq!(at('x'), "a.eta:1:3..1:4");
+        assert_eq!(at('y'), "a.eta:2:2..2:3");
     }
 
     #[test]
