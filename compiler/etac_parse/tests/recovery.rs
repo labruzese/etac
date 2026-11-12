@@ -395,7 +395,9 @@ fn missing_method_body() {
                │         │ 
                │         ╰─ expected `{`
                │ 
-               │ Note: only interface (`.eti`) files declare methods without a body.
+               │ Note 1: a method can be used before it is defined, so there is no need to forward declare it
+               │ 
+               │ Note 2: only interface (`.eti`) files declare methods without a body
             ───╯
         "#]]
     }

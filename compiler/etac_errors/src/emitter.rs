@@ -157,7 +157,7 @@ fn make_report(diag: &Diagnostic, sm: &SourceMap, conf: EmitConfig) -> Report<'s
     let mut report = Report::build(kind, diag.loc.map_or_else(nowhere, |loc| sm.local_span(loc)))
         .with_config(conf.renderer())
         .with_message(&diag.message);
-    if let Some(note) = &diag.note {
+    for note in &diag.notes {
         report = report.with_note(note);
     }
     for label in &diag.labels {

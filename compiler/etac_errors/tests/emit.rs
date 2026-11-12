@@ -59,3 +59,17 @@ fn a_secondary_label_alone_does_not_hide_the_primary_location() {
     assert!(out.contains("a.eta:2:9"), "{out}");
     assert!(out.contains("declared here") && out.contains("x = y"), "{out}");
 }
+
+#[test]
+fn every_note_is_shown_in_order() {
+    let out = render(|dcx, span| {
+        let _ = dcx
+            .new_err(span(Y.0, Y.1), "two notes")
+            .with_note("first note")
+            .with_note("second note")
+            .finish();
+    });
+    let first = out.find("first note").unwrap_or_else(|| panic!("{out}"));
+    let second = out.find("second note").unwrap_or_else(|| panic!("{out}"));
+    assert!(first < second, "{out}");
+}

@@ -16,7 +16,7 @@ pub struct Diagnostic {
     pub message: String,
     pub loc: Option<Span>,
     pub labels: Vec<Label>,
-    pub note: Option<String>,
+    pub notes: Vec<String>,
 }
 
 /// A message attached to a piece of source.
@@ -138,7 +138,7 @@ impl<'dcx> DiagBuilder<'dcx> {
                 message: message.into(),
                 labels: Vec::new(),
                 loc: Some(span),
-                note: None,
+                notes: Vec::new(),
             }),
             #[cfg(debug_assertions)]
             bomb: DropBomb::new("Diag dropped without writing diagnostic to context"),
@@ -154,7 +154,7 @@ impl<'dcx> DiagBuilder<'dcx> {
                 message: message.into(),
                 labels: Vec::new(),
                 loc: None,
-                note: None,
+                notes: Vec::new(),
             }),
             #[cfg(debug_assertions)]
             bomb: DropBomb::new("Diag dropped without writing diagnostic to context"),
@@ -184,8 +184,10 @@ impl<'dcx> DiagBuilder<'dcx> {
         self
     }
 
+    /// Add a note, shown after the source snippet. A diagnostic can have several; they are shown in the order they
+    /// were added.
     pub fn with_note(mut self, note: impl Into<String>) -> Self {
-        self.diagnostic.note = Some(note.into());
+        self.diagnostic.notes.push(note.into());
         self
     }
 

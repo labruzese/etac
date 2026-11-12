@@ -229,8 +229,8 @@ fn method(p: &mut Parser) -> Method {
             .new_err(p.gap_span(), "this method has no body")
             .with_message(format!("expected {}", (Tok!['{'])))
             .with_label(decl.span, "declared here")
-            .with_note("eta is not declare before use, there is no need to foward declare")
-            .with_note("only interface (`.eti`) files declare methods without a body.");
+            .with_note("a method can be used before it is defined, so there is no need to forward declare it")
+            .with_note("only interface (`.eti`) files declare methods without a body");
         p.report(d);
         MethodBodyKind::Error(Error(skip_to_item(p, ts!['{'])))
     };
