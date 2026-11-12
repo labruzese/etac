@@ -4,7 +4,8 @@
 //! [`EmitConfig`] are described in the compiler's own terms and translated here.
 
 use std::collections::HashMap;
-use std::io::Write;
+use std::ffi::OsStr;
+use std::io::{IsTerminal, Write};
 use std::sync::Arc;
 
 use ariadne::{IndexType, Report, ReportKind};
@@ -73,9 +74,26 @@ impl std::fmt::Debug for IoEmitter {
     }
 }
 
+/// Whether what is written to standard error should be colored: only when it is a terminal, where the escape codes
+/// are colors and not noise in a log file, and the user has not asked for no color by setting [`NO_COLOR`].
+///
+/// [`NO_COLOR`]: https://no-color.org
+pub fn stderr_wants_color() -> bool {
+    wants_color(std::io::stderr().is_terminal(), std::env::var_os("NO_COLOR").as_deref())
+}
+
+fn wants_color(is_terminal: bool, no_color: Option<&OsStr>) -> bool {
+    // NO_COLOR counts when it is set to anything but the empty string
+    is_terminal && no_color.is_none_or(OsStr::is_empty)
+}
+
 impl IoEmitter {
-    pub fn new(writer: Box<dyn Write + Send>) -> Self {
-        Self::with_config(writer, EmitConfig::default())
+    /// An emitter for standard error, colored if [`stderr_wants_color`].
+    pub fn stderr() -> Self {
+        Self::with_config(
+            Box::new(std::io::stderr()),
+            EmitConfig::new().with_color(stderr_wants_color()),
+        )
     }
     pub fn sink() -> Self {
         IoEmitter {
@@ -182,4 +200,19 @@ fn make_report(diag: &Diagnostic, sm: &SourceMap, conf: EmitConfig) -> Report<'s
         report = report.with_label(ariadne::Label::new(sm.local_span(loc)).with_color(ariadne::Color::Red));
     }
     report.finish()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::wants_color;
+    use std::ffi::OsStr;
+
+    #[test]
+    fn color_is_for_terminals_that_have_not_declined_it() {
+        assert!(wants_color(true, None));
+        assert!(wants_color(true, Some(OsStr::new(""))));
+        assert!(!wants_color(true, Some(OsStr::new("1"))));
+        assert!(!wants_color(false, None));
+        assert!(!wants_color(false, Some(OsStr::new(""))));
+    }
 }

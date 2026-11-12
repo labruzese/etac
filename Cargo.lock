@@ -207,6 +207,7 @@ version = "0.1.0"
 dependencies = [
  "etac_cli",
  "etac_driver",
+ "etac_errors",
 ]
 
 [[package]]

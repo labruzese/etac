@@ -55,7 +55,7 @@ const _: () = assert_send_sync::<DiagBuilder<'static>>();
 
 impl Default for DiagCtx {
     fn default() -> Self {
-        Self::new(IoEmitter::new(Box::new(std::io::stderr())))
+        Self::new(IoEmitter::stderr())
     }
 }
 impl DiagCtx {
