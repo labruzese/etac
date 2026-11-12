@@ -174,7 +174,7 @@ impl<'dcx> DiagBuilder<'dcx> {
         self
     }
 
-    /// Add a secondary label at another span.
+    /// Add a secondary label at another span. This works on a diagnostic without a location of its own, too.
     pub fn with_label(mut self, span: Span, msg: impl Into<String>) -> Self {
         self.diagnostic.labels.push(Label {
             span,

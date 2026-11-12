@@ -73,3 +73,29 @@ fn every_note_is_shown_in_order() {
     let second = out.find("second note").unwrap_or_else(|| panic!("{out}"));
     assert!(first < second, "{out}");
 }
+
+#[test]
+fn a_diagnostic_without_a_location_is_just_its_message() {
+    let out = render(|dcx, _| {
+        let _ = dcx
+            .new_err_unspanned("nowhere in particular")
+            .with_note("a note")
+            .finish();
+    });
+    assert!(out.contains("Error: nowhere in particular"), "{out}");
+    assert!(out.contains("a note"), "{out}");
+    assert!(!out.contains("a.eta"), "{out}");
+}
+
+#[test]
+fn a_label_on_a_diagnostic_without_a_location_is_shown_where_it_points() {
+    let out = render(|dcx, span| {
+        let _ = dcx
+            .new_err_unspanned("nowhere in particular")
+            .with_label(span(Y.0, Y.1), "but see this")
+            .finish();
+    });
+    assert!(out.contains("Error: nowhere in particular"), "{out}");
+    assert!(out.contains("a.eta:2:9"), "{out}");
+    assert!(out.contains("but see this"), "{out}");
+}

@@ -8,7 +8,7 @@ use std::io::Write;
 use std::sync::Arc;
 
 use ariadne::{IndexType, Report, ReportKind};
-use etac_source::{FileId, SourceMap, Span};
+use etac_source::{FileId, SourceMap};
 
 use crate::Level;
 use crate::dcx::{Diagnostic, LabelKind};
@@ -98,6 +98,12 @@ impl IoEmitter {
         let mut sources = Sources::new(sm);
         for diag in diags {
             let _ = make_report(&diag, sm, self.conf).write(&mut sources, &mut *writer);
+            // The renderer hangs notes off the source snippet, and drops them when there is none to show.
+            if diag.loc.is_none() && diag.labels.is_empty() {
+                for note in &diag.notes {
+                    let _ = writeln!(writer, "    Note: {note}");
+                }
+            }
         }
     }
 }
@@ -144,17 +150,14 @@ fn make_report(diag: &Diagnostic, sm: &SourceMap, conf: EmitConfig) -> Report<'s
         Level::Warning => ReportKind::Warning,
     };
 
-    // A diagnostic with no location has nothing to show source for, labels included.
-    let nowhere = || (FileId::DUMMY, 0..0);
-    let place = |span: Span| {
-        if diag.loc.is_some() {
-            sm.local_span(span)
-        } else {
-            nowhere()
-        }
-    };
+    // The renderer wants a position for the report itself. A diagnostic without a location takes it from its first
+    // label, and one with no labels either shows no source at all, so the placeholder is never looked up.
+    let position = diag
+        .loc
+        .or_else(|| diag.labels.first().map(|label| label.span))
+        .map_or((FileId::DUMMY, 0..0), |span| sm.local_span(span));
 
-    let mut report = Report::build(kind, diag.loc.map_or_else(nowhere, |loc| sm.local_span(loc)))
+    let mut report = Report::build(kind, position)
         .with_config(conf.renderer())
         .with_message(&diag.message);
     for note in &diag.notes {
@@ -166,7 +169,7 @@ fn make_report(diag: &Diagnostic, sm: &SourceMap, conf: EmitConfig) -> Report<'s
             LabelKind::Secondary => ariadne::Color::Yellow,
         };
         report = report.with_label(
-            ariadne::Label::new(place(label.span))
+            ariadne::Label::new(sm.local_span(label.span))
                 .with_message(&label.message)
                 .with_color(color),
         );
