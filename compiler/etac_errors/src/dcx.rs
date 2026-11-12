@@ -16,7 +16,6 @@ pub struct Diagnostic {
     pub message: String,
     pub loc: Option<Span>,
     pub labels: Vec<Label>,
-    pub code: Option<String>,
     pub note: Option<String>,
 }
 
@@ -72,19 +71,6 @@ impl DiagCtx {
         }
     }
 
-    // if you want to write to the same output stream as the diagnostics
-    pub fn borrow_emitter(&mut self) -> &mut IoEmitter {
-        self.emitter.get_mut().unwrap_or_else(PoisonError::into_inner)
-    }
-
-    pub fn new_diag(&self, level: Level, span: Span, message: impl Into<String>) -> DiagBuilder<'_> {
-        DiagBuilder::new(self, level, span, message)
-    }
-
-    pub fn new_diag_unspanned(&self, level: Level, message: impl Into<String>) -> DiagBuilder<'_> {
-        DiagBuilder::new_unspanned(self, level, message)
-    }
-
     /// Start building an error at `span`.
     pub fn new_err(&self, span: Span, msg: impl Into<String>) -> DiagBuilder<'_> {
         DiagBuilder::new(self, Level::Error, span, msg)
@@ -116,10 +102,6 @@ impl DiagCtx {
         self.err_count() > 0
     }
 
-    pub fn has_diagnostics(&self) -> bool {
-        !self.diagnostics.is_empty()
-    }
-
     pub fn emit_diagnostics(mut self, source_map: &SourceMap) {
         let emitter = self.emitter.get_mut().unwrap_or_else(PoisonError::into_inner);
         emitter.emit(source_map, self.diagnostics.into_vec().into_iter().map(|diag| *diag));
@@ -139,7 +121,7 @@ impl DiagCtx {
 ///
 /// [`Drop`] bomb will panic in debug mode if dropped without [`finish`](DiagBuilder::finish) or
 /// [`cancel`](DiagBuilder::cancel).
-#[must_use = "a Diag does nothing until you call `.emit()` (or `.cancel()` it)"]
+#[must_use = "a diagnostic is not reported until you `.finish()` it (or `.cancel()` it)"]
 pub struct DiagBuilder<'dcx> {
     pub(crate) dcx: &'dcx DiagCtx,
     diagnostic: Box<Diagnostic>,
@@ -153,7 +135,6 @@ impl<'dcx> DiagBuilder<'dcx> {
             dcx,
             diagnostic: Box::new(Diagnostic {
                 level,
-                code: None,
                 message: message.into(),
                 labels: Vec::new(),
                 loc: Some(span),
@@ -170,7 +151,6 @@ impl<'dcx> DiagBuilder<'dcx> {
             dcx,
             diagnostic: Box::new(Diagnostic {
                 level,
-                code: None,
                 message: message.into(),
                 labels: Vec::new(),
                 loc: None,
@@ -179,10 +159,6 @@ impl<'dcx> DiagBuilder<'dcx> {
             #[cfg(debug_assertions)]
             bomb: DropBomb::new("Diag dropped without writing diagnostic to context"),
         }
-    }
-
-    pub fn level(&self) -> Level {
-        self.diagnostic.level
     }
 
     /// Point the primary label at the diagnostic's own span.
@@ -213,24 +189,14 @@ impl<'dcx> DiagBuilder<'dcx> {
         self
     }
 
-    pub fn with_code(mut self, code: impl Into<String>) -> Self {
-        self.diagnostic.code = Some(code.into());
-        self
-    }
-
     /// Emit a fully-built diagnostic.
     #[must_use = "consider returning this guarentee as a proof that you have already emitted for this error"]
     pub fn finish(#[allow(unused_mut)] mut self) -> ErrorGuaranteed {
         let level = self.diagnostic.level;
         match level {
-            Level::Error => {
-                self.dcx.err_count.fetch_add(1, Ordering::Release);
-            }
-            Level::Warning => {
-                self.dcx.warn_count.fetch_add(1, Ordering::Release);
-            }
-            _ => (),
-        }
+            Level::Error => self.dcx.err_count.fetch_add(1, Ordering::Release),
+            Level::Warning => self.dcx.warn_count.fetch_add(1, Ordering::Release),
+        };
 
         #[cfg(debug_assertions)]
         self.bomb.defuse();
@@ -245,34 +211,3 @@ impl<'dcx> DiagBuilder<'dcx> {
         self.bomb.defuse();
     }
 }
-
-// use std::fmt::Write;
-// impl Diag<'_> {
-//     pub fn test_format(&self, cache: &EtaCache) -> String {
-//         let mut out = String::new();
-//         let loc = self.loc;
-//         let level = &self.level;
-//         let message = &self.message;
-//         let note = self.note.as_deref().unwrap_or("");
-//         let mut labels = String::new();
-//         self.labels.iter().for_each(|(span, message, ..)| {
-//             let file = cache.source_name(cache.resolve_span(*span).1);
-//             let (line_start, column_start) = cache.line_column(span.lo);
-//             let (line_end, column_end) = cache.line_column(span.hi);
-//             let _ = writeln!(labels, "\n\t{file}:{line_start}:{column_start}..{line_end}:{column_end} {message:?}");
-//         });
-//         let diag_str = format!("{level:?} {{\n\tmessage: {message}\n\tnote: {note}{labels}}}");
-//         match loc {
-//             Some(s) => {
-//                 let file = cache.source_name(cache.resolve_span(s).1);
-//                 let (line_start, column_start) = cache.line_column(s.lo);
-//                 let (line_end, column_end) = cache.line_column(s.hi);
-//                 let _ = write!(out, "{file}:{line_start}:{column_start}..{line_end}:{column_end} {diag_str}");
-//             }
-//             None => {
-//                 let _ = write!(out, "{diag_str}");
-//             }
-//         }
-//         out
-//     }
-// }

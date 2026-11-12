@@ -5,7 +5,6 @@
 pub enum Level {
     Error,
     Warning,
-    Note,
 }
 
 pub mod dcx;

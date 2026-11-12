@@ -91,22 +91,6 @@ impl IoEmitter {
     }
 }
 
-impl Write for IoEmitter {
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        match &mut self.writer {
-            Some(writer) => writer.write(buf),
-            None => Ok(buf.len()),
-        }
-    }
-
-    fn flush(&mut self) -> std::io::Result<()> {
-        match &mut self.writer {
-            Some(writer) => writer.flush(),
-            None => Ok(()),
-        }
-    }
-}
-
 impl IoEmitter {
     /// Render each of `diags` in turn, looking their spans up in `sm`.
     pub fn emit(&mut self, sm: &SourceMap, diags: impl IntoIterator<Item = Diagnostic>) {
@@ -158,7 +142,6 @@ fn make_report(diag: &Diagnostic, sm: &SourceMap, conf: EmitConfig) -> Report<'s
     let kind = match diag.level {
         Level::Error => ReportKind::Error,
         Level::Warning => ReportKind::Warning,
-        Level::Note => ReportKind::Advice,
     };
 
     // A diagnostic with no location has nothing to show source for, labels included.
@@ -174,9 +157,6 @@ fn make_report(diag: &Diagnostic, sm: &SourceMap, conf: EmitConfig) -> Report<'s
     let mut report = Report::build(kind, diag.loc.map_or_else(nowhere, |loc| sm.local_span(loc)))
         .with_config(conf.renderer())
         .with_message(&diag.message);
-    if let Some(code) = &diag.code {
-        report = report.with_code(code);
-    }
     if let Some(note) = &diag.note {
         report = report.with_note(note);
     }
