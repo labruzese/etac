@@ -793,3 +793,118 @@ fn call_as_assignment_target() {
         "#]]
     }
 }
+
+#[test]
+fn smallest_int_needs_its_minus() {
+    parsetest! {
+        ".eta",
+        indoc![r#"
+            ok: int = -9223372036854775808
+            bad: int = 9223372036854775808
+            f() {
+                a: int = -9223372036854775808
+                b: int = 1 - 9223372036854775808
+                c: int = -(9223372036854775808)
+                d: int = 9223372036854775807
+            }
+        "#],
+        expect![[r#"
+            src0.eta: parse(recovered)
+            (program
+              (uses)
+              (defs
+                (global ok int -9223372036854775808)
+                (global bad int 9223372036854775808)
+                (method (decl f (params) (returns))
+                  (block
+                    (assign (targets (: a int)) (values (- 9223372036854775808)))
+                    (assign (targets (: b int)) (values (- 1 9223372036854775808)))
+                    (assign (targets (: c int)) (values (- 9223372036854775808)))
+                    (assign (targets (: d int)) (values 9223372036854775807))))))
+            program   > ok: int = -9223372036854775808
+                      > bad: int = 9223372036854775808
+                      > f() {
+                      > ...
+                      >     c: int = -(9223372036854775808)
+                      >     d: int = 9223372036854775807
+                      > }
+            gdecl     > ok: int = -9223372036854775808
+            int_t     > int
+            id        > ok
+            int_lit   > 9223372036854775808
+            gdecl     > bad: int = 9223372036854775808
+            int_t     > int
+            id        > bad
+            int_lit   > 9223372036854775808
+            method    > f() {
+                      >     a: int = -9223372036854775808
+                      >     b: int = 1 - 9223372036854775808
+                      >     c: int = -(9223372036854775808)
+                      >     d: int = 9223372036854775807
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     a: int = -9223372036854775808
+                      >     b: int = 1 - 9223372036854775808
+                      >     c: int = -(9223372036854775808)
+                      >     d: int = 9223372036854775807
+                      > }
+            assign    > a: int = -9223372036854775808
+            uexpr     > -9223372036854775808
+            uop       > -
+            int_lit   > 9223372036854775808
+            decl      > a: int
+            int_t     > int
+            id        > a
+            assign    > b: int = 1 - 9223372036854775808
+            bexpr     > 1 - 9223372036854775808
+            binop     > -
+            int_lit   > 1
+            int_lit   > 9223372036854775808
+            decl      > b: int
+            int_t     > int
+            id        > b
+            assign    > c: int = -(9223372036854775808)
+            uexpr     > -(9223372036854775808)
+            uop       > -
+            int_lit   > 9223372036854775808
+            decl      > c: int
+            int_t     > int
+            id        > c
+            assign    > d: int = 9223372036854775807
+            int_lit   > 9223372036854775807
+            decl      > d: int
+            int_t     > int
+            id        > d
+
+            Error: integer literal out of range
+               ╭─[ src0.eta:2:12 ]
+               │
+             2 │ bad: int = 9223372036854775808
+               │            ─────────┬─────────  
+               │                     ╰─────────── this is one more than the largest `int`
+               │ 
+               │ Note: 9223372036854775808 can only be written with a `-` directly in front of it, as the smallest `int`
+            ───╯
+            Error: integer literal out of range
+               ╭─[ src0.eta:5:18 ]
+               │
+             5 │     b: int = 1 - 9223372036854775808
+               │                  ─────────┬─────────  
+               │                           ╰─────────── this is one more than the largest `int`
+               │ 
+               │ Note: 9223372036854775808 can only be written with a `-` directly in front of it, as the smallest `int`
+            ───╯
+            Error: integer literal out of range
+               ╭─[ src0.eta:6:16 ]
+               │
+             6 │     c: int = -(9223372036854775808)
+               │                ─────────┬─────────  
+               │                         ╰─────────── this is one more than the largest `int`
+               │ 
+               │ Note: 9223372036854775808 can only be written with a `-` directly in front of it, as the smallest `int`
+            ───╯
+        "#]]
+    }
+}

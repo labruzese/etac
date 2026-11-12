@@ -2,8 +2,6 @@
 #![allow(clippy::cast_possible_truncation)]
 #![recursion_limit = "512"]
 
-use std::num::ParseIntError;
-
 use etac_errors::dcx::{DiagBuilder, DiagCtx};
 use etac_intern::EtacInterner;
 use etac_source::Span;
@@ -85,26 +83,27 @@ impl<'src, 'dcx> EtaLexer<'dcx, &'src EtacInterner> {
 
 // -- lexing callbacks --
 
+/// The largest integer literal: 2^63, one more than the largest `int`.
+///
+/// A literal has no sign of its own, so `-9223372036854775808`, the smallest `int`, is a `-` applied to this. The
+/// parser rejects it anywhere else.
+pub const MAX_INT_LITERAL: u64 = 1 << 63;
+
 fn parse_int(lex: &mut Lexer<'_, Token>) -> Result<u64, InternalLexerError> {
-    lex.slice().parse::<u64>().map_err(|err: ParseIntError| {
-        let (msg, prim) = match err.kind() {
-            std::num::IntErrorKind::PosOverflow => (
-                "this integer literal is too large to be stored in any Eta type",
-                "this integer is too large",
-            ),
-            std::num::IntErrorKind::NegOverflow => (
-                "this integer literal is too small to be stored in any Eta type",
-                "this integer is too small",
-            ),
-            _ => panic!("internal int parsing error"),
-        };
-        InternalLexerError {
+    // The token is all digits, so the only way this fails to parse is by not fitting.
+    match lex.slice().parse::<u64>() {
+        Ok(value) if value <= MAX_INT_LITERAL => Ok(value),
+        _ => Err(InternalLexerError {
             span: current_span(lex),
-            message: format!("illegal integer literal: {}", msg),
-            plabel: Some(String::from(prim)),
-            note: Some(String::from("eta only supports ints in the range [-2^63, 2^63)")),
-        }
-    })
+            message: String::from(
+                "illegal integer literal: this integer literal is too large to be stored in any Eta type",
+            ),
+            plabel: Some(String::from("this integer is too large")),
+            note: Some(String::from(
+                "an `int` is 64 bits: from -9223372036854775808 to 9223372036854775807",
+            )),
+        }),
+    }
 }
 
 // -- helpers --

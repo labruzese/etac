@@ -798,7 +798,7 @@ fn int_overflow() {
                │ ───────────┬───────────  
                │            ╰───────────── this integer is too large
                │ 
-               │ Note: eta only supports ints in the range [-2^63, 2^63)
+               │ Note: an `int` is 64 bits: from -9223372036854775808 to 9223372036854775807
             ───╯
         "#]]
     }
@@ -871,7 +871,7 @@ fn large_int() {
                │ ───────────────┬───────────────  
                │                ╰───────────────── this integer is too large
                │ 
-               │ Note: eta only supports ints in the range [-2^63, 2^63)
+               │ Note: an `int` is 64 bits: from -9223372036854775808 to 9223372036854775807
             ───╯
         "#]]
     }
@@ -1556,6 +1556,54 @@ fn unterminated_char() {
                │      ╰── no closing ' after this one
                │ 
                │ Note: a character literal can run over several lines, so if this one looks closed, an earlier one is missing its '
+            ───╯
+        "#]]
+    }
+}
+
+#[test]
+fn integer_literal_bounds() {
+    lextest! {
+        indoc![r#"
+            9223372036854775807
+            9223372036854775808
+            9223372036854775809
+            18446744073709551615
+            18446744073709551616
+        "#],
+        expect![[r#"
+            src0:1:1..1:20       IntLiteral(9223372036854775807)
+            src0:2:1..2:20       IntLiteral(9223372036854775808)
+            src0:3:1..3:20       Error
+            src0:4:1..4:21       Error
+            src0:5:1..5:21       Error
+            src0:5:22..5:22      EOF
+            Error: illegal integer literal: this integer literal is too large to be stored in any Eta type
+               ╭─[ src0:3:1 ]
+               │
+             3 │ 9223372036854775809
+               │ ─────────┬─────────  
+               │          ╰─────────── this integer is too large
+               │ 
+               │ Note: an `int` is 64 bits: from -9223372036854775808 to 9223372036854775807
+            ───╯
+            Error: illegal integer literal: this integer literal is too large to be stored in any Eta type
+               ╭─[ src0:4:1 ]
+               │
+             4 │ 18446744073709551615
+               │ ──────────┬─────────  
+               │           ╰─────────── this integer is too large
+               │ 
+               │ Note: an `int` is 64 bits: from -9223372036854775808 to 9223372036854775807
+            ───╯
+            Error: illegal integer literal: this integer literal is too large to be stored in any Eta type
+               ╭─[ src0:5:1 ]
+               │
+             5 │ 18446744073709551616
+               │ ──────────┬─────────  
+               │           ╰─────────── this integer is too large
+               │ 
+               │ Note: an `int` is 64 bits: from -9223372036854775808 to 9223372036854775807
             ───╯
         "#]]
     }

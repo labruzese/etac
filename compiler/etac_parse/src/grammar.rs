@@ -348,7 +348,9 @@ fn glob_decl_value(p: &mut Parser) -> Option<GlobDeclValue> {
         return None;
     }
     if p.at_any(LIT_FIRST) {
-        return Some(GlobDeclValue::Literal(lit_at(p).0));
+        let (lit, _) = lit_at(p);
+        check_int_range(p, &lit);
+        return Some(GlobDeclValue::Literal(lit));
     }
     p.err_and_recover(Expected::GlobalInit, ITEM_FIRST.union(ts![;]));
     None
@@ -858,10 +860,12 @@ pub fn expr(p: &mut Parser) -> ExprKind {
 /// The height is how [`MAX_HEIGHT`] is enforced: a leaf is 1 high, and every node is one higher than its tallest
 /// child. Each production that loops checks the height it has reached, and so no expression is ever taller.
 fn expr_h(p: &mut Parser) -> (ExprKind, u32) {
-    expr_bp(p, 0)
+    expr_bp(p, 0, false)
 }
 
-fn expr_bp(p: &mut Parser, min_bp: u8) -> (ExprKind, u32) {
+/// `negated` says the expression is the operand of a unary `-`, which is the one place the literal
+/// `9223372036854775808` may be written: see [`check_int_range`].
+fn expr_bp(p: &mut Parser, min_bp: u8, negated: bool) -> (ExprKind, u32) {
     if !p.enter() {
         return (ExprKind::Error(Error(p.skip_until(STMT_FOLLOW))), 1);
     }
@@ -869,7 +873,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> (ExprKind, u32) {
 
     let (mut lhs, mut height) = if p.at_any(ts![-, !]) {
         let op = unary_op(p);
-        let (operand, height) = expr_bp(p, PREFIX_BP);
+        let (operand, height) = expr_bp(p, PREFIX_BP, matches!(op.kind, UOpKind::Neg));
         let unary = ExprKind::Unary(UnaryExpr {
             span: p.finish(m),
             op,
@@ -877,7 +881,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> (ExprKind, u32) {
         });
         (unary, height + 1)
     } else {
-        primary(p)
+        primary(p, negated)
     };
 
     while let Some((lbp, rbp, kind)) = infix(p.cur()) {
@@ -890,7 +894,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> (ExprKind, u32) {
         };
         let op_span = op.span;
         p.bump_any();
-        let (rhs, rhs_height) = expr_bp(p, rbp);
+        let (rhs, rhs_height) = expr_bp(p, rbp, false);
         height = height.max(rhs_height) + 1;
         lhs = ExprKind::Binary(BinaryExpr {
             span: p.finish(m),
@@ -904,7 +908,7 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> (ExprKind, u32) {
             // Read the rest of the chain without building on it: an operand at a time, whatever the operators.
             while infix(p.cur()).is_some() {
                 p.bump_any();
-                expr_bp(p, PREFIX_BP);
+                expr_bp(p, PREFIX_BP, false);
             }
             lhs = ExprKind::Error(Error(p.finish(m)));
             height = 1;
@@ -940,7 +944,7 @@ fn unary_op(p: &mut Parser) -> UOp {
 /// ```text
 /// primary ::= literal | ident | proc_call | length_call | "(" expr ")" | primary "[" expr "]"
 /// ```
-fn primary(p: &mut Parser) -> (ExprKind, u32) {
+fn primary(p: &mut Parser, negated: bool) -> (ExprKind, u32) {
     let m = p.start();
 
     let (mut e, mut height) = match p.cur() {
@@ -963,6 +967,9 @@ fn primary(p: &mut Parser) -> (ExprKind, u32) {
         }
         k if LIT_FIRST.contains(k) => {
             let (lit, height) = lit_at(p);
+            if !negated {
+                check_int_range(p, &lit);
+            }
             (ExprKind::Lit(lit), height)
         }
         _ => (
@@ -1068,6 +1075,26 @@ fn length_call(p: &mut Parser) -> (LengthCall, u32) {
 }
 
 // ---- literals & identifiers ----
+
+/// Report an integer literal that is not an `int`.
+///
+/// The lexer lets `9223372036854775808` through, one more than the largest `int`, because `-9223372036854775808` is
+/// the smallest. Call this for a literal anywhere but directly under that `-`.
+fn check_int_range(p: &mut Parser, lit: &LitKind) {
+    if let LitKind::Int(int) = lit
+        && int.value > i64::MAX as u64
+    {
+        let d = p
+            .dcx()
+            .new_err(int.span, "integer literal out of range")
+            .with_message("this is one more than the largest `int`")
+            .with_note(format!(
+                "{} can only be written with a `-` directly in front of it, as the smallest `int`",
+                int.value
+            ));
+        p.report(d);
+    }
+}
 
 /// Consume an identifier the caller has already checked for.
 fn ident_at(p: &mut Parser) -> Ident {
