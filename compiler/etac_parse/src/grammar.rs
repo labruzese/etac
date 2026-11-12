@@ -5,7 +5,7 @@ use etac_lexer::Tok;
 use etac_lexer::token::{Token, TokenKind};
 use etac_source::Span;
 
-use crate::parser::{Expected, List, Parser};
+use crate::parser::{Expected, List, MAX_HEIGHT, Parser};
 use crate::token_set::{TokenSet, ts};
 
 // ---- first / follow sets ----
@@ -348,7 +348,7 @@ fn glob_decl_value(p: &mut Parser) -> Option<GlobDeclValue> {
         return None;
     }
     if p.at_any(LIT_FIRST) {
-        return Some(GlobDeclValue::Literal(lit_at(p)));
+        return Some(GlobDeclValue::Literal(lit_at(p).0));
     }
     p.err_and_recover(Expected::GlobalInit, ITEM_FIRST.union(ts![;]));
     None
@@ -690,6 +690,30 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
         let dm = p.start();
         let open = p.bump(Tok!['[']);
 
+        // Each dimension nests the type one level deeper.
+        if dims.len() as u32 == MAX_HEIGHT {
+            let d = p
+                .dcx()
+                .new_err(open, "this array type has too many dimensions")
+                .with_message(format!("this is dimension {}", MAX_HEIGHT + 1))
+                .with_note(format!("an array type can have at most {MAX_HEIGHT} dimensions"));
+            p.report(d);
+            // Read the rest of the dimensions without keeping them.
+            let mut open = open;
+            loop {
+                if !p.at(Tok![']']) {
+                    let saved = p.enter_recovery(ts![']']);
+                    expr(p);
+                    p.leave_recovery(saved);
+                }
+                if !p.expect_close(Tok![']'], open, "array dimension") || !p.at(Tok!['[']) {
+                    break;
+                }
+                open = p.bump(Tok!['[']);
+            }
+            return TypeKind::Error(Error(p.finish(m)));
+        }
+
         let size = if p.at(Tok![']']) {
             None
         } else {
@@ -774,23 +798,32 @@ const PREFIX_BP: u8 = 13;
 /// expr ::= unop expr | expr binop expr | primary
 /// ```
 pub fn expr(p: &mut Parser) -> ExprKind {
+    expr_h(p).0
+}
+
+/// An expression and the height of its tree, for the productions that nest it in a bigger expression.
+///
+/// The height is how [`MAX_HEIGHT`] is enforced: a leaf is 1 high, and every node is one higher than its tallest
+/// child. Each production that loops checks the height it has reached, and so no expression is ever taller.
+fn expr_h(p: &mut Parser) -> (ExprKind, u32) {
     expr_bp(p, 0)
 }
 
-fn expr_bp(p: &mut Parser, min_bp: u8) -> ExprKind {
+fn expr_bp(p: &mut Parser, min_bp: u8) -> (ExprKind, u32) {
     if !p.enter() {
-        return ExprKind::Error(Error(p.skip_until(STMT_FOLLOW)));
+        return (ExprKind::Error(Error(p.skip_until(STMT_FOLLOW))), 1);
     }
     let m = p.start();
 
-    let mut lhs = if p.at_any(ts![-, !]) {
+    let (mut lhs, mut height) = if p.at_any(ts![-, !]) {
         let op = unary_op(p);
-        let operand = expr_bp(p, PREFIX_BP);
-        ExprKind::Unary(UnaryExpr {
+        let (operand, height) = expr_bp(p, PREFIX_BP);
+        let unary = ExprKind::Unary(UnaryExpr {
             span: p.finish(m),
             op,
             operand: Box::new(operand),
-        })
+        });
+        (unary, height + 1)
     } else {
         primary(p)
     };
@@ -803,18 +836,41 @@ fn expr_bp(p: &mut Parser, min_bp: u8) -> ExprKind {
             span: p.cur_span(),
             kind,
         };
+        let op_span = op.span;
         p.bump_any();
-        let rhs = expr_bp(p, rbp);
+        let (rhs, rhs_height) = expr_bp(p, rbp);
+        height = height.max(rhs_height) + 1;
         lhs = ExprKind::Binary(BinaryExpr {
             span: p.finish(m),
             op,
             lhs: Box::new(lhs),
             rhs: Box::new(rhs),
         });
+
+        if height > MAX_HEIGHT {
+            too_tall(p, op_span);
+            // Read the rest of the chain without building on it: an operand at a time, whatever the operators.
+            while infix(p.cur()).is_some() {
+                p.bump_any();
+                expr_bp(p, PREFIX_BP);
+            }
+            lhs = ExprKind::Error(Error(p.finish(m)));
+            height = 1;
+        }
     }
 
     p.leave();
-    lhs
+    (lhs, height)
+}
+
+/// Report an expression that grew past [`MAX_HEIGHT`], at the operator or index that took it there.
+fn too_tall(p: &mut Parser, at: Span) {
+    let d = p
+        .dcx()
+        .new_err(at, "this expression is too large")
+        .with_message(format!("the expression is more than {MAX_HEIGHT} operations deep here"))
+        .with_note("split it up, storing the parts in variables");
+    p.report(d);
 }
 
 fn unary_op(p: &mut Parser) -> UOp {
@@ -832,89 +888,131 @@ fn unary_op(p: &mut Parser) -> UOp {
 /// ```text
 /// primary ::= literal | ident | proc_call | length_call | "(" expr ")" | primary "[" expr "]"
 /// ```
-fn primary(p: &mut Parser) -> ExprKind {
+fn primary(p: &mut Parser) -> (ExprKind, u32) {
     let m = p.start();
 
-    let mut e = match p.cur() {
-        Tok![ident] if p.nth_at(1, Tok!['(']) => ExprKind::Call(proc_call(p)),
-        Tok![ident] => ExprKind::Id(ident_at(p)),
-        Tok![length] => ExprKind::Length(length_call(p)),
+    let (mut e, mut height) = match p.cur() {
+        Tok![ident] if p.nth_at(1, Tok!['(']) => {
+            let (call, height) = proc_call(p);
+            (ExprKind::Call(call), height)
+        }
+        Tok![ident] => (ExprKind::Id(ident_at(p)), 1),
+        Tok![length] => {
+            let (call, height) = length_call(p);
+            (ExprKind::Length(call), height)
+        }
         Tok!['('] => {
             let open = p.bump(Tok!['(']);
             let saved = p.enter_recovery(ts![')']);
-            let inner = expr(p);
+            let inner = expr_h(p);
             p.leave_recovery(saved);
             p.expect_close(Tok![')'], open, "parenthesised expression");
             inner // parentheses group; they leave no node behind
         }
-        k if LIT_FIRST.contains(k) => ExprKind::Lit(lit_at(p)),
-        _ => ExprKind::Error(Error(p.err_and_recover(Expected::Expr, STMT_FOLLOW))),
+        k if LIT_FIRST.contains(k) => {
+            let (lit, height) = lit_at(p);
+            (ExprKind::Lit(lit), height)
+        }
+        _ => (
+            ExprKind::Error(Error(p.err_and_recover(Expected::Expr, STMT_FOLLOW))),
+            1,
+        ),
     };
 
     // indexing binds tighter than every operator, and chains.
     while p.at(Tok!['[']) {
-        let open = p.bump(Tok!['[']);
-        let saved = p.enter_recovery(ts![']']);
-        let index = expr(p);
-        p.leave_recovery(saved);
-        p.expect_close(Tok![']'], open, "index");
+        let im = p.start();
+        let (index, index_height) = index_suffix(p);
+        let index_span = p.finish(im);
+        height = height.max(index_height) + 1;
         e = ExprKind::Index(ExprIndex {
             span: p.finish(m),
             array: Box::new(e),
             index: Box::new(index),
         });
+
+        if height > MAX_HEIGHT {
+            too_tall(p, index_span);
+            // Read the rest of the chain without building on it.
+            while p.at(Tok!['[']) {
+                index_suffix(p);
+            }
+            e = ExprKind::Error(Error(p.finish(m)));
+            height = 1;
+        }
     }
-    e
+    (e, height)
+}
+
+/// The `[expr]` after something being indexed.
+fn index_suffix(p: &mut Parser) -> (ExprKind, u32) {
+    let open = p.bump(Tok!['[']);
+    let saved = p.enter_recovery(ts![']']);
+    let index = expr_h(p);
+    p.leave_recovery(saved);
+    p.expect_close(Tok![']'], open, "index");
+    index
 }
 
 /// ```text
 /// proc_call ::= ident "(" expr,* ")"
 /// ```
-fn proc_call(p: &mut Parser) -> ProcCall {
+fn proc_call(p: &mut Parser) -> (ProcCall, u32) {
     let m = p.start();
     let id = ident_at(p);
     let open = p.bump(Tok!['(']);
     let saved = p.enter_recovery(ts![')'].union(TokenSet::of(Tok![,])));
+    let mut tallest = 0;
     let args = p.separated(
         /* sepr */ Tok![,],
         /* close */ ts![')'],
         /* first */ EXPR_FIRST,
         /* what */ Expected::Expr,
         /* kind */ List::Any,
-        /* elem */ |p| Some(expr(p)),
+        /* elem */ |p| Some(expr_under(p, &mut tallest)),
     );
     p.leave_recovery(saved);
     p.expect_close(Tok![')'], open, "argument list");
-    ProcCall {
+    let call = ProcCall {
         span: p.finish(m),
         id,
         args,
-    }
+    };
+    (call, tallest + 1)
+}
+
+/// An expression that is one of several children of a node: `tallest` keeps the height of the tallest so far.
+fn expr_under(p: &mut Parser, tallest: &mut u32) -> ExprKind {
+    let (e, height) = expr_h(p);
+    *tallest = (*tallest).max(height);
+    e
 }
 
 /// ```text
 /// length_call ::= "length" "(" expr ")"
 /// ```
-fn length_call(p: &mut Parser) -> LengthCall {
+fn length_call(p: &mut Parser) -> (LengthCall, u32) {
     let m = p.start();
     p.bump(Tok![length]);
 
     if !p.at(Tok!['(']) {
         p.expect(Tok!['(']);
-        return LengthCall {
+        let call = LengthCall {
             span: p.finish(m),
             param: Box::new(ExprKind::Error(Error(p.gap_span()))),
         };
+        return (call, 2);
     }
     let open = p.bump(Tok!['(']);
     let saved = p.enter_recovery(ts![')']);
-    let param = expr(p);
+    let (param, height) = expr_h(p);
     p.leave_recovery(saved);
     p.expect_close(Tok![')'], open, "argument list");
-    LengthCall {
+    let call = LengthCall {
         span: p.finish(m),
         param: Box::new(param),
-    }
+    };
+    (call, height + 1)
 }
 
 // ---- literals & identifiers ----
@@ -939,8 +1037,13 @@ fn ident(p: &mut Parser) -> Option<Ident> {
     }
 }
 
-fn lit_at(p: &mut Parser) -> LitKind {
-    match p.cur() {
+/// A literal and the height of its tree: 1, unless it is an array literal with elements.
+fn lit_at(p: &mut Parser) -> (LitKind, u32) {
+    if p.at(Tok!['{']) {
+        let (array, height) = array_lit(p);
+        return (LitKind::Array(ArrayLitKind::Array(array)), height);
+    }
+    let lit = match p.cur() {
         Tok![int_lit] => LitKind::Int(int_lit_at(p)),
         Tok![bool_lit] => {
             let (tok, span) = p.bump_any();
@@ -957,9 +1060,9 @@ fn lit_at(p: &mut Parser) -> LitKind {
             let Token::StrLiteral(value) = tok else { unreachable!() };
             LitKind::Array(ArrayLitKind::String(StringLit { span, value }))
         }
-        Tok!['{'] => LitKind::Array(ArrayLitKind::Array(array_lit(p))),
         k => unreachable!("lit_at on {k}"),
-    }
+    };
+    (lit, 1)
 }
 
 fn int_lit_at(p: &mut Parser) -> IntLit {
@@ -972,24 +1075,26 @@ fn int_lit_at(p: &mut Parser) -> IntLit {
 /// ```text
 /// array_lit ::= "{" expr,* ","? "}"
 /// ```
-fn array_lit(p: &mut Parser) -> ArrayLit {
+fn array_lit(p: &mut Parser) -> (ArrayLit, u32) {
     let m = p.start();
     let open = p.bump(Tok!['{']);
     let saved = p.enter_recovery(ts!['}'].union(TokenSet::of(Tok![,])));
+    let mut tallest = 0;
     let value = p.separated(
         /* sepr */ Tok![,],
         /* close */ ts!['}'],
         /* first */ EXPR_FIRST,
         /* what */ Expected::Expr,
         /* kind */ List::Trailing,
-        /* elem */ |p| Some(expr(p)),
+        /* elem */ |p| Some(expr_under(p, &mut tallest)),
     );
     p.leave_recovery(saved);
     p.expect_close(Tok!['}'], open, "array literal");
-    ArrayLit {
+    let array = ArrayLit {
         span: p.finish(m),
         value,
-    }
+    };
+    (array, tallest + 1)
 }
 
 // ---- helpers ----

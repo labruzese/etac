@@ -14,8 +14,18 @@ use crate::token_set::TokenSet;
 
 // ---- settings ----
 //
-/// Recursion cap for `stmt` and `expr`.
+/// Recursion cap for `stmt` and `expr`. This is what keeps the parser's own stack bounded.
 const MAX_DEPTH: u16 = 256;
+
+/// Cap on the height of the tree the parser builds for one expression or type.
+///
+/// Operator chains, index chains and array dimensions are parsed in loops, so [`MAX_DEPTH`] never sees them, yet
+/// each link makes the tree one node taller: `1 + 1 + ... + 1` is as deep as it is long. Everything that walks the
+/// tree afterwards recurses that deep, down to dropping it, so the height has to be bounded here.
+///
+/// The loops are what this stops. Nesting that goes through recursion (parentheses, unary operators, call arguments)
+/// can still add a level each on top of a full-height chain, but [`MAX_DEPTH`] bounds how many of those there are.
+pub const MAX_HEIGHT: u32 = 1024;
 
 /// Different kinds of things the parser might expect. Named constructs provide better error
 /// messages but if there's only a few tokens that you could have expected you can also expect a

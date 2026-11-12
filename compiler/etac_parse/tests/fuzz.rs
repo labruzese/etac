@@ -33,6 +33,11 @@ impl Rng {
 /// Parse `src` both ways and throw the diagnostics away. Panics, hangs and debug
 /// assertions are the failure modes under test; the output is not.
 fn fuzz_one(src: &str) {
+    errors_in(src);
+}
+
+/// [`fuzz_one`], returning how many diagnostics lexing and parsing `src` as a program produced.
+fn errors_in(src: &str) -> usize {
     let emitter = etac_errors::emitter::IoEmitter::sink();
     let dcx = DiagCtx::new(emitter);
     let sm = SourceMap::default();
@@ -40,11 +45,13 @@ fn fuzz_one(src: &str) {
 
     let (id, text) = sm.alloc_source("fuzz.eta".to_owned(), src.to_owned());
     let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
+    let mut errors = lexed.diags.len();
     for d in Vec::from(lexed.diags) {
         d.cancel();
     }
 
     let ParseResult { parse: _, diags } = etac_ast::ast::Program::parse(&lexed.tokens, &dcx);
+    errors += diags.len();
     for d in diags {
         d.cancel();
     }
@@ -55,6 +62,7 @@ fn fuzz_one(src: &str) {
 
     let _: Vec<DiagBuilder<'_>> = Vec::new();
     dcx.cancel();
+    errors
 }
 
 #[test]
@@ -105,4 +113,53 @@ fn deep_nesting_is_capped() {
     fuzz_one(&format!("f() {{ x: int = {}1 }}", "(".repeat(5000)));
     fuzz_one(&format!("f() {{ {} }}", "if true ".repeat(5000)));
     fuzz_one(&format!("f() {{ x: int = {}1 }}", "-".repeat(5000)));
+}
+
+/// Chains are parsed in loops, so the recursion cap never sees them, but every link makes the tree one node taller
+/// and the tree is dropped, and later walked, by recursion. A long one must be reported, not built.
+#[test]
+fn long_flat_chains_are_capped() {
+    const LONG: usize = 200_000;
+
+    // within the cap: a long but reasonable sum is just a sum
+    assert_eq!(errors_in(&format!("f() {{ x: int = {}1 }}", "1 + ".repeat(1000))), 0);
+    assert_eq!(
+        errors_in(&format!("f(a: int[]) {{ x: int = a{} }}", "[0]".repeat(1000))),
+        0
+    );
+    assert_eq!(errors_in(&format!("f() {{ x: int{} }}", "[]".repeat(1000))), 0);
+
+    // past it: one diagnostic for the whole chain, however long it goes on
+    assert_eq!(errors_in(&format!("f() {{ x: int = {}1 }}", "1 + ".repeat(LONG))), 1);
+    assert_eq!(
+        errors_in(&format!("f(a: int) {{ x: int = {}a }}", "a + ".repeat(LONG))),
+        1
+    );
+    assert_eq!(
+        errors_in(&format!("f() {{ x: int = 1 + {}1 }}", "1 * ".repeat(LONG))),
+        1
+    );
+    assert_eq!(
+        errors_in(&format!("f() {{ x: bool = {}true }}", "true & 1 < 2 | ".repeat(LONG))),
+        1
+    );
+    assert_eq!(
+        errors_in(&format!("f(a: int[]) {{ x: int = a{} }}", "[0]".repeat(LONG))),
+        1
+    );
+    assert_eq!(errors_in(&format!("f() {{ x: int{} }}", "[]".repeat(LONG))), 1);
+    assert_eq!(errors_in(&format!("f(n: int) {{ x: int{} }}", "[n]".repeat(LONG))), 1);
+
+    // a chain that is itself an operand of a chain
+    let inner = format!("({}1)", "1 + ".repeat(1000));
+    fuzz_one(&format!("f() {{ x: int = {}1 }}", format!("{inner} * ").repeat(2000)));
+    fuzz_one(&format!(
+        "f() {{ x: int = {}{inner}{} }}",
+        "-(".repeat(200),
+        ")".repeat(200)
+    ));
+    // unterminated, so recovery has to deal with it too
+    fuzz_one(&format!("f() {{ x: int = {}", "1 + ".repeat(LONG)));
+    fuzz_one(&format!("f(a: int[]) {{ x: int = a{}", "[0".repeat(LONG)));
+    fuzz_one(&format!("f() {{ x: int{}", "[".repeat(LONG)));
 }
