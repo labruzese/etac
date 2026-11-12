@@ -430,22 +430,75 @@ fn stmt(p: &mut Parser) -> StmtKind {
 /// ```
 ///
 /// `else` binds to the nearest `if`
+///
+/// An `else if` is an `if` nested in an `else`, but a chain of them is parsed in a loop: recursing through
+/// [`stmt`] for every branch would run a long chain into the recursion cap, and one branch per case is how such
+/// chains are written.
 fn if_stmt(p: &mut Parser) -> IfStmt {
-    let m = p.start();
-    p.bump(Tok![if]);
-    let cond = condition(p);
-    let then_branch = stmt(p);
-    let else_branch = if p.eat(Tok![else]) {
-        Some(Box::new(stmt(p)))
-    } else {
-        None
-    };
-    IfStmt {
-        span: p.finish(m),
-        cond: Box::new(cond),
-        then_branch: Box::new(then_branch),
-        else_branch,
+    // Each `if` of the chain, outermost first. The `else` that would complete it is not known yet.
+    let mut arms = Vec::new();
+    let mut else_branch = None;
+    loop {
+        let m = p.start();
+        p.bump(Tok![if]);
+        let cond = condition(p);
+        let then_branch = stmt(p);
+        arms.push((m, cond, then_branch));
+
+        if !p.at(Tok![else]) {
+            break;
+        }
+        if !p.nth_at(1, Tok![if]) {
+            p.bump(Tok![else]);
+            else_branch = Some(Box::new(stmt(p)));
+            break;
+        }
+        if !p.enter_link() {
+            else_branch = Some(Box::new(StmtKind::Error(Error(else_if_too_deep(p)))));
+            break;
+        }
+        p.bump(Tok![else]);
     }
+    p.leave_links(arms.len() as u32 - 1);
+
+    // Nest them, from the last `if` outwards. Every `if` runs to the end of the chain.
+    let mut nested: Option<IfStmt> = None;
+    for (m, cond, then_branch) in arms.into_iter().rev() {
+        let else_branch = match nested.take() {
+            Some(inner) => Some(Box::new(StmtKind::If(inner))),
+            None => else_branch.take(),
+        };
+        nested = Some(IfStmt {
+            span: p.finish(m),
+            cond: Box::new(cond),
+            then_branch: Box::new(then_branch),
+            else_branch,
+        });
+    }
+    nested.expect("the loop pushes at least one `if`")
+}
+
+/// Report an `else if` that would nest the tree past [`MAX_HEIGHT`], and read the rest of its chain without
+/// building it. Returns the span of what was read.
+fn else_if_too_deep(p: &mut Parser) -> Span {
+    let m = p.start();
+    let d = p
+        .dcx()
+        .new_err(p.cur_span(), "this chain of `else if` is too long")
+        .with_message(format!("statements are nested more than {MAX_HEIGHT} deep here"))
+        .with_note("every `else if` nests inside the one before it; split the chain up");
+    p.report(d);
+
+    while p.eat(Tok![else]) {
+        if !p.at(Tok![if]) {
+            stmt(p);
+            break;
+        }
+        p.bump(Tok![if]);
+        condition(p);
+        stmt(p);
+    }
+    p.finish(m)
 }
 
 /// ```text

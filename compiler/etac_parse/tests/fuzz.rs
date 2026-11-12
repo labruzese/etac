@@ -163,3 +163,41 @@ fn long_flat_chains_are_capped() {
     fuzz_one(&format!("f(a: int[]) {{ x: int = a{}", "[0".repeat(LONG)));
     fuzz_one(&format!("f() {{ x: int{}", "[".repeat(LONG)));
 }
+
+/// One `else if` per case is how long chains get written, so they are not charged against the recursion cap, but
+/// they do nest, and that has a cap of its own.
+#[test]
+fn long_else_if_chains_are_capped() {
+    let chain = |arms: usize, last: &str| {
+        let arms: String = (0..arms).map(|i| format!("if x == {i} {{ x = 0 }} else ")).collect();
+        format!("f(x: int) {{ {arms}{last} }}")
+    };
+
+    // far more branches than the recursion cap allows levels
+    assert_eq!(errors_in(&chain(1000, "{ x = 1 }")), 0);
+    assert_eq!(errors_in(&chain(1000, "if x == 0 { x = 1 }")), 0);
+
+    // past the cap: one diagnostic for the whole chain
+    assert_eq!(errors_in(&chain(200_000, "{ x = 1 }")), 1);
+    assert_eq!(errors_in(&chain(200_000, "if x == 0 { x = 1 }")), 1);
+
+    // a chain in the last branch of a chain nests on top of it: the caps do not multiply
+    let mut nested = "{ x = 1 }".to_owned();
+    for _ in 0..100 {
+        nested = format!("{{ {} }}", chain(900, &nested));
+    }
+    assert!(errors_in(&format!("f(x: int) {nested}")) > 0);
+    // while one in the first branch does not
+    let mut nested = "x = 1".to_owned();
+    for _ in 0..100 {
+        nested = format!(
+            "if x == 0 {{ {nested} }} else {}",
+            chain(500, "{ x = 1 }").trim_start_matches("f(x: int) ")
+        );
+    }
+    assert_eq!(errors_in(&format!("f(x: int) {{ {nested} }}")), 0);
+
+    // unterminated
+    fuzz_one(&"if x == 0 { x = 0 } else ".repeat(200_000));
+    fuzz_one(&format!("f() {{ {}", "if x == 0 { x = 0 } else ".repeat(200_000)));
+}

@@ -100,6 +100,9 @@ pub struct Parser<'t, 'dcx> {
     recovery: TokenSet,
     /// current depth
     depth: u16,
+    /// links of the chains we are inside that were parsed in a loop instead of by recursion: see
+    /// [`enter_link`](Self::enter_link)
+    links: u32,
 }
 
 impl<'t, 'dcx> Parser<'t, 'dcx> {
@@ -118,6 +121,7 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
             last_err_pos: None,
             recovery: TokenSet::EMPTY,
             depth: 0,
+            links: 0,
         }
     }
 
@@ -246,6 +250,28 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
     #[inline]
     pub fn leave(&mut self) {
         self.depth -= 1;
+    }
+
+    /// Go one link further down a chain of statements that is parsed in a loop, like `else if`.
+    ///
+    /// Such a chain costs no recursion, so it can be far longer than [`MAX_DEPTH`]. It still nests: each link sits
+    /// inside the one before it in the tree, and so does everything parsed from here on. That depth is charged here,
+    /// against [`MAX_HEIGHT`], together with the recursion depth, so the two cannot multiply up through chains
+    /// nested in chains. `false` means the tree would get too deep; nothing is charged, and the caller reports it.
+    ///
+    /// Hand every link taken back to [`leave_links`](Self::leave_links) once the chain is finished.
+    #[must_use]
+    pub fn enter_link(&mut self) -> bool {
+        if u32::from(self.depth) + self.links >= MAX_HEIGHT {
+            return false;
+        }
+        self.links += 1;
+        true
+    }
+
+    #[inline]
+    pub fn leave_links(&mut self, links: u32) {
+        self.links -= links;
     }
 
     // ---- recovery anchors ----
