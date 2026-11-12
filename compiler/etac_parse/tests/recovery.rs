@@ -24,7 +24,7 @@ fn sized_dimension_after_unsized() {
               (defs
                 (method (decl f (params) (returns))
                   (block
-                    (decls (: a (array (array int) 3)))))))
+                    (decls (: a (array (array int 3))))))))
             program   > f() {
                       >     a: int[][3]
                       > }
@@ -39,9 +39,9 @@ fn sized_dimension_after_unsized() {
             decls     > a: int[][3]
             decl      > a: int[][3]
             arr_t     > int[][3]
-            arr_t     > int[]
-            int_t     > int
+            arr_t     > int[][3]
             int_lit   > 3
+            int_t     > int
             id        > a
 
             Error: an array size cannot follow an unsized dimension
@@ -480,8 +480,8 @@ fn sized_global_array() {
                       > }
             gdecl     > x: int[4]
             arr_t     > int[4]
-            int_t     > int
             int_lit   > 4
+            int_t     > int
             id        > x
             method    > f() {
                       > }

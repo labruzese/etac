@@ -229,7 +229,7 @@ impl_walk! {TypeKind, |self, v| {
 
 impl_walk! {ArrType, |self, v| {
     let ArrType { span: _, of, size } = self;
-    visit!(v, of, size)
+    visit!(v, size, of) // NB: size before element type
 }}
 
 impl_walk! {TargetKind, |self, v| {

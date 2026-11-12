@@ -192,7 +192,7 @@ fn array_chain_index() {
             int_lit   > 4
             decl      > a: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > a
             assign    > x: int = a[0][1]
@@ -235,8 +235,8 @@ fn array_decls() {
                 (method (decl f (params) (returns))
                   (block
                     (decls (: a (array (array int))))
-                    (decls (: b (array (array int i))))
-                    (decls (: d (array (array int i) j)))))))
+                    (decls (: b (array (array int) i)))
+                    (decls (: d (array (array int j) i)))))))
             program   > f() {
                       >     a: int[][]
                       >     b: int[i][]
@@ -257,23 +257,23 @@ fn array_decls() {
             decls     > a: int[][]
             decl      > a: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > a
             decls     > b: int[i][]
             decl      > b: int[i][]
             arr_t     > int[i][]
-            arr_t     > int[i]
-            int_t     > int
             id        > i
+            arr_t     > int[i][]
+            int_t     > int
             id        > b
             decls     > d: int[i][j]
             decl      > d: int[i][j]
             arr_t     > int[i][j]
-            arr_t     > int[i]
-            int_t     > int
             id        > i
+            arr_t     > int[i][j]
             id        > j
+            int_t     > int
             id        > d
 
         "#]]
@@ -396,8 +396,8 @@ fn arrayinit2() {
             decls     > a: int[n]
             decl      > a: int[n]
             arr_t     > int[n]
-            int_t     > int
             id        > n
+            int_t     > int
             id        > a
             while     > while (n > 0) {
                       >   n = n - 1
@@ -759,11 +759,11 @@ fn complex_interface() {
             id        > matrix
             decl      > m: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > m
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
 
         "#]]
@@ -1005,7 +1005,7 @@ fn err_toss_indexing() {
             id        > main
             decl      > args: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > args
             block     > {
@@ -1610,7 +1610,7 @@ fn ex1() {
             id        > main
             decl      > args: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > args
             block     > {
@@ -1678,7 +1678,7 @@ fn ex2() {
                 (method (decl bar (params) (returns))
                   (block
                     (assign (targets _ (: i int)) (values (call foo)))
-                    (decls (: b (array (array int i))))
+                    (decls (: b (array (array int) i)))
                     (assign (targets (index b 0)) (values (array 1 0)))))))
             program   > foo(): bool, int {
                       >   expr: int = 1 - 2 * 3 * -4 *
@@ -1781,9 +1781,9 @@ fn ex2() {
             decls     > b: int[i][]
             decl      > b: int[i][]
             arr_t     > int[i][]
-            arr_t     > int[i]
-            int_t     > int
             id        > i
+            arr_t     > int[i][]
+            int_t     > int
             id        > b
             assign    > b[0] = {1, 0}
             arr_lit   > {1, 0}
@@ -2062,7 +2062,7 @@ fn funccall_indexing() {
             id        > main
             decl      > args: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > args
             block     > {
@@ -2520,7 +2520,7 @@ fn gd_assign04() {
             id        > f
             decl      > x:int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > x
             decl      > y:int
@@ -2964,11 +2964,11 @@ fn gd_block02() {
             int_lit   > 0
             gdecl     > arrayisquitedeep :int[][][][][][];
             arr_t     > int[][][][][][]
-            arr_t     > int[][][][][]
-            arr_t     > int[][][][]
-            arr_t     > int[][][]
-            arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][][][][][]
+            arr_t     > int[][][][][][]
+            arr_t     > int[][][][][][]
+            arr_t     > int[][][][][][]
+            arr_t     > int[][][][][][]
             int_t     > int
             id        > arrayisquitedeep
             method    > f3(): int {
@@ -3251,8 +3251,8 @@ fn gd_globlarrinit1() {
                       > }
             gdecl     > x :int[4];
             arr_t     > int[4]
-            int_t     > int
             int_lit   > 4
+            int_t     > int
             id        > x
             method    > foo(x :int) :int
                       > {
@@ -3917,7 +3917,7 @@ fn length_array() {
             id        > main
             decl      > args: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > args
             block     > {
@@ -3960,7 +3960,7 @@ fn lexer_error() {
             id        > main
             decl      > args: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > args
             block     > {
@@ -4007,9 +4007,9 @@ fn mdarrays() {
                 (method (decl foo (params) (returns))
                   (block
                     (decls (: a (array (array int))))
-                    (decls (: b (array (array int 3) 4)))
+                    (decls (: b (array (array int 4) 3)))
                     (assign (targets a) (values b))
-                    (decls (: c (array (array int 3))))
+                    (decls (: c (array (array int) 3)))
                     (assign (targets (index c 0)) (values (index b 0)))
                     (assign (targets (index c 1)) (values (index b 1)))
                     (assign (targets (index c 2)) (values (index b 2)))
@@ -4040,16 +4040,16 @@ fn mdarrays() {
             decls     > a: int[][]
             decl      > a: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > a
             decls     > b: int[3][4]
             decl      > b: int[3][4]
             arr_t     > int[3][4]
-            arr_t     > int[3]
-            int_t     > int
             int_lit   > 3
+            arr_t     > int[3][4]
             int_lit   > 4
+            int_t     > int
             id        > b
             assign    > a = b
             id        > b
@@ -4057,9 +4057,9 @@ fn mdarrays() {
             decls     > c: int[3][]
             decl      > c: int[3][]
             arr_t     > int[3][]
-            arr_t     > int[3]
-            int_t     > int
             int_lit   > 3
+            arr_t     > int[3][]
+            int_t     > int
             id        > c
             assign    > c[0] = b[0]
             expr_idx  > b[0]
@@ -4092,7 +4092,7 @@ fn mdarrays() {
             int_lit   > 1
             decl      > d: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > d
 
@@ -4208,7 +4208,7 @@ fn multi_use() {
             id        > main
             decl      > args: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > args
             block     > {
@@ -4255,7 +4255,7 @@ fn multi_var_decls() {
             id        > main
             decl      > args: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > args
             block     > {
@@ -4995,7 +4995,7 @@ fn referr_vardecl01() {
               (defs
                 (method (decl f (params) (returns))
                   (block
-                    (decls (: x (array (array bool) 1)))))))
+                    (decls (: x (array (array bool 1))))))))
             program   > f() {
                       >   x:bool[][1]
                       > }
@@ -5010,9 +5010,9 @@ fn referr_vardecl01() {
             decls     > x:bool[][1]
             decl      > x:bool[][1]
             arr_t     > bool[][1]
-            arr_t     > bool[]
-            bool_t    > bool
+            arr_t     > bool[][1]
             int_lit   > 1
+            bool_t    > bool
             id        > x
 
             Error: an array size cannot follow an unsized dimension
@@ -5061,10 +5061,10 @@ fn referr_vardecl02() {
             decls     > x:bool[][1][]
             decl      > x:bool[][1][]
             arr_t     > bool[][1][]
-            arr_t     > bool[][1]
-            arr_t     > bool[]
-            bool_t    > bool
+            arr_t     > bool[][1][]
             int_lit   > 1
+            arr_t     > bool[][1][]
+            bool_t    > bool
             id        > x
 
             Error: an array size cannot follow an unsized dimension
@@ -5224,8 +5224,8 @@ fn sized_array_with_init() {
             int_lit   > 3
             decl      > a: int[3]
             arr_t     > int[3]
-            int_t     > int
             int_lit   > 3
+            int_t     > int
             id        > a
 
         "#]]
@@ -5806,7 +5806,7 @@ fn var_decls() {
             id        > main
             decl      > args: int[][]
             arr_t     > int[][]
-            arr_t     > int[]
+            arr_t     > int[][]
             int_t     > int
             id        > args
             block     > {

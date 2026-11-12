@@ -126,7 +126,11 @@ pub enum TypeKind {
     Error(Error),
 }
 
+/// An array of `size` elements of type `of`, or of unknown length if there is no `size`.
+///
+/// `int[3][4]` is an array of 3 `int[4]`s: the outer node has size `3`, and its `of` is the array with size `4`.
 pub struct ArrType {
+    /// The whole type as written, for every level of a multi-dimensional array.
     pub span: Span,
     pub of: Box<TypeKind>,
     pub size: Option<Box<ExprKind>>,

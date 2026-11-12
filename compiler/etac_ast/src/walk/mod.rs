@@ -13,6 +13,8 @@
 //!
 //! - [`Decl`] and [`GlobDecl`] visit their type before their name (`typ`, then `id`).
 //! - [`AssignStmt`] visits its values before its targets.
+//! - [`ArrType`] visits its size before its element type, so the sizes of `int[n][m]` are visited as they are written:
+//!   `n`, then `m`.
 //!
 //! So a pass that tracks scopes sees the expressions a declaration depends on before the name it declares: in
 //! `x: int = x + 1`, the `x` in `x + 1` is visited before the declaration of `x`, and in `a: int[n]`, `n` is visited
@@ -28,6 +30,7 @@
 //! [`Decl`]: crate::ast::Decl
 //! [`GlobDecl`]: crate::ast::GlobDecl
 //! [`AssignStmt`]: crate::ast::AssignStmt
+//! [`ArrType`]: crate::ast::ArrType
 //! [`Ident`]: crate::ast::Ident
 //! [`IntLit`]: crate::ast::IntLit
 //! [`BoolLit`]: crate::ast::BoolLit

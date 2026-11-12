@@ -670,6 +670,8 @@ enum Sizes {
 /// ```text
 /// type ::= ("int" | "bool") ("[" expr? "]")*
 /// ```
+///
+/// The first dimension written is the outermost array: `int[3][4]` is an array of 3 `int[4]`s.
 fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
     let m = p.start();
     let mut typ = match p.cur() {
@@ -681,6 +683,8 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
         }
     };
 
+    // The dimensions as written, outermost first.
+    let mut dims: Vec<Option<Box<ExprKind>>> = Vec::new();
     let mut first_unsized: Option<Span> = None;
     while p.at(Tok!['[']) {
         let dm = p.start();
@@ -721,8 +725,15 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
             _ => {}
         }
 
+        dims.push(size);
+    }
+
+    // Wrap from the inside out: the last dimension written is the one right around the element type. An inner
+    // array's own text is not contiguous (the `int` and `[4]` of `int[3][4]`), so every level spans the whole type.
+    let span = p.finish(m);
+    for size in dims.into_iter().rev() {
         typ = TypeKind::Array(ArrType {
-            span: p.finish(m),
+            span,
             of: Box::new(typ),
             size,
         });
