@@ -421,7 +421,8 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
 
     fn visit_char_lit(&mut self, n: &'ast CharLit) -> Self::Result {
         let CharLit { span: _, value } = n;
-        self.raw(format_args!("{value}"))
+        // quoted and escaped, so that `' '`, `')'` and `'\n'` each stay one readable atom
+        self.raw(format_args!("{value:?}"))
     }
 
     fn visit_array_lit_kind(&mut self, n: &'ast ArrayLitKind) -> Self::Result {
@@ -433,7 +434,8 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
 
     fn visit_string_lit(&mut self, n: &'ast StringLit) -> Self::Result {
         let StringLit { span: _, value } = n;
-        self.raw(format_args!("{value:?}"))
+        // the string itself, quoted and escaped: `value` is only the key it is interned under
+        self.raw(format_args!("{:?}", self.printer.symbols.resolve(value)))
     }
 
     fn visit_array_lit(&mut self, n: &'ast ArrayLit) -> Self::Result {

@@ -298,7 +298,7 @@ fn arrayinit() {
                 (method (decl foo (params) (returns))
                   (block
                     (assign (targets (: a (array int))) (values (array 72 101 108 108 111)))
-                    (assign (targets (: a (array int))) (values Spur(3)))))))
+                    (assign (targets (: a (array int))) (values "Hello"))))))
             program   > foo() {
                       >     a: int[] = {72,101,108,108,111}
                       >     a: int[] = "Hello"
@@ -1589,8 +1589,8 @@ fn ex1() {
               (defs
                 (method (decl main (params (: args (array (array int)))) (returns))
                   (block
-                    (call print Spur(5))
-                    (assign (targets (: c3po int)) (values (+ x 47)))
+                    (call print "Hello, World!\n")
+                    (assign (targets (: c3po int)) (values (+ 'x' 47)))
                     (assign (targets (: r2d2 int)) (values c3po))))))
             program   > use io
                       > 
@@ -3178,7 +3178,7 @@ fn gd_globlarrinit() {
             (program
               (uses)
               (defs
-                (global x (array int) Spur(2))
+                (global x (array int) "whoops")
                 (method (decl foo (params (: x int)) (returns int))
                   (block
                     (return x)))))
@@ -5308,7 +5308,7 @@ fn spec3() {
               (defs
                 (method (decl foo (params) (returns))
                   (block
-                    (assign (targets (: s (array int))) (values (+ Spur(3) (array 13 10))))))))
+                    (assign (targets (: s (array int))) (values (+ "Hello" (array 13 10))))))))
             program   > foo() {
                       >     s: int[] = "Hello" + {13, 10}
                       > }
@@ -5353,7 +5353,7 @@ fn string_index() {
               (defs
                 (method (decl f (params) (returns int))
                   (block
-                    (assign (targets (: x int)) (values (index Spur(3) 0)))
+                    (assign (targets (: x int)) (values (index "Hello" 0)))
                     (return x)))))
             program   > f(): int {
                       >     x: int = "Hello"[0]
@@ -5649,7 +5649,7 @@ fn unary_minus() {
                 (method (decl f (params (: x int) (: y (array int))) (returns))
                   (block
                     (assign (targets x) (values (- 0)))
-                    (assign (targets x) (values (- a)))
+                    (assign (targets x) (values (- 'a')))
                     (assign (targets x) (values (- x)))
                     (assign (targets x) (values (- (call i))))
                     (assign (targets x) (values (- (index y 0))))
@@ -6153,6 +6153,85 @@ fn dangling_binop_recovery() {
                │                        ┬  
                │                        ╰── expected an expression
             ───╯
+        "#]]
+    }
+}
+
+#[test]
+fn literals_print_quoted_and_escaped() {
+    parsetest! {
+        ".eta",
+        indoc![r#"
+            f() {
+                s: int[] = "a b)\n\"q\""
+                c: int = '\n'
+                d: int = ' '
+                e: int = ')'
+                g: int = '\''
+            }
+        "#],
+        expect![[r#"
+            src0.eta: parse(clean)
+            (program
+              (uses)
+              (defs
+                (method (decl f (params) (returns))
+                  (block
+                    (assign (targets (: s (array int))) (values "a b)\n\"q\""))
+                    (assign (targets (: c int)) (values '\n'))
+                    (assign (targets (: d int)) (values ' '))
+                    (assign (targets (: e int)) (values ')'))
+                    (assign (targets (: g int)) (values '\''))))))
+            program   > f() {
+                      >     s: int[] = "a b)\n\"q\""
+                      >     c: int = '\n'
+                      > ...
+                      >     e: int = ')'
+                      >     g: int = '\''
+                      > }
+            method    > f() {
+                      >     s: int[] = "a b)\n\"q\""
+                      >     c: int = '\n'
+                      > ...
+                      >     e: int = ')'
+                      >     g: int = '\''
+                      > }
+            mdecl     > f()
+            id        > f
+            block     > {
+                      >     s: int[] = "a b)\n\"q\""
+                      >     c: int = '\n'
+                      > ...
+                      >     e: int = ')'
+                      >     g: int = '\''
+                      > }
+            assign    > s: int[] = "a b)\n\"q\""
+            string_lit> "a b)\n\"q\""
+            decl      > s: int[]
+            arr_t     > int[]
+            int_t     > int
+            id        > s
+            assign    > c: int = '\n'
+            char_lit  > '\n'
+            decl      > c: int
+            int_t     > int
+            id        > c
+            assign    > d: int = ' '
+            char_lit  > ' '
+            decl      > d: int
+            int_t     > int
+            id        > d
+            assign    > e: int = ')'
+            char_lit  > ')'
+            decl      > e: int
+            int_t     > int
+            id        > e
+            assign    > g: int = '\''
+            char_lit  > '\''
+            decl      > g: int
+            int_t     > int
+            id        > g
+
         "#]]
     }
 }
