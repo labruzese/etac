@@ -1,6 +1,6 @@
 //! Path resolution
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
 use etac_errors::dcx::{DiagBuilder, DiagCtx};
@@ -24,6 +24,9 @@ pub struct Resolver {
     source_path: PathBuf,
     lib_path: PathBuf,
     seen: HashSet<FileId>,
+    /// Every file read so far, by its canonical path. The source map knows files by the path they were asked for,
+    /// which is what diagnostics show, but one file can be asked for in more than one way.
+    loaded: HashMap<PathBuf, FileId>,
 }
 
 impl Resolver {
@@ -33,6 +36,7 @@ impl Resolver {
             source_path: source_path.to_path_buf(),
             lib_path: lib_path.to_path_buf(),
             seen: HashSet::new(),
+            loaded: HashMap::new(),
         }
     }
 
@@ -119,11 +123,23 @@ impl Resolver {
             .with_note(format!("searched: {}", searched)))
     }
 
-    /// Read `path_str` from disk and store it in the cache, reusing the
-    /// existing [`FileId`] if this path has already been loaded.
-    fn load<'dcx>(&self, sm: &SourceMap, dcx: &'dcx DiagCtx, path_str: &str) -> Result<FileId, DiagBuilder<'dcx>> {
-        sm.get_or_load(path_str, || std::fs::read_to_string(path_str))
-            .map_err(|ioe| dcx.new_err_io(path_str, ioe))
+    /// Read `path_str` from disk and store it in the source map, reusing the existing [`FileId`] if this file has
+    /// already been loaded, under this spelling of its path or any other.
+    fn load<'dcx>(&mut self, sm: &SourceMap, dcx: &'dcx DiagCtx, path_str: &str) -> Result<FileId, DiagBuilder<'dcx>> {
+        // `a.eta` and `./a.eta` are one file, as is a symlink to either. A path that cannot be canonicalized cannot
+        // be read either, so leave it to the read below to say why.
+        let real_path = std::fs::canonicalize(path_str).ok();
+        if let Some(id) = real_path.as_ref().and_then(|real| self.loaded.get(real)) {
+            return Ok(*id);
+        }
+
+        let id = sm
+            .get_or_load(path_str, || std::fs::read_to_string(path_str))
+            .map_err(|ioe| dcx.new_err_io(path_str, ioe))?;
+        if let Some(real) = real_path {
+            self.loaded.insert(real, id);
+        }
+        Ok(id)
     }
 }
 
