@@ -171,5 +171,12 @@ fn make_report(diag: &Diagnostic, sm: &SourceMap, conf: EmitConfig) -> Report<'s
                 .with_color(color),
         );
     }
+    // The renderer only shows where a report is if a label points there. A diagnostic that has a location but was
+    // given no primary label still has to say where it is, so mark the spot without a message.
+    if let Some(loc) = diag.loc
+        && !diag.labels.iter().any(|label| label.kind == LabelKind::Primary)
+    {
+        report = report.with_label(ariadne::Label::new(sm.local_span(loc)).with_color(ariadne::Color::Red));
+    }
     report.finish()
 }
