@@ -1201,7 +1201,7 @@ fn expr_noun(e: &ExprKind) -> &'static str {
     }
 }
 
-fn expr_span(e: &ExprKind) -> Span {
+pub fn expr_span(e: &ExprKind) -> Span {
     match e {
         ExprKind::Id(n) => n.span,
         ExprKind::Lit(l) => lit_span(l),
@@ -1214,7 +1214,7 @@ fn expr_span(e: &ExprKind) -> Span {
     }
 }
 
-fn lit_span(l: &LitKind) -> Span {
+pub fn lit_span(l: &LitKind) -> Span {
     match l {
         LitKind::Int(n) => n.span,
         LitKind::Bool(n) => n.span,
@@ -1224,7 +1224,7 @@ fn lit_span(l: &LitKind) -> Span {
     }
 }
 
-fn stmt_span(s: &StmtKind) -> Span {
+pub fn stmt_span(s: &StmtKind) -> Span {
     match s {
         StmtKind::Assign(n) => n.span,
         StmtKind::Decls(n) => n.span,
