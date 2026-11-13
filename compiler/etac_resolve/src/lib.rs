@@ -43,7 +43,6 @@ impl Resolver {
     /// Classify and load a file named on the command line, resolving relative
     /// paths against `--sourcepath`.
     ///
-    /// `Ok(None)` means the path names a file that is already queued.
     /// `Err` carries an unemitted diagnostic: the path was unusable (non-UTF8
     /// name, unknown extension, or an I/O error).
     pub fn classify_cli<'dcx>(
@@ -66,10 +65,10 @@ impl Resolver {
         };
 
         let id = self.load(sm, dcx, path_str)?;
-        match self.seen.insert(id) {
-            true if is_interface => Ok(Some(File::Interface(id))),
-            true => Ok(Some(File::Program(id))),
-            false => Ok(None),
+        self.seen.insert(id);
+        match self.seen.get(&id).unwrap() {
+            id if is_interface => Ok(Some(File::Interface(*id))),
+            id => Ok(Some(File::Program(*id))),
         }
     }
 
@@ -79,8 +78,7 @@ impl Resolver {
     /// Takes the name and blame span rather than an AST node, so the resolver
     /// stays independent of `etac_ast` and trivially testable.
     ///
-    /// `Ok(None)` means the interface is already queued. `Err` carries an
-    /// unemitted diagnostic: no candidate exists on the search path (blamed at
+    /// `Err` carries an unemitted diagnostic: no candidate exists on the search path (blamed at
     /// `at`, naming every location searched).
     pub fn resolve_use<'dcx>(
         &mut self,
