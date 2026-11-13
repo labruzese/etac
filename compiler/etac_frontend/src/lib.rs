@@ -87,7 +87,7 @@ impl<'sm, W: Write> Debugger<'sm, W> {
         self
     }
 
-    /// Whether to dump the tree of each parsed file, with [`debug::write_parse`](crate::debug::write_parse).
+    /// Whether to dump the tree of each parsed file, with [`debug::write_parse`](etac_parse::debug::write_parse).
     #[must_use]
     pub fn trees(mut self, on: bool) -> Self {
         self.trees = on;
@@ -130,7 +130,7 @@ impl<T> ParsedFile<T> {
 
 /// Lexes and parses files out of a [`SourceMap`], reporting their diagnostics to a [`DiagCtx`].
 ///
-/// See the [module docs](crate::frontend).
+/// See the [crate docs](crate).
 pub struct Frontend<'a, H = ()> {
     pub sm: &'a SourceMap,
     pub interner: &'a EtacInterner,
