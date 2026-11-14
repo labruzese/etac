@@ -44,6 +44,7 @@ impl Resolver {
     /// Classify and load a file named on the command line, resolving relative
     /// paths against `--sourcepath`.
     ///
+    /// `Ok(None)` means the path names a file that is already queued.
     /// `Err` carries an unemitted diagnostic: the path was unusable (non-UTF8
     /// name, unknown extension, or an I/O error).
     pub fn classify_cli<'dcx>(
@@ -66,12 +67,11 @@ impl Resolver {
         };
 
         let id = self.load(sm, dcx, path_str)?;
-        self.seen.insert(id);
-        // The extension is what decides which kind of file this is.
-        Ok(Some(match is_interface {
-            true => File::Interface(InterfaceId::new(id)),
-            false => File::Program(SourceId::new(id)),
-        }))
+        match self.seen.insert(id) {
+            true if is_interface => Ok(Some(File::Interface(InterfaceId::new(id)))),
+            true => Ok(Some(File::Program(SourceId::new(id)))),
+            false => Ok(None),
+        }
     }
 
     /// Resolve one `use name` appearing in `from`. The search order is the directory
@@ -89,7 +89,7 @@ impl Resolver {
         from: SourceId,
         name: &str,
         at: Span,
-    ) -> Result<Option<InterfaceId>, DiagBuilder<'dcx>> {
+    ) -> Result<InterfaceId, DiagBuilder<'dcx>> {
         let file_name = format!("{name}.eti");
         let from_path = sm.get_source(from.file()).name.to_string();
         let from_dir = Path::new(&from_path).parent().unwrap_or_else(|| Path::new(""));
@@ -108,7 +108,8 @@ impl Resolver {
                 let iid = self
                     .load(sm, dcx, candidate_str)
                     .map_err(|diag| diag.with_label(at, "needed by this `use`"))?;
-                return Ok(self.seen.insert(iid).then_some(InterfaceId::new(iid)));
+                self.seen.insert(iid);
+                return Ok(InterfaceId::new(iid));
             }
         }
 
