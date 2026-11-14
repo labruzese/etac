@@ -2,7 +2,8 @@
 #![allow(clippy::cast_possible_truncation)]
 #![recursion_limit = "512"]
 
-use etac_errors::dcx::{DiagBuilder, DiagCtx};
+use etac_errors::dcx::DiagCtx;
+use etac_errors::guarantee::ErrorGuaranteed;
 use etac_intern::EtacInterner;
 use etac_source::Span;
 
@@ -25,14 +26,15 @@ pub struct EtaLexer<'dcx, R: etac_intern::Interner> {
     dcx: &'dcx DiagCtx,
 }
 
-pub struct LexResult<'dcx> {
-    pub tokens: Tokens,
-    pub diags: Box<[DiagBuilder<'dcx>]>,
-}
-
+/// A lexed file: its tokens, ending with an `EOF`.
+///
+/// There are always tokens, because the lexer recovers from the errors it reports: text it could not make a token of
+/// becomes an [`Error`](Token::Error) token.
 pub struct Tokens {
     pub kinds: Box<[TokenKind]>,
     pub data: Box<[(Token, Span)]>,
+    /// Proof that lexing reported an error, if it did. There is an `Error` token for every one.
+    pub errors: Option<ErrorGuaranteed>,
 }
 
 impl<'src, 'dcx> EtaLexer<'dcx, &'src EtacInterner> {
@@ -40,9 +42,10 @@ impl<'src, 'dcx> EtaLexer<'dcx, &'src EtacInterner> {
         Self { base, interner, dcx }
     }
 
-    pub fn lex(self, source: &str) -> LexResult<'dcx> {
+    /// Lex `source`, reporting what is not a token to the diagnostic context as it is found.
+    pub fn lex(self, source: &str) -> Tokens {
         let eof_loc = self.base + u32::try_from(source.len()).unwrap();
-        let mut diags = Vec::new();
+        let mut errors = None;
 
         let mut lexer = logos::Lexer::<Token>::with_extras(source, (self.base, self.interner));
 
@@ -60,8 +63,9 @@ impl<'src, 'dcx> EtaLexer<'dcx, &'src EtacInterner> {
                     if let Some(l) = ie.note {
                         d = d.with_note(l);
                     }
-                    diags.push(d);
-                    Token::Error
+                    let reported = d.finish();
+                    errors = Some(reported);
+                    Token::Error(reported)
                 }
             };
             data.push((tok, span));
@@ -71,12 +75,10 @@ impl<'src, 'dcx> EtaLexer<'dcx, &'src EtacInterner> {
 
         let kinds = data.iter().map(|(tok, _)| tok.kind()).collect::<Vec<_>>();
 
-        LexResult {
-            tokens: Tokens {
-                kinds: kinds.into_boxed_slice(),
-                data: data.into_boxed_slice(),
-            },
-            diags: diags.into_boxed_slice(),
+        Tokens {
+            kinds: kinds.into_boxed_slice(),
+            data: data.into_boxed_slice(),
+            errors,
         }
     }
 }

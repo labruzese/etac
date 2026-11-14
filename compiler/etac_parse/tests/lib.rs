@@ -3943,7 +3943,7 @@ fn lexer_error() {
             }
         "#],
         expect![[r#"
-            src0.eta: parse(clean)
+            src0.eta: parse(recovered)
             (program
               (uses)
               (defs

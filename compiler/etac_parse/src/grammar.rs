@@ -1,6 +1,7 @@
 //! The Eta grammar
 
 use etac_ast::ast::*;
+use etac_errors::guarantee::ErrorGuaranteed;
 use etac_lexer::Tok;
 use etac_lexer::token::{Token, TokenKind};
 use etac_source::Span;
@@ -55,7 +56,7 @@ pub fn program(p: &mut Parser) -> Program {
                 .new_err(span, "`use` must come before every definition")
                 .with_message("`use` is not allowed here")
                 .with_note("move this `use` to the top of the file");
-            p.report(d);
+            let _ = p.report(d);
             uses.extend(u);
         } else {
             definitions.push(definition(p));
@@ -69,7 +70,7 @@ pub fn program(p: &mut Parser) -> Program {
             .dcx()
             .new_err(p.gap_span(), "a program must contain at least one definition")
             .with_message("expected a method or global definition");
-        p.report(d);
+        let _ = p.report(d);
     }
 
     Program {
@@ -97,7 +98,7 @@ pub fn interface(p: &mut Parser) -> Interface {
             .dcx()
             .new_err(p.gap_span(), "an interface must declare at least one method")
             .with_message("expected a method declaration");
-        p.report(d);
+        let _ = p.report(d);
     }
 
     Interface {
@@ -159,8 +160,11 @@ fn definition(p: &mut Parser) -> DefinitionKind {
             _ => {}
         }
     }
-    p.err_expected(Expected::Definition);
-    DefinitionKind::Error(Error(skip_to_item(p, TokenSet::EMPTY)))
+    let reported = p.err_expected(Expected::Definition);
+    DefinitionKind::Error(Error {
+        span: skip_to_item(p, TokenSet::EMPTY),
+        reported,
+    })
 }
 
 /// ```text
@@ -180,7 +184,7 @@ fn interface_item(p: &mut Parser) -> InterfaceItemKind {
                 .with_message("remove this body")
                 .with_label(decl.span, "declared here")
                 .with_note("interfaces can only declare methods; only `.eta` files can implement them");
-            p.report(d);
+            let _ = p.report(d);
         }
 
         p.eat(Tok![;]);
@@ -195,8 +199,8 @@ fn interface_item(p: &mut Parser) -> InterfaceItemKind {
             .new_err(g.span, "an interface cannot declare a global")
             .with_message("not allowed in an interface")
             .with_note("move this global into the `.eta` file that defines it");
-        p.report(d);
-        return InterfaceItemKind::Error(Error(g.span));
+        let reported = p.report(d);
+        return InterfaceItemKind::Error(Error { span: g.span, reported });
     }
     if p.at(Tok![use]) {
         let at = p.cur_span();
@@ -206,13 +210,16 @@ fn interface_item(p: &mut Parser) -> InterfaceItemKind {
             .dcx()
             .new_err(span, "an interface cannot `use` another interface")
             .with_message("not allowed in an interface");
-        p.report(d);
-        return InterfaceItemKind::Error(Error(span));
+        let reported = p.report(d);
+        return InterfaceItemKind::Error(Error { span, reported });
     }
 
     // non-nice errors
-    p.err_expected(Expected::InterfaceItem);
-    InterfaceItemKind::Error(Error(skip_to_item(p, TokenSet::EMPTY)))
+    let reported = p.err_expected(Expected::InterfaceItem);
+    InterfaceItemKind::Error(Error {
+        span: skip_to_item(p, TokenSet::EMPTY),
+        reported,
+    })
 }
 
 /// ```text
@@ -231,8 +238,11 @@ fn method(p: &mut Parser) -> Method {
             .with_label(decl.span, "declared here")
             .with_note("a method can be used before it is defined, so there is no need to forward declare it")
             .with_note("only interface (`.eti`) files declare methods without a body");
-        p.report(d);
-        MethodBodyKind::Error(Error(skip_to_item(p, ts!['{'])))
+        let reported = p.report(d);
+        MethodBodyKind::Error(Error {
+            span: skip_to_item(p, ts!['{']),
+            reported,
+        })
     };
     Method {
         span: p.finish(m),
@@ -251,7 +261,7 @@ fn method_decl(p: &mut Parser) -> MethodDecl {
     let params = if p.at(Tok!['(']) {
         let open = p.bump(Tok!['(']);
         let saved = p.enter_recovery(ts![')'].union(TokenSet::of(Tok![,])));
-        let params = p.separated(
+        let (params, _) = p.separated(
             /* sepr */ Tok![,],
             /* close */ ts![')'],
             /* first */ DECL_FIRST,
@@ -263,7 +273,7 @@ fn method_decl(p: &mut Parser) -> MethodDecl {
         p.expect_close(Tok![')'], open, "parameter list");
         params
     } else {
-        p.expect(Tok!['(']);
+        let _ = p.expect(Tok!['(']);
         Vec::new()
     };
 
@@ -277,6 +287,7 @@ fn method_decl(p: &mut Parser) -> MethodDecl {
             /* kind */ List::NonEmpty,
             /* elem */ |p| Some(ty(p, Sizes::Allowed)),
         )
+        .0
     } else {
         Vec::new()
     };
@@ -314,7 +325,7 @@ fn glob_decl(p: &mut Parser) -> GlobDecl {
                 .new_err(init_span, "a global array cannot be initialised where it is declared")
                 .with_message("initialisation happens here")
                 .with_label(type_span, "this is an array type");
-            p.report(d);
+            let _ = p.report(d);
         }
         v
     } else {
@@ -344,7 +355,7 @@ fn glob_decl_value(p: &mut Parser) -> Option<GlobDeclValue> {
                 value,
             });
         }
-        p.err_expected(Expected::Tok(Tok![int_lit]));
+        let _ = p.err_expected(Expected::Tok(Tok![int_lit]));
         return None;
     }
     if p.at_any(LIT_FIRST) {
@@ -352,7 +363,7 @@ fn glob_decl_value(p: &mut Parser) -> Option<GlobDeclValue> {
         check_int_range(p, &lit);
         return Some(GlobDeclValue::Literal(lit));
     }
-    p.err_and_recover(Expected::GlobalInit, ITEM_FIRST.union(ts![;]));
+    let _ = p.err_and_recover(Expected::GlobalInit, ITEM_FIRST.union(ts![;]));
     None
 }
 
@@ -389,7 +400,7 @@ fn block(p: &mut Parser) -> Block {
                     .with_message("unreachable")
                     .with_label(ret_span, "the block already returned here")
                     .with_note("`return` must be the last statement in a block");
-                p.report(d);
+                let _ = p.report(d);
                 reported_return_error = true; // once per block is plenty
             }
             _ => {}
@@ -412,8 +423,11 @@ fn block(p: &mut Parser) -> Block {
 /// stmt ::= if | while | return | block | assign | decls | call
 /// ```
 fn stmt(p: &mut Parser) -> StmtKind {
-    if !p.enter() {
-        return StmtKind::Error(Error(p.skip_until(STMT_FOLLOW)));
+    if let Err(reported) = p.enter() {
+        return StmtKind::Error(Error {
+            span: p.skip_until(STMT_FOLLOW),
+            reported,
+        });
     }
     let out = match p.cur() {
         Tok![if] => StmtKind::If(if_stmt(p)),
@@ -421,7 +435,7 @@ fn stmt(p: &mut Parser) -> StmtKind {
         Tok![return] => StmtKind::Return(return_stmt(p)),
         Tok!['{'] => StmtKind::Block(block(p)),
         k if STMT_FIRST.contains(k) => assign_or_decl(p),
-        _ => StmtKind::Error(Error(p.err_and_recover(Expected::Stmt, STMT_FOLLOW))),
+        _ => StmtKind::Error(p.err_and_recover(Expected::Stmt, STMT_FOLLOW)),
     };
     p.leave();
     out
@@ -456,7 +470,7 @@ fn if_stmt(p: &mut Parser) -> IfStmt {
             break;
         }
         if !p.enter_link() {
-            else_branch = Some(Box::new(StmtKind::Error(Error(else_if_too_deep(p)))));
+            else_branch = Some(Box::new(StmtKind::Error(else_if_too_deep(p))));
             break;
         }
         p.bump(Tok![else]);
@@ -481,15 +495,15 @@ fn if_stmt(p: &mut Parser) -> IfStmt {
 }
 
 /// Report an `else if` that would nest the tree past [`MAX_HEIGHT`], and read the rest of its chain without
-/// building it. Returns the span of what was read.
-fn else_if_too_deep(p: &mut Parser) -> Span {
+/// building it. Returns the error node standing in for what was read.
+fn else_if_too_deep(p: &mut Parser) -> Error {
     let m = p.start();
     let d = p
         .dcx()
         .new_err(p.cur_span(), "this chain of `else if` is too long")
         .with_message(format!("statements are nested more than {MAX_HEIGHT} deep here"))
         .with_note("every `else if` nests inside the one before it; split the chain up");
-    p.report(d);
+    let reported = p.report(d);
 
     while p.eat(Tok![else]) {
         if !p.at(Tok![if]) {
@@ -500,7 +514,10 @@ fn else_if_too_deep(p: &mut Parser) -> Span {
         condition(p);
         stmt(p);
     }
-    p.finish(m)
+    Error {
+        span: p.finish(m),
+        reported,
+    }
 }
 
 /// ```text
@@ -527,8 +544,11 @@ fn while_stmt(p: &mut Parser) -> WhileStmt {
 /// and is unlikely to be what the user meant.
 fn condition(p: &mut Parser) -> ExprKind {
     if p.at(Tok!['{']) {
-        p.err_expected(Expected::Expr);
-        return ExprKind::Error(Error(p.gap_span()));
+        let reported = p.err_expected(Expected::Expr);
+        return ExprKind::Error(Error {
+            span: p.gap_span(),
+            reported,
+        });
     }
     let saved = p.enter_recovery(ts!['{']);
     let e = expr(p);
@@ -551,6 +571,7 @@ fn return_stmt(p: &mut Parser) -> ReturnStmt {
             /* kind */ List::NonEmpty,
             /* elem */ |p| Some(expr(p)),
         )
+        .0
     } else {
         Vec::new()
     };
@@ -592,7 +613,7 @@ fn assign_or_decl(p: &mut Parser) -> StmtKind {
 
     if p.at(Tok![=]) {
         p.bump(Tok![=]);
-        let mut values = p.separated(
+        let (mut values, missing) = p.separated(
             /* sepr */ Tok![,],
             /* close */ STMT_FOLLOW,
             /* first */ EXPR_FIRST,
@@ -600,11 +621,15 @@ fn assign_or_decl(p: &mut Parser) -> StmtKind {
             /* kind */ List::NonEmpty,
             /* elem */ |p| Some(expr(p)),
         );
-        // `x: int =` with nothing after it.
+        // `x: int =` with nothing after it, which the list reported.
         // Standing an error node in for the missing value keeps the arity right, so the type checker reports nothing
         // extra.
         if values.is_empty() {
-            values.push(ExprKind::Error(Error(p.gap_span())));
+            let reported = missing.unwrap_or_else(|| p.err_expected(Expected::Expr));
+            values.push(ExprKind::Error(Error {
+                span: p.gap_span(),
+                reported,
+            }));
         }
         let targets = items.into_iter().map(|i| into_target(p, i)).collect();
         return StmtKind::Assign(AssignStmt {
@@ -640,24 +665,27 @@ fn assign_or_decl(p: &mut Parser) -> StmtKind {
                     .new_err(span, format!("{} is not a statement", expr_noun(&e)))
                     .with_message("expected an assignment or a procedure call")
                     .with_note("add `= ...` to assign to it");
-                p.report(d);
-                StmtKind::Error(Error(span))
+                let reported = p.report(d);
+                StmtKind::Error(Error { span, reported })
             }
             TargetItem::Discard(span) => {
                 let d = p
                     .dcx()
                     .new_err(span, "`_` is only allowed on the left of an assignment")
                     .with_message("nothing is being discarded here");
-                p.report(d);
-                StmtKind::Error(Error(span))
+                let reported = p.report(d);
+                StmtKind::Error(Error { span, reported })
             }
             TargetItem::Decl(_) => unreachable!("handled above"),
         };
     }
 
     // A mixed list with no `=`: `x: int, y` or `f(), g()`.
-    p.err_expected(Expected::Tok(Tok![=]));
-    StmtKind::Error(Error(p.finish(m)))
+    let reported = p.err_expected(Expected::Tok(Tok![=]));
+    StmtKind::Error(Error {
+        span: p.finish(m),
+        reported,
+    })
 }
 
 fn target_item(p: &mut Parser) -> TargetItem {
@@ -689,8 +717,8 @@ fn into_target(p: &mut Parser, item: TargetItem) -> TargetKind {
                     .new_err(span, format!("cannot assign to {}", expr_noun(&other)))
                     .with_message("not a valid assignment target")
                     .with_note("assign to a variable, an array element, or `_`");
-                p.report(d);
-                TargetKind::Error(Error(span))
+                let reported = p.report(d);
+                TargetKind::Error(Error { span, reported })
             }
         },
     }
@@ -702,7 +730,7 @@ fn into_target(p: &mut Parser, item: TargetItem) -> TargetKind {
 fn decl(p: &mut Parser) -> Decl {
     let m = p.start();
     let id = ident_at(p);
-    p.expect(Tok![:]);
+    let _ = p.expect(Tok![:]);
     let typ = ty(p, Sizes::Allowed);
     Decl {
         span: p.finish(m),
@@ -733,7 +761,7 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
         Tok![bool] => TypeKind::Bool(p.bump(Tok![bool])),
         _ => {
             let stop = STMT_FOLLOW.union(ts![=, ')', ,]);
-            return TypeKind::Error(Error(p.err_and_recover(Expected::Type, stop)));
+            return TypeKind::Error(p.err_and_recover(Expected::Type, stop));
         }
     };
 
@@ -751,7 +779,7 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
                 .new_err(open, "this array type has too many dimensions")
                 .with_message(format!("this is dimension {}", MAX_HEIGHT + 1))
                 .with_note(format!("an array type can have at most {MAX_HEIGHT} dimensions"));
-            p.report(d);
+            let reported = p.report(d);
             // Read the rest of the dimensions without keeping them.
             let mut open = open;
             loop {
@@ -765,7 +793,10 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
                 }
                 open = p.bump(Tok!['[']);
             }
-            return TypeKind::Error(Error(p.finish(m)));
+            return TypeKind::Error(Error {
+                span: p.finish(m),
+                reported,
+            });
         }
 
         let size = if p.at(Tok![']']) {
@@ -786,7 +817,7 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
                     .new_err(dim_span, "a global array cannot be given a size")
                     .with_message("size not allowed here")
                     .with_note("globals are declared unsized: `x: int[]`");
-                p.report(d);
+                let _ = p.report(d);
             }
             (Some(_), Some(unsized_span)) => {
                 let d = p
@@ -797,7 +828,7 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
                     .with_note(
                         "sizes must always come first: [] does not have a size so [size] doesn't know how to allocate",
                     );
-                p.report(d);
+                let _ = p.report(d);
             }
             (None, None) => first_unsized = Some(dim_span),
             _ => {}
@@ -866,8 +897,9 @@ fn expr_h(p: &mut Parser) -> (ExprKind, u32) {
 /// `negated` says the expression is the operand of a unary `-`, which is the one place the literal
 /// `9223372036854775808` may be written: see [`check_int_range`].
 fn expr_bp(p: &mut Parser, min_bp: u8, negated: bool) -> (ExprKind, u32) {
-    if !p.enter() {
-        return (ExprKind::Error(Error(p.skip_until(STMT_FOLLOW))), 1);
+    if let Err(reported) = p.enter() {
+        let span = p.skip_until(STMT_FOLLOW);
+        return (ExprKind::Error(Error { span, reported }), 1);
     }
     let m = p.start();
 
@@ -904,13 +936,16 @@ fn expr_bp(p: &mut Parser, min_bp: u8, negated: bool) -> (ExprKind, u32) {
         });
 
         if height > MAX_HEIGHT {
-            too_tall(p, op_span);
+            let reported = too_tall(p, op_span);
             // Read the rest of the chain without building on it: an operand at a time, whatever the operators.
             while infix(p.cur()).is_some() {
                 p.bump_any();
                 expr_bp(p, PREFIX_BP, false);
             }
-            lhs = ExprKind::Error(Error(p.finish(m)));
+            lhs = ExprKind::Error(Error {
+                span: p.finish(m),
+                reported,
+            });
             height = 1;
         }
     }
@@ -920,13 +955,13 @@ fn expr_bp(p: &mut Parser, min_bp: u8, negated: bool) -> (ExprKind, u32) {
 }
 
 /// Report an expression that grew past [`MAX_HEIGHT`], at the operator or index that took it there.
-fn too_tall(p: &mut Parser, at: Span) {
+fn too_tall(p: &mut Parser, at: Span) -> ErrorGuaranteed {
     let d = p
         .dcx()
         .new_err(at, "this expression is too large")
         .with_message(format!("the expression is more than {MAX_HEIGHT} operations deep here"))
         .with_note("split it up, storing the parts in variables");
-    p.report(d);
+    p.report(d)
 }
 
 fn unary_op(p: &mut Parser) -> UOp {
@@ -972,10 +1007,7 @@ fn primary(p: &mut Parser, negated: bool) -> (ExprKind, u32) {
             }
             (ExprKind::Lit(lit), height)
         }
-        _ => (
-            ExprKind::Error(Error(p.err_and_recover(Expected::Expr, STMT_FOLLOW))),
-            1,
-        ),
+        _ => (ExprKind::Error(p.err_and_recover(Expected::Expr, STMT_FOLLOW)), 1),
     };
 
     // indexing binds tighter than every operator, and chains.
@@ -991,12 +1023,15 @@ fn primary(p: &mut Parser, negated: bool) -> (ExprKind, u32) {
         });
 
         if height > MAX_HEIGHT {
-            too_tall(p, index_span);
+            let reported = too_tall(p, index_span);
             // Read the rest of the chain without building on it.
             while p.at(Tok!['[']) {
                 index_suffix(p);
             }
-            e = ExprKind::Error(Error(p.finish(m)));
+            e = ExprKind::Error(Error {
+                span: p.finish(m),
+                reported,
+            });
             height = 1;
         }
     }
@@ -1022,7 +1057,7 @@ fn proc_call(p: &mut Parser) -> (ProcCall, u32) {
     let open = p.bump(Tok!['(']);
     let saved = p.enter_recovery(ts![')'].union(TokenSet::of(Tok![,])));
     let mut tallest = 0;
-    let args = p.separated(
+    let (args, _) = p.separated(
         /* sepr */ Tok![,],
         /* close */ ts![')'],
         /* first */ EXPR_FIRST,
@@ -1055,10 +1090,15 @@ fn length_call(p: &mut Parser) -> (LengthCall, u32) {
     p.bump(Tok![length]);
 
     if !p.at(Tok!['(']) {
-        p.expect(Tok!['(']);
+        let Err(reported) = p.expect(Tok!['(']) else {
+            unreachable!("`expect` reports a token that is not there")
+        };
         let call = LengthCall {
             span: p.finish(m),
-            param: Box::new(ExprKind::Error(Error(p.gap_span()))),
+            param: Box::new(ExprKind::Error(Error {
+                span: p.gap_span(),
+                reported,
+            })),
         };
         return (call, 2);
     }
@@ -1092,7 +1132,7 @@ fn check_int_range(p: &mut Parser, lit: &LitKind) {
                 "{} can only be written with a `-` directly in front of it, as the smallest `int`",
                 int.value
             ));
-        p.report(d);
+        let _ = p.report(d);
     }
 }
 
@@ -1111,7 +1151,7 @@ fn ident(p: &mut Parser) -> Option<Ident> {
     if p.at(Tok![ident]) {
         Some(ident_at(p))
     } else {
-        p.err_expected(Expected::Ident);
+        let _ = p.err_expected(Expected::Ident);
         None
     }
 }
@@ -1159,7 +1199,7 @@ fn array_lit(p: &mut Parser) -> (ArrayLit, u32) {
     let open = p.bump(Tok!['{']);
     let saved = p.enter_recovery(ts!['}'].union(TokenSet::of(Tok![,])));
     let mut tallest = 0;
-    let value = p.separated(
+    let (value, _) = p.separated(
         /* sepr */ Tok![,],
         /* close */ ts!['}'],
         /* first */ EXPR_FIRST,
@@ -1210,7 +1250,7 @@ pub fn expr_span(e: &ExprKind) -> Span {
         ExprKind::Length(n) => n.span,
         ExprKind::Unary(n) => n.span,
         ExprKind::Binary(n) => n.span,
-        ExprKind::Error(Error(s)) => *s,
+        ExprKind::Error(e) => e.span,
     }
 }
 
@@ -1233,6 +1273,6 @@ pub fn stmt_span(s: &StmtKind) -> Span {
         StmtKind::Return(n) => n.span,
         StmtKind::Call(n) => n.span,
         StmtKind::Block(n) => n.span,
-        StmtKind::Error(Error(s)) => *s,
+        StmtKind::Error(e) => e.span,
     }
 }

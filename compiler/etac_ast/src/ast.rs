@@ -1,8 +1,20 @@
+use etac_errors::guarantee::ErrorGuaranteed;
 use etac_intern::Symbol;
 use etac_source::Span;
 
+/// Stands in for a piece of the tree that could not be built.
+///
+/// An error node is proof that the problem was reported: it cannot be made without the [`ErrorGuaranteed`] that only
+/// reporting an error gives. So a pass that comes across one has nothing to say about it, and can carry on with the
+/// rest of the tree knowing the compilation has already failed.
+pub struct Error {
+    /// What the node stands in for.
+    pub span: Span,
+    /// Proof that the error behind this node was reported.
+    pub reported: ErrorGuaranteed,
+}
+
 // Top level
-pub struct Error(pub Span);
 
 pub struct Program {
     pub span: Span,

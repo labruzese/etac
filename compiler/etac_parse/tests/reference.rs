@@ -4,10 +4,7 @@ use std::path::Path;
 
 use etac_errors::dcx::DiagCtx;
 use etac_intern::EtacInterner;
-use etac_parse::{
-    Parse,
-    result::{ParseResult, Parsed},
-};
+use etac_parse::Parse;
 use etac_source::SourceMap;
 
 fn accepts<T: Parse>(src: &str) -> bool {
@@ -17,19 +14,12 @@ fn accepts<T: Parse>(src: &str) -> bool {
     let interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
 
     let (id, text) = sm.alloc_source("corpus.eta".to_owned(), src.to_owned());
-    let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
-    let lexed_clean = lexed.diags.is_empty();
-    for d in Vec::from(lexed.diags) {
-        d.cancel();
-    }
-
-    let ParseResult { parse, diags } = T::parse(&lexed.tokens, &dcx);
-    for d in diags {
-        d.cancel();
-    }
+    let tokens = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
+    // clean means neither the lexer nor the parser reported anything
+    let accepted = T::parse(&tokens, &dcx).is_clean();
     dcx.cancel();
 
-    lexed_clean && matches!(parse, Parsed::Ok(_))
+    accepted
 }
 
 #[test]

@@ -29,12 +29,9 @@ macro_rules! lextest {
         let expected: expect_test::Expect = $expected;
         let emitter = etac_errors::emitter::IoEmitter::with_config(Box::new($writer.clone()), etac_debug::EMIT_CONF_DEBUG);
         let dcx = etac_errors::dcx::DiagCtx::new(emitter); // a new context per file: emitting consumes it
-        let lexed = etac_lexer::EtaLexer::new($session.sources.base_offset(id), &$session.state.interner, &dcx)
+        let tokens = etac_lexer::EtaLexer::new($session.sources.base_offset(id), &$session.state.interner, &dcx)
             .lex(&$session.sources.get_source(id).source);
-        etac_lexer::debug::write_tokens(&mut $writer, &$session.sources, &$session.state.interner, &lexed.tokens);
-        for diag in lexed.diags {
-            let _ = diag.finish();
-        }
+        etac_lexer::debug::write_tokens(&mut $writer, &$session.sources, &$session.state.interner, &tokens);
         dcx.emit_diagnostics(&$session.sources);
         expected.assert_eq(&$writer.take()); // clear the buffer we compare output for one file at
                                                // a time

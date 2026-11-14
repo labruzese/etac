@@ -156,7 +156,7 @@ impl<'ast, 'sym, 'buf, 'prt, 'fmt, ResT: etac_intern::Resolver, NodeT> Visitor<'
     }
 
     fn visit_error(&mut self, n: &'ast Error) -> Self::Result {
-        let Error(_span) = n;
+        let Error { span: _, reported: _ } = n;
         self.atom("(error)")
     }
 

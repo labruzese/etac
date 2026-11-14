@@ -2,9 +2,9 @@
 //!
 //! The generator is a deterministic xorshift, so a failure here reproduces exactly.
 
-use etac_errors::dcx::{DiagBuilder, DiagCtx};
+use etac_errors::dcx::DiagCtx;
 use etac_intern::EtacInterner;
-use etac_parse::{Parse, result::ParseResult};
+use etac_parse::Parse;
 use etac_source::SourceMap;
 
 /// Every token spelling in the language, plus a few shapes that only matter to recovery.
@@ -36,7 +36,7 @@ fn fuzz_one(src: &str) {
     errors_in(src);
 }
 
-/// [`fuzz_one`], returning how many diagnostics lexing and parsing `src` as a program produced.
+/// [`fuzz_one`], returning how many errors lexing and parsing `src` as a program reported.
 fn errors_in(src: &str) -> usize {
     let emitter = etac_errors::emitter::IoEmitter::sink();
     let dcx = DiagCtx::new(emitter);
@@ -44,23 +44,18 @@ fn errors_in(src: &str) -> usize {
     let interner = EtacInterner::with_hasher(std::hash::BuildHasherDefault::default());
 
     let (id, text) = sm.alloc_source("fuzz.eta".to_owned(), src.to_owned());
-    let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
-    let mut errors = lexed.diags.len();
-    for d in Vec::from(lexed.diags) {
-        d.cancel();
-    }
+    let tokens = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
 
-    let ParseResult { parse: _, diags } = etac_ast::ast::Program::parse(&lexed.tokens, &dcx);
-    errors += diags.len();
-    for d in diags {
-        d.cancel();
-    }
-    let ParseResult { parse: _, diags } = etac_ast::ast::Interface::parse(&lexed.tokens, &dcx);
-    for d in diags {
-        d.cancel();
-    }
+    let program = etac_ast::ast::Program::parse(&tokens, &dcx);
+    let errors = dcx.err_count();
+    assert_eq!(
+        program.is_clean(),
+        errors == 0,
+        "the result says whether anything was reported"
+    );
 
-    let _: Vec<DiagBuilder<'_>> = Vec::new();
+    let _ = etac_ast::ast::Interface::parse(&tokens, &dcx);
+
     dcx.cancel();
     errors
 }

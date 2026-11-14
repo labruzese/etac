@@ -4,7 +4,9 @@
 
 use std::fmt;
 
+use etac_ast::ast::Error;
 use etac_errors::dcx::{DiagBuilder, DiagCtx};
+use etac_errors::guarantee::ErrorGuaranteed;
 use etac_lexer::Tok;
 use etac_lexer::Tokens;
 use etac_lexer::token::{Token, TokenKind};
@@ -90,12 +92,11 @@ pub struct Parser<'t, 'dcx> {
     /// End of the last consumed token: where a node's span should stop.
     /// This is so we don't swallow the trailing whitespace and comments.
     prev_end: u32,
-    /// dcx that this parser should report to
+    /// dcx that this parser reports to, as it goes
     dcx: &'dcx DiagCtx,
-    /// diags this parser produced
-    diags: Vec<DiagBuilder<'dcx>>,
-    /// token position that last produced a diagnostic, for cascade suppression.
-    last_err_pos: Option<usize>,
+    /// The last error this parser reported, and the token position it was at: the position is for cascade
+    /// suppression, and the proof is what makes the error node.
+    last_err: Option<(usize, ErrorGuaranteed)>,
     /// current tokens we can recover on
     recovery: TokenSet,
     /// current depth
@@ -117,16 +118,16 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
             pos: 0,
             prev_end: tokens.data.first().map_or(0, |(_, s)| s.lo),
             dcx,
-            diags: Vec::new(),
-            last_err_pos: None,
+            last_err: None,
             recovery: TokenSet::EMPTY,
             depth: 0,
             links: 0,
         }
     }
 
-    pub fn finish_parse(self) -> Vec<DiagBuilder<'dcx>> {
-        self.diags
+    /// Proof that this parser reported an error, or stood an error node in for one the lexer reported, if it did.
+    pub fn finish_parse(self) -> Option<ErrorGuaranteed> {
+        self.last_err.map(|(_, reported)| reported)
     }
 
     // ---- cursor ----
@@ -230,21 +231,19 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
 
     // ---- recursion guard ----
 
-    /// Enter a recursive production. `false` means the input is nested past
-    /// [`MAX_DEPTH`]; the caller should produce an error node without recursing. Depth is
-    /// only charged when this returns `true`, so [`leave`](Self::leave) always pairs.
-    #[must_use]
-    pub fn enter(&mut self) -> bool {
+    /// Enter a recursive production. `Err` means the input is nested past
+    /// [`MAX_DEPTH`], which has been reported; the caller should produce an error node without recursing. Depth
+    /// is only charged for `Ok`, so [`leave`](Self::leave) always pairs.
+    pub fn enter(&mut self) -> Result<(), ErrorGuaranteed> {
         if self.depth >= MAX_DEPTH {
-            self.err_at(
+            return Err(self.err_at(
                 self.cur_span(),
                 format!("nested more than {MAX_DEPTH} levels deep"),
                 Some("split this into smaller pieces; the parser stops descending here".to_owned()),
-            );
-            return false;
+            ));
         }
         self.depth += 1;
-        true
+        Ok(())
     }
 
     #[inline]
@@ -294,37 +293,49 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
     // ---- diagnostics ----
 
     /// One diagnostic per token position. The second complaint about the same token is
-    /// always a consequence of the first.
-    fn suppressed(&self) -> bool {
-        self.last_err_pos == Some(self.pos)
+    /// always a consequence of the first, so it is not made, and the first one's proof serves for both.
+    fn suppressed(&self) -> Option<ErrorGuaranteed> {
+        match self.last_err {
+            Some((pos, reported)) if pos == self.pos => Some(reported),
+            _ => None,
+        }
     }
 
-    fn push(&mut self, d: DiagBuilder<'dcx>) {
-        self.last_err_pos = Some(self.pos);
-        self.diags.push(d);
+    /// Remember that an error was reported at the current token.
+    fn reported_here(&mut self, reported: ErrorGuaranteed) -> ErrorGuaranteed {
+        self.last_err = Some((self.pos, reported));
+        reported
     }
 
-    fn err_at(&mut self, span: Span, msg: String, note: Option<String>) {
-        if self.suppressed() {
-            return;
+    /// Report a diagnostic at the current token.
+    fn push(&mut self, d: DiagBuilder<'dcx>) -> ErrorGuaranteed {
+        let reported = d.finish();
+        self.reported_here(reported)
+    }
+
+    fn err_at(&mut self, span: Span, msg: String, note: Option<String>) -> ErrorGuaranteed {
+        if let Some(reported) = self.suppressed() {
+            return reported;
         }
         let mut d = self.dcx.new_err(span, msg);
         if let Some(n) = note {
             d = d.with_note(n);
         }
-        self.push(d);
+        self.push(d)
     }
 
     /// Report `what` at the current token, without moving.
-    pub fn err_expected(&mut self, what: Expected) {
-        if self.suppressed() {
-            return;
+    ///
+    /// The proof returned is not always of a new diagnostic: a second complaint about one token is
+    /// [suppressed](Self::suppressed), and an `Error` token was reported by the lexer.
+    pub fn err_expected(&mut self, what: Expected) -> ErrorGuaranteed {
+        if let Some(reported) = self.suppressed() {
+            return reported;
         }
         // The lexer already complained about this one;
         // Mark the position so the next production stays quiet too.
-        if self.at(Tok![Error]) {
-            self.last_err_pos = Some(self.pos);
-            return;
+        if let Token::Error(reported) = self.data[self.pos].0 {
+            return self.reported_here(reported);
         }
         let span = if self.at_eof() {
             self.gap_span()
@@ -335,16 +346,15 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
             .dcx
             .new_err(span, format!("expected {}, found {}", what, self.cur()))
             .with_message(format!("expected {}", what));
-        self.push(d);
+        self.push(d)
     }
 
     /// one-off messages that don't fit [`Expected`].
     /// the `Diag` is built by the caller so it can carry secondary labels.
-    pub fn report(&mut self, d: DiagBuilder<'dcx>) {
+    pub fn report(&mut self, d: DiagBuilder<'dcx>) -> ErrorGuaranteed {
         // not suppressed: these are semantic complaints about something the parser understood,
         // not an unknown token cascade.
-        self.last_err_pos = Some(self.pos);
-        self.diags.push(d);
+        self.push(d)
     }
 
     /// build a diagnostic without reporting it, so a caller can decorate it.
@@ -387,15 +397,15 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
     }
 
     /// report `what` at the current token, then skip to `stop` (plus the enclosing
-    /// anchors). returns the span covering everything that was thrown away, for use as an
-    /// error node's span.
-    pub fn err_and_recover(&mut self, what: Expected, stop: TokenSet) -> Span {
+    /// anchors). returns the error node standing in for everything that was thrown away.
+    pub fn err_and_recover(&mut self, what: Expected, stop: TokenSet) -> Error {
         let at = self.cur_span();
-        self.err_expected(what);
+        let reported = self.err_expected(what);
         let skipped = self.skip_until(stop.union(self.recovery));
         // Nothing was skipped: the offending token is still ahead of us, but it is what
         // the error node stands for.
-        if skipped.lo == skipped.hi { at } else { skipped }
+        let span = if skipped.lo == skipped.hi { at } else { skipped };
+        Error { span, reported }
     }
 
     // ---- expecting ----
@@ -404,22 +414,27 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
     ///
     /// heuristic: applies a one-token deletion: `f(a,, b)` reports the stray `,` once and carries
     /// on with `b`, rather than treating the rest of the argument list as garbage.
-    pub fn expect(&mut self, k: TokenKind) -> bool {
+    ///
+    /// `Err` means `k` was not where it belongs, which has been reported. That is so even when the deletion then
+    /// found it.
+    pub fn expect(&mut self, k: TokenKind) -> Result<(), ErrorGuaranteed> {
         if self.eat(k) {
-            return true;
+            return Ok(());
         }
-        self.err_expected(Expected::Tok(k));
+        let reported = self.err_expected(Expected::Tok(k));
         if self.nth(1) == k && !self.at_any(self.recovery) {
             self.bump_any();
             self.bump(k);
-            return true;
         }
-        false
+        Err(reported)
     }
 
     // ---- separated lists ----
 
     /// parse `elem (sep elem)*`, stopping at anything in `close`.
+    ///
+    /// Returns the elements, and proof of the last error the list itself reported, if it reported any: a missing
+    /// element or separator. What `elem` reports is its own business.
     pub fn separated<T>(
         &mut self,
         sep: TokenKind,
@@ -428,13 +443,14 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         what: Expected,
         shape: List,
         mut elem: impl FnMut(&mut Self) -> Option<T>,
-    ) -> Vec<T> {
+    ) -> (Vec<T>, Option<ErrorGuaranteed>) {
         let mut out = Vec::new();
+        let mut reported = None;
         let stop = close.union(TokenSet::of(sep));
 
         // an empty list is only an error when the grammar wanted `elem,+`.
         if self.at_any(close) && shape != List::NonEmpty {
-            return out;
+            return (out, reported);
         }
 
         loop {
@@ -444,7 +460,7 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
                     out.push(e);
                 }
             } else {
-                self.err_and_recover(what, stop);
+                reported = Some(self.err_and_recover(what, stop).reported);
             }
 
             if self.pos == before && !self.at_any(stop) && !self.at_eof() {
@@ -458,7 +474,7 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
                 // and something new began, which is what makes `;` optional.
                 if !self.at_any(elem_first) && (self.at_any(close) || self.at_eof()) {
                     if shape != List::Trailing {
-                        self.err_expected(what);
+                        reported = Some(self.err_expected(what));
                     }
                     break;
                 }
@@ -471,16 +487,16 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
             // another element with no separator between: `f(1 2)`. Report the missing
             // sep and keep the list together rather than ending it here.
             if self.at_any(elem_first) {
-                self.err_expected(Expected::Tok(sep));
+                reported = Some(self.err_expected(Expected::Tok(sep)));
                 continue;
             }
 
-            self.err_and_recover(Expected::Tok(sep), stop);
+            reported = Some(self.err_and_recover(Expected::Tok(sep), stop).reported);
             if !self.eat(sep) || self.at_any(close) || self.at_eof() {
                 break;
             }
         }
-        out
+        (out, reported)
     }
 
     /// consume the closing half of a delimited construct.
@@ -498,25 +514,25 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         let junk = self.skip_until(TokenSet::of(close).union(self.recovery));
 
         if self.at(close) {
-            if junk.hi > junk.lo && !self.suppressed() {
+            if junk.hi > junk.lo && self.suppressed().is_none() {
                 let d = self
                     .dcx
                     .new_err(junk, format!("unexpected tokens in this {}", what))
                     .with_message(format!("expected {} here", close));
-                self.push(d);
+                let _ = self.push(d);
             }
             self.bump(close);
             return true;
         }
 
         // unclosed. report it against the opener.
-        if !self.suppressed() {
+        if self.suppressed().is_none() {
             let d = self
                 .dcx
                 .new_err(open, format!("unclosed {}", what))
                 .with_message(format!("this {} is never closed", what))
                 .with_note(format!("expected {} to close it", close));
-            self.push(d);
+            let _ = self.push(d);
         }
         false
     }

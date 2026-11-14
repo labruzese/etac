@@ -26,23 +26,17 @@ use std::io::Write;
 use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 
 use etac_ast::ast::{Interface, Program};
-use etac_errors::{
-    dcx::{DiagBuilder, DiagCtx},
-    guarantee::ErrorGuaranteed,
-};
+use etac_errors::{dcx::DiagCtx, guarantee::ErrorGuaranteed};
 use etac_intern::EtacInterner;
 use etac_lexer::{EtaLexer, Tokens};
 use etac_source::{FileId, InterfaceId, SourceId, SourceMap};
 
-use etac_parse::{
-    Parse,
-    result::{ParseResult, Parsed},
-};
+use etac_parse::{Parse, result::ParseResult};
 
 /// Code that runs alongside the [`Frontend`]: each hook is called once per file, right after its phase.
 ///
-/// Every hook does nothing by default. They see the result of the phase before its diagnostics are reported, and
-/// can't change it.
+/// Every hook does nothing by default. They see the result of the phase, and can't change it. By then the phase
+/// has already reported its diagnostics.
 pub trait Hooks {
     /// `file` has been lexed into `tokens`.
     fn lexed(&mut self, symbols: &EtacInterner, file: FileId, tokens: &Tokens) {
@@ -50,7 +44,7 @@ pub trait Hooks {
     }
 
     /// `file` has been parsed.
-    fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId, parse: &Parsed<T>) {
+    fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId, parse: &ParseResult<T>) {
         let _ = (symbols, file, parse);
     }
 }
@@ -102,7 +96,7 @@ impl<W: Write> Hooks for Debugger<'_, W> {
         }
     }
 
-    fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId, parse: &Parsed<T>) {
+    fn parsed<T: Parse>(&mut self, symbols: &EtacInterner, file: FileId, parse: &ParseResult<T>) {
         if self.trees {
             etac_parse::debug::write_parse(&mut self.out, self.sm, symbols, file, parse);
         }
@@ -189,17 +183,14 @@ impl<'a, H: Hooks> Frontend<'a, H> {
 
     fn parse_file<T: Parse>(&self, file: FileId) -> ParsedFile<T> {
         let source = self.sm.get_source(file);
-        let lexed = EtaLexer::new(self.sm.base_offset(file), self.interner, self.dcx).lex(&source.source);
-        self.hooks().lexed(self.interner, file, &lexed.tokens);
-        let lex_errors = lexed.diags.into_iter().map(DiagBuilder::finish).last();
+        let tokens = EtaLexer::new(self.sm.base_offset(file), self.interner, self.dcx).lex(&source.source);
+        self.hooks().lexed(self.interner, file, &tokens);
 
-        let ParseResult { parse, diags } = T::parse(&lexed.tokens, self.dcx);
-        self.hooks().parsed(self.interner, file, &parse);
-        let parse_errors = diags.into_iter().map(DiagBuilder::finish).last();
+        let parsed = T::parse(&tokens, self.dcx);
+        self.hooks().parsed(self.interner, file, &parsed);
 
-        ParsedFile {
-            tree: parse.into_tree(),
-            errors: lex_errors.or(parse_errors),
-        }
+        // the parse already accounts for the errors of the tokens it was given
+        let ParseResult { tree, errors } = parsed;
+        ParsedFile { tree, errors }
     }
 }

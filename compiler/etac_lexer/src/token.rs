@@ -1,6 +1,7 @@
 use core::fmt;
 use std::fmt::Display;
 
+use etac_errors::guarantee::ErrorGuaranteed;
 use etac_intern::{EtacInterner, Symbol};
 use logos::Logos;
 
@@ -27,6 +28,11 @@ macro_rules! tokens {
     (@tok_display $s:ident, $f:ident, $id:ident, $v:ident: char) => {
         write!($f, "{}({})", stringify!($id), $v.escape_default())
     };
+    // The proof an `Error` token carries is not something to read.
+    (@tok_display $s:ident, $f:ident, $id:ident, $v:ident: ErrorGuaranteed) => {{
+        let _: &ErrorGuaranteed = $v;
+        write!($f, "{}", stringify!($id))
+    }};
     (@tok_display $s:ident, $f:ident, $id:ident, $v:ident: $other:tt) => {
         write!($f, "{}({})", stringify!($id), $v)
     };
@@ -301,7 +307,8 @@ tokens! {
     }
 
     #[name("end of file")]  #[pat(EOF)]     EOF,
-    #[name("error")]        #[pat(Error)]   Error,
+    /// Text that is not a token. The lexer reported it, and this is the proof.
+    #[name("error")]        #[pat(Error)]   Error(ErrorGuaranteed),
 
     // Keywords
     #[token("use")]     #[pat(use)]     KwUse,

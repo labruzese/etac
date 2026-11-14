@@ -2,7 +2,7 @@
 
 use std::io::Write;
 
-use crate::{Parse, result::Parsed};
+use crate::{Parse, result::ParseResult};
 use etac_intern::EtacInterner;
 use etac_source::{FileId, SourceMap};
 
@@ -13,10 +13,10 @@ pub fn write_parse<T: Parse>(
     sm: &SourceMap,
     symbols: &EtacInterner,
     file: FileId,
-    parse: &Parsed<T>,
+    parse: &ParseResult<T>,
 ) {
     let name = &sm.get_source(file).name;
-    let status = if parse.is_ok() { "clean" } else { "recovered" };
+    let status = if parse.is_clean() { "clean" } else { "recovered" };
     let _ = writeln!(out, "{name}: parse({status})");
-    parse.tree().write_tree(out, sm, symbols);
+    parse.tree.write_tree(out, sm, symbols);
 }

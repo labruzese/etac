@@ -8,7 +8,7 @@ use std::time::Instant;
 
 use etac_errors::dcx::DiagCtx;
 use etac_intern::EtacInterner;
-use etac_parse::{Parse, result::ParseResult};
+use etac_parse::Parse;
 use etac_source::SourceMap;
 
 #[test]
@@ -30,21 +30,16 @@ fn throughput() {
         let (id, text) = sm.alloc_source("bench.eta".to_owned(), src.clone());
 
         let t0 = Instant::now();
-        let lexed = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
+        let tokens = etac_lexer::EtaLexer::new(sm.base_offset(id), &interner, &dcx).lex(text);
         let t1 = Instant::now();
-        let ParseResult { parse: _, diags } = etac_ast::ast::Program::parse(&lexed.tokens, &dcx);
+        // building the tree and dropping it again
+        drop(etac_ast::ast::Program::parse(&tokens, &dcx));
         let t2 = Instant::now();
 
-        ntok = lexed.tokens.kinds.len();
+        ntok = tokens.kinds.len();
         lex_ns = lex_ns.min((t1 - t0).as_nanos());
         parse_ns = parse_ns.min((t2 - t1).as_nanos());
 
-        for d in diags {
-            d.cancel();
-        }
-        for d in lexed.diags {
-            d.cancel();
-        }
         dcx.cancel();
     }
 

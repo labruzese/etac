@@ -302,7 +302,7 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> Visitor<'ast> for SpanPrinterWriter<'as
     }
 
     fn visit_error(&mut self, n: &'ast Error) -> Self::Result {
-        self.write("error", &n.0)?;
+        self.write("error", &n.span)?;
         n.walk(self)
     }
 }

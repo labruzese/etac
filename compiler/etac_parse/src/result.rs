@@ -1,39 +1,20 @@
-use etac_errors::dcx::DiagBuilder;
+use etac_errors::guarantee::ErrorGuaranteed;
 
-/// The outcome of a parse. There is always a tree: the parser recovers from every error it reports.
-#[derive(Debug)]
-pub enum Parsed<Out> {
-    /// The input was syntactically valid.
-    Ok(Out),
-    /// The parser reported errors. The tree has error nodes standing in for what it could not make sense of.
-    Recovered(Out),
-}
-
-impl<Out> Parsed<Out> {
-    pub fn tree(&self) -> &Out {
-        match self {
-            Parsed::Ok(tree) | Parsed::Recovered(tree) => tree,
-        }
-    }
-
-    pub fn into_tree(self) -> Out {
-        match self {
-            Parsed::Ok(tree) | Parsed::Recovered(tree) => tree,
-        }
-    }
-
-    /// Whether the parser got through without reporting anything.
-    pub fn is_ok(&self) -> bool {
-        matches!(self, Parsed::Ok(_))
-    }
-}
-
-/// The tree plus every diagnostic the parse produced.
+/// The outcome of a parse. There is always a tree: the parser recovers from every error it reports, leaving error
+/// nodes standing in for what it could not make sense of.
 ///
-/// The diagnostics are *unemitted*: each one is a `Diag` the caller still has to
-/// `.finish()` (or `.cancel()`). Lets a caller decorate or
-/// filter before anything reaches the emitter.
-pub struct ParseResult<'dcx, Out> {
-    pub parse: Parsed<Out>,
-    pub diags: Vec<DiagBuilder<'dcx>>,
+/// The diagnostics themselves have already gone to the diagnostic context, as they were found.
+#[derive(Debug, Clone)]
+pub struct ParseResult<Out> {
+    pub tree: Out,
+    /// Proof that the tokens did not parse cleanly, if they did not: the parser reported an error, or the lexer had
+    /// reported one while making the tokens.
+    pub errors: Option<ErrorGuaranteed>,
+}
+
+impl<Out> ParseResult<Out> {
+    /// Whether the input was lexically and syntactically valid, so the tree has no error nodes in it.
+    pub fn is_clean(&self) -> bool {
+        self.errors.is_none()
+    }
 }
