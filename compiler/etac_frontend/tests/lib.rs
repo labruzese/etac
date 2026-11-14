@@ -6,7 +6,7 @@ use etac_debug::StringWriter;
 use etac_errors::{dcx::DiagCtx, emitter::IoEmitter};
 use etac_frontend::{Debugger, Frontend};
 use etac_intern::EtacInterner;
-use etac_source::SourceMap;
+use etac_source::{InterfaceId, SourceId, SourceMap};
 
 fn interner() -> EtacInterner {
     EtacInterner::with_hasher(std::hash::BuildHasherDefault::default())
@@ -18,6 +18,7 @@ fn an_interface_is_parsed_and_diagnosed_once() {
     let sm = SourceMap::default();
     let interner = interner();
     let (id, _) = sm.alloc_source("bad.eti".to_owned(), "f(x: int) +".to_owned());
+    let id = InterfaceId::new(id);
 
     let frontend = Frontend::new(&sm, &interner, &dcx, ());
     let first = frontend.interface(id);
@@ -41,6 +42,7 @@ fn the_debugger_dumps_only_what_it_is_asked_to() {
         let sm = SourceMap::default();
         let interner = interner();
         let (id, _) = sm.alloc_source("f.eti".to_owned(), "f()".to_owned());
+        let id = InterfaceId::new(id);
 
         let debugger = Debugger::new(out.clone(), &sm).tokens(tokens).trees(trees);
         assert!(Frontend::new(&sm, &interner, &dcx, debugger).interface(id).is_clean());
@@ -73,10 +75,11 @@ fn threads_share_one_frontend() {
     let sm = SourceMap::default();
     let interner = interner();
     let (bad, _) = sm.alloc_source("bad.eti".to_owned(), "f(x: int) +".to_owned());
+    let bad = InterfaceId::new(bad);
     let programs: Vec<_> = (0..8)
         .map(|i| {
-            sm.alloc_source(format!("p{i}.eta"), format!("f{i}(shared: int) {{ }}"))
-                .0
+            let (id, _) = sm.alloc_source(format!("p{i}.eta"), format!("f{i}(shared: int) {{ }}"));
+            SourceId::new(id)
         })
         .collect();
 
@@ -124,6 +127,7 @@ fn a_lex_error_alone_makes_a_file_unclean() {
     let interner = interner();
     // `@` is not a token, and the parser stays quiet about a token the lexer already reported
     let (id, _) = sm.alloc_source("lex.eta".to_owned(), "f() { x: int = @ }".to_owned());
+    let id = SourceId::new(id);
 
     let parsed = Frontend::new(&sm, &interner, &dcx, ()).program(id);
     assert!(!parsed.is_clean());

@@ -6,11 +6,6 @@ use std::sync::Arc;
 use std::sync::atomic::AtomicU32;
 use std::sync::atomic::Ordering;
 
-/// The [`FileId`] of an `.eta` file.
-pub type SourceId = FileId;
-/// The [`FileId`] of an `.eti` file.
-pub type InterfaceId = FileId;
-
 /// Names a file in a [`SourceMap`].
 ///
 /// An id is a plain value: it borrows nothing, so it can be stored in trees and tables that outlive any one borrow of
@@ -27,6 +22,48 @@ impl FileId {
     pub(crate) fn new(base: u32) -> Self {
         FileId { base }
     }
+}
+
+/// Defines an id for one kind of file: a [`FileId`] that also says what the file is.
+///
+/// The kinds are separate types, so an id of one kind is not accepted where the other is wanted. Anything that
+/// works on either kind takes the plain [`FileId`], which [`file`](SourceId::file) gives back.
+macro_rules! kind_of_file {
+    ($(#[$doc:meta])* $name:ident, $what:literal) => {
+        $(#[$doc])*
+        #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+        pub struct $name(FileId);
+
+        impl $name {
+            #[doc = concat!("Say that `file` is ", $what, ".")]
+            ///
+            /// Nothing checks the claim: whoever loads a file decides what kind it is, and everything after that goes
+            /// by the type.
+            pub fn new(file: FileId) -> Self {
+                $name(file)
+            }
+
+            /// The file, without its kind.
+            pub fn file(self) -> FileId {
+                self.0
+            }
+        }
+
+        impl From<$name> for FileId {
+            fn from(id: $name) -> FileId {
+                id.0
+            }
+        }
+    };
+}
+
+kind_of_file! {
+    /// The [`FileId`] of an `.eta` file: a program.
+    SourceId, "a program, an `.eta` file"
+}
+kind_of_file! {
+    /// The [`FileId`] of an `.eti` file: an interface.
+    InterfaceId, "an interface, an `.eti` file"
 }
 
 pub struct SourceRecord {

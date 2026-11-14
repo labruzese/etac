@@ -15,7 +15,8 @@ pub enum File {
 impl File {
     pub fn id(&self) -> FileId {
         match self {
-            File::Program(file_id) | File::Interface(file_id) => *file_id,
+            File::Program(id) => id.file(),
+            File::Interface(id) => id.file(),
         }
     }
 }
@@ -66,10 +67,11 @@ impl Resolver {
 
         let id = self.load(sm, dcx, path_str)?;
         self.seen.insert(id);
-        match self.seen.get(&id).unwrap() {
-            id if is_interface => Ok(Some(File::Interface(*id))),
-            id => Ok(Some(File::Program(*id))),
-        }
+        // The extension is what decides which kind of file this is.
+        Ok(Some(match is_interface {
+            true => File::Interface(InterfaceId::new(id)),
+            false => File::Program(SourceId::new(id)),
+        }))
     }
 
     /// Resolve one `use name` appearing in `from`. The search order is the directory
@@ -89,7 +91,7 @@ impl Resolver {
         at: Span,
     ) -> Result<Option<InterfaceId>, DiagBuilder<'dcx>> {
         let file_name = format!("{name}.eti");
-        let from_path = sm.get_source(from).name.to_string();
+        let from_path = sm.get_source(from.file()).name.to_string();
         let from_dir = Path::new(&from_path).parent().unwrap_or_else(|| Path::new(""));
 
         let mut candidates = vec![from_dir.join(&file_name)];
@@ -106,7 +108,7 @@ impl Resolver {
                 let iid = self
                     .load(sm, dcx, candidate_str)
                     .map_err(|diag| diag.with_label(at, "needed by this `use`"))?;
-                return Ok(self.seen.insert(iid).then_some(iid));
+                return Ok(self.seen.insert(iid).then_some(InterfaceId::new(iid)));
             }
         }
 

@@ -25,8 +25,8 @@ macro_rules! parsetest {
             let debugger = etac_frontend::Debugger::new($writer.clone(), &$session.sources).trees(true);
             let frontend = etac_frontend::Frontend::new(&$session.sources, &$session.state.interner, &dcx, debugger);
             match ty {
-                Ft::Prgm => drop(frontend.program(id)),
-                Ft::Intf => drop(frontend.interface(id)),
+                Ft::Prgm => drop(frontend.program(etac_source::SourceId::new(id))),
+                Ft::Intf => drop(frontend.interface(etac_source::InterfaceId::new(id))),
             };
         }
         dcx.emit_diagnostics(&$session.sources);

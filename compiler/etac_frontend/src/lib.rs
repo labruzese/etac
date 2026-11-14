@@ -161,7 +161,7 @@ impl<'a, H: Hooks> Frontend<'a, H> {
 
     /// Lex and parse an `.eta` file.
     pub fn program(&self, file: SourceId) -> ParsedFile<Program> {
-        self.parse_file(file)
+        self.parse_file(file.file())
     }
 
     /// Lex and parse an `.eti` file, or return the tree from the first time it was asked for.
@@ -174,7 +174,7 @@ impl<'a, H: Hooks> Frontend<'a, H> {
             interfaces.entry(file).or_default().clone()
         };
         cell.get_or_init(|| {
-            let ParsedFile { tree, errors } = self.parse_file(file);
+            let ParsedFile { tree, errors } = self.parse_file(file.file());
             ParsedFile {
                 tree: Arc::new(tree),
                 errors,
