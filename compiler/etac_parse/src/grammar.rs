@@ -501,13 +501,12 @@ fn while_stmt(p: &mut Parser) -> WhileStmt {
 
 /// The condition of an `if` or `while`.
 ///
-/// `{` is formally ambiguous: it opens both an array literal and the body block
-///
-/// Array is never a useful condition, so a `{` after `if` means the body, and the
-/// condition is simply missing. Reading the body as an array literal will cascade
-/// and is unlikely to be what the user meant.
+/// A `{` here is either an array literal that starts the condition, as in `if {a, b}[i] == c { .. }`, or the body
+/// of a statement whose condition was left out. Only the first is in the grammar, but the second is the mistake
+/// people make, and reading a body as an array literal buries it under a cascade. [`brace_opens_condition`] looks
+/// ahead to tell them apart.
 fn condition(p: &mut Parser) -> ExprKind {
-    if p.at(Tok!['{']) {
+    if p.at(Tok!['{']) && !brace_opens_condition(p) {
         let reported = p.err_expected(Expected::Expr);
         return ExprKind::Error(Error {
             span: p.gap_span(),
@@ -518,6 +517,46 @@ fn condition(p: &mut Parser) -> ExprKind {
     let e = expr(p);
     p.leave_recovery(saved);
     e
+}
+
+/// Whether the `{` the parser is at, where a condition belongs, opens an array literal rather than the body.
+///
+/// It is the body, with its condition missing, if either:
+///
+/// - Something between the braces can only be part of a statement. Then it cannot be an array literal at all.
+/// - What comes after the closing `}` cannot start a statement. A condition is always followed by a body, so a `{ .. }`
+///   with no body after it is the body.
+///
+/// Anything else is read as a condition, which is what the grammar says it is: `if {f()} g()` is an `if` on an
+/// array, for the type checker to object to.
+///
+/// The scan stops at the first token that settles it, and a body almost always does that within its first statement.
+fn brace_opens_condition(p: &Parser) -> bool {
+    /// Tokens of statements and declarations, which no expression contains.
+    const NOT_IN_EXPR: TokenSet = ts![=, :, ;, _, if, else, while, return, use, int, bool];
+    /// What can come after a statement that cannot start one.
+    const NOT_A_BODY: TokenSet = ts![else, ;, '}', EOF];
+
+    // the `{` itself is the first token looked at, so `open` is never 0 past it
+    let mut open = 0u32;
+    let mut n = 0;
+    loop {
+        match p.nth(n) {
+            // never closed
+            Tok![EOF] => return false,
+            k if NOT_IN_EXPR.contains(k) => return false,
+            Tok!['('] | Tok!['['] | Tok!['{'] => open += 1,
+            Tok![')'] | Tok![']'] | Tok!['}'] => {
+                open -= 1;
+                if open == 0 {
+                    break;
+                }
+            }
+            _ => {}
+        }
+        n += 1;
+    }
+    !NOT_A_BODY.contains(p.nth(n + 1))
 }
 
 /// ```text

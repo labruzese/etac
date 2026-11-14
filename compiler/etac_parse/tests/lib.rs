@@ -6235,3 +6235,149 @@ fn literals_print_quoted_and_escaped() {
         "#]]
     }
 }
+
+/// A `{` where a condition belongs is an array literal when a body follows it.
+#[test]
+fn array_literal_condition() {
+    parsetest! {
+        ".eta",
+        indoc![r#"
+            f(a: bool, b: bool) {
+                if {1, 2}[0] == 1 { x: int = 1 }
+                while {a, b}[0] g()
+                if {a}[0] & {b}[0] {
+                    g()
+                } else if {{a}, {b}}[1][0] {
+                    g()
+                }
+                while {} { g() }
+                if {f()} g()
+            }
+        "#],
+        expect![[r#"
+            src0.eta: parse(clean)
+            (program
+              (uses)
+              (defs
+                (method (decl f (params (: a bool) (: b bool)) (returns))
+                  (block
+                    (if (== (index (array 1 2) 0) 1)
+                      (block
+                        (assign (targets (: x int)) (values 1))))
+                    (while (index (array a b) 0)
+                      (call g))
+                    (if (& (index (array a) 0) (index (array b) 0))
+                      (block
+                        (call g))
+                      (if (index (index (array (array a) (array b)) 1) 0)
+                        (block
+                          (call g))))
+                    (while (array)
+                      (block
+                        (call g)))
+                    (if (array (call f))
+                      (call g))))))
+            program   > f(a: bool, b: bool) {
+                      >     if {1, 2}[0] == 1 { x: int = 1 }
+                      >     while {a, b}[0] g()
+                      > ...
+                      >     while {} { g() }
+                      >     if {f()} g()
+                      > }
+            method    > f(a: bool, b: bool) {
+                      >     if {1, 2}[0] == 1 { x: int = 1 }
+                      >     while {a, b}[0] g()
+                      > ...
+                      >     while {} { g() }
+                      >     if {f()} g()
+                      > }
+            mdecl     > f(a: bool, b: bool)
+            id        > f
+            decl      > a: bool
+            bool_t    > bool
+            id        > a
+            decl      > b: bool
+            bool_t    > bool
+            id        > b
+            block     > {
+                      >     if {1, 2}[0] == 1 { x: int = 1 }
+                      >     while {a, b}[0] g()
+                      > ...
+                      >     while {} { g() }
+                      >     if {f()} g()
+                      > }
+            if        > if {1, 2}[0] == 1 { x: int = 1 }
+            bexpr     > {1, 2}[0] == 1
+            binop     > ==
+            expr_idx  > {1, 2}[0]
+            arr_lit   > {1, 2}
+            int_lit   > 1
+            int_lit   > 2
+            int_lit   > 0
+            int_lit   > 1
+            block     > { x: int = 1 }
+            assign    > x: int = 1
+            int_lit   > 1
+            decl      > x: int
+            int_t     > int
+            id        > x
+            while     > while {a, b}[0] g()
+            expr_idx  > {a, b}[0]
+            arr_lit   > {a, b}
+            id        > a
+            id        > b
+            int_lit   > 0
+            pcall     > g()
+            id        > g
+            if        > if {a}[0] & {b}[0] {
+                      >     g()
+                      > } else if {{a}, {b}}[1][0] {
+                      >     g()
+                      > }
+            bexpr     > {a}[0] & {b}[0]
+            binop     > &
+            expr_idx  > {a}[0]
+            arr_lit   > {a}
+            id        > a
+            int_lit   > 0
+            expr_idx  > {b}[0]
+            arr_lit   > {b}
+            id        > b
+            int_lit   > 0
+            block     > {
+                      >     g()
+                      > }
+            pcall     > g()
+            id        > g
+            if        > if {{a}, {b}}[1][0] {
+                      >     g()
+                      > }
+            expr_idx  > {{a}, {b}}[1][0]
+            expr_idx  > {{a}, {b}}[1]
+            arr_lit   > {{a}, {b}}
+            arr_lit   > {a}
+            id        > a
+            arr_lit   > {b}
+            id        > b
+            int_lit   > 1
+            int_lit   > 0
+            block     > {
+                      >     g()
+                      > }
+            pcall     > g()
+            id        > g
+            while     > while {} { g() }
+            arr_lit   > {}
+            block     > { g() }
+            pcall     > g()
+            id        > g
+            if        > if {f()} g()
+            arr_lit   > {f()}
+            pcall     > f()
+            id        > f
+            pcall     > g()
+            id        > g
+
+        "#]]
+    }
+}

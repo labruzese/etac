@@ -645,6 +645,148 @@ fn if_with_no_condition() {
     }
 }
 
+/// A `{ .. }` with no body after it is the body, and so is one with statements in it, whatever follows.
+/// Only braces around expressions, with a statement after them, are read as an array: the fourth `if` here.
+#[test]
+fn condition_missing_before_a_body_that_could_be_an_array() {
+    parsetest! {
+        ".eta",
+        indoc![r#"
+            f(x: int) {
+                if { g() } else { h() }
+                while { g() };
+                while { x = 1 } g()
+                if { {g()} } g()
+                if { g()
+            }
+        "#],
+        expect![[r#"
+            src0.eta: parse(recovered)
+            (program
+              (uses)
+              (defs
+                (method (decl f (params (: x int)) (returns))
+                  (block
+                    (if (error)
+                      (block
+                        (call g))
+                      (block
+                        (call h)))
+                    (while (error)
+                      (block
+                        (call g)))
+                    (while (error)
+                      (block
+                        (assign (targets x) (values 1))))
+                    (call g)
+                    (if (array (array (call g)))
+                      (call g))
+                    (if (error)
+                      (block
+                        (call g)))))))
+            program   > f(x: int) {
+                      >     if { g() } else { h() }
+                      >     while { g() };
+                      > ...
+                      >     if { {g()} } g()
+                      >     if { g()
+                      > }
+            method    > f(x: int) {
+                      >     if { g() } else { h() }
+                      >     while { g() };
+                      > ...
+                      >     if { {g()} } g()
+                      >     if { g()
+                      > }
+            mdecl     > f(x: int)
+            id        > f
+            decl      > x: int
+            int_t     > int
+            id        > x
+            block     > {
+                      >     if { g() } else { h() }
+                      >     while { g() };
+                      > ...
+                      >     if { {g()} } g()
+                      >     if { g()
+                      > }
+            if        > if { g() } else { h() }
+            error     > 
+            block     > { g() }
+            pcall     > g()
+            id        > g
+            block     > { h() }
+            pcall     > h()
+            id        > h
+            while     > while { g() }
+            error     > 
+            block     > { g() }
+            pcall     > g()
+            id        > g
+            while     > while { x = 1 }
+            error     > 
+            block     > { x = 1 }
+            assign    > x = 1
+            int_lit   > 1
+            id        > x
+            pcall     > g()
+            id        > g
+            if        > if { {g()} } g()
+            arr_lit   > { {g()} }
+            arr_lit   > {g()}
+            pcall     > g()
+            id        > g
+            pcall     > g()
+            id        > g
+            if        > if { g()
+                      > }
+            error     > 
+            block     > { g()
+                      > }
+            pcall     > g()
+            id        > g
+
+            Error: unclosed block
+               ╭─[ src0.eta:1:11 ]
+               │
+             1 │ f(x: int) {
+               │           ┬  
+               │           ╰── this block is never closed
+               │ 
+               │ Note: expected `}` to close it
+            ───╯
+            Error: expected an expression, found `{`
+               ╭─[ src0.eta:2:8 ]
+               │
+             2 │     if { g() } else { h() }
+               │        ┬  
+               │        ╰── expected an expression
+            ───╯
+            Error: expected an expression, found `{`
+               ╭─[ src0.eta:3:11 ]
+               │
+             3 │     while { g() };
+               │           ┬  
+               │           ╰── expected an expression
+            ───╯
+            Error: expected an expression, found `{`
+               ╭─[ src0.eta:4:11 ]
+               │
+             4 │     while { x = 1 } g()
+               │           ┬  
+               │           ╰── expected an expression
+            ───╯
+            Error: expected an expression, found `{`
+               ╭─[ src0.eta:6:8 ]
+               │
+             6 │     if { g()
+               │        ┬  
+               │        ╰── expected an expression
+            ───╯
+        "#]]
+    }
+}
+
 /// `else` binds to the nearest `if`, without the `Stmt_Open`/`Stmt_Closed` split.
 #[test]
 fn dangling_else_binds_innermost() {
