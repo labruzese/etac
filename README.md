@@ -64,6 +64,7 @@ The workspace lives under `compiler/`:
 - `etac_errors` — diagnostics: building, collecting and rendering them
 - `etac_resolve` — finding source and interface files on disk
 - `etac_lexer` — tokens and the lexer
+- `etac_stack` — lets recursion go as deep as the program being compiled does
 - `etac_ast` — the syntax tree, its visitors and its printers
 - `etac_parse` — the hand-written recursive descent parser
 - `etac_frontend` — lexes and parses whole files, with hooks for the debug

@@ -14,21 +14,6 @@ use etac_source::Span;
 
 use crate::token_set::TokenSet;
 
-// ---- settings ----
-//
-/// Recursion cap for `stmt` and `expr`. This is what keeps the parser's own stack bounded.
-const MAX_DEPTH: u16 = 256;
-
-/// Cap on the height of the tree the parser builds for one expression or type.
-///
-/// Operator chains, index chains and array dimensions are parsed in loops, so [`MAX_DEPTH`] never sees them, yet
-/// each link makes the tree one node taller: `1 + 1 + ... + 1` is as deep as it is long. Everything that walks the
-/// tree afterwards recurses that deep, down to dropping it, so the height has to be bounded here.
-///
-/// The loops are what this stops. Nesting that goes through recursion (parentheses, unary operators, call arguments)
-/// can still add a level each on top of a full-height chain, but [`MAX_DEPTH`] bounds how many of those there are.
-pub const MAX_HEIGHT: u32 = 1024;
-
 /// Different kinds of things the parser might expect. Named constructs provide better error
 /// messages but if there's only a few tokens that you could have expected you can also expect a
 /// certain token or set.
@@ -99,11 +84,6 @@ pub struct Parser<'t, 'dcx> {
     last_err: Option<(usize, ErrorGuaranteed)>,
     /// current tokens we can recover on
     recovery: TokenSet,
-    /// current depth
-    depth: u16,
-    /// links of the chains we are inside that were parsed in a loop instead of by recursion: see
-    /// [`enter_link`](Self::enter_link)
-    links: u32,
 }
 
 impl<'t, 'dcx> Parser<'t, 'dcx> {
@@ -120,8 +100,6 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
             dcx,
             last_err: None,
             recovery: TokenSet::EMPTY,
-            depth: 0,
-            links: 0,
         }
     }
 
@@ -229,50 +207,6 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
         Span::new(m.0, self.prev_end.max(m.0))
     }
 
-    // ---- recursion guard ----
-
-    /// Enter a recursive production. `Err` means the input is nested past
-    /// [`MAX_DEPTH`], which has been reported; the caller should produce an error node without recursing. Depth
-    /// is only charged for `Ok`, so [`leave`](Self::leave) always pairs.
-    pub fn enter(&mut self) -> Result<(), ErrorGuaranteed> {
-        if self.depth >= MAX_DEPTH {
-            return Err(self.err_at(
-                self.cur_span(),
-                format!("nested more than {MAX_DEPTH} levels deep"),
-                Some("split this into smaller pieces; the parser stops descending here".to_owned()),
-            ));
-        }
-        self.depth += 1;
-        Ok(())
-    }
-
-    #[inline]
-    pub fn leave(&mut self) {
-        self.depth -= 1;
-    }
-
-    /// Go one link further down a chain of statements that is parsed in a loop, like `else if`.
-    ///
-    /// Such a chain costs no recursion, so it can be far longer than [`MAX_DEPTH`]. It still nests: each link sits
-    /// inside the one before it in the tree, and so does everything parsed from here on. That depth is charged here,
-    /// against [`MAX_HEIGHT`], together with the recursion depth, so the two cannot multiply up through chains
-    /// nested in chains. `false` means the tree would get too deep; nothing is charged, and the caller reports it.
-    ///
-    /// Hand every link taken back to [`leave_links`](Self::leave_links) once the chain is finished.
-    #[must_use]
-    pub fn enter_link(&mut self) -> bool {
-        if u32::from(self.depth) + self.links >= MAX_HEIGHT {
-            return false;
-        }
-        self.links += 1;
-        true
-    }
-
-    #[inline]
-    pub fn leave_links(&mut self, links: u32) {
-        self.links -= links;
-    }
-
     // ---- recovery anchors ----
 
     /// Add `extra` to the anchor set for the duration of a nested construct. Returns the
@@ -311,17 +245,6 @@ impl<'t, 'dcx> Parser<'t, 'dcx> {
     fn push(&mut self, d: DiagBuilder<'dcx>) -> ErrorGuaranteed {
         let reported = d.finish();
         self.reported_here(reported)
-    }
-
-    fn err_at(&mut self, span: Span, msg: String, note: Option<String>) -> ErrorGuaranteed {
-        if let Some(reported) = self.suppressed() {
-            return reported;
-        }
-        let mut d = self.dcx.new_err(span, msg);
-        if let Some(n) = note {
-            d = d.with_note(n);
-        }
-        self.push(d)
     }
 
     /// Report `what` at the current token, without moving.

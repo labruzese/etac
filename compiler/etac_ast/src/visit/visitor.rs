@@ -1,11 +1,15 @@
 use super::control_flow::*;
 use super::visitable::*;
 use crate::walk::{Walkable, WalkableMut, WalkableOwned};
+use etac_stack::ensure_sufficient_stack;
 use paste::paste;
 
 // Generates the three visitor traits from one list of `NodeType => hook_name` entries, plus the `Visitable*` impls
 // that dispatch each node type to its hook. The `VisitorMut` and `VisitorOwned` hooks are named after the `Visitor`
 // one, with a `_mut` or `_owned` suffix.
+//
+// Dispatch is also where a traversal makes sure it has the stack to go on: every step down the tree goes through a
+// node's `visit`, so a visitor can follow a tree of any depth, whatever its hooks do.
 //
 // To add a node type, add it to the list at the bottom of this file, and give it a `Walkable*` impl in
 // `walk/walk_impl.rs` (the default hook bodies call it).
@@ -91,15 +95,15 @@ macro_rules! ast_visitor {
             $(
                 impl<'ast, V: Visitor<'ast>> Visitable<'ast, V> for $ty {
                     #[inline]
-                    fn visit(&'ast self, v: &mut V) -> V::Result { v.$m(self) }
+                    fn visit(&'ast self, v: &mut V) -> V::Result { ensure_sufficient_stack(|| v.$m(self)) }
                 }
                 impl<V: VisitorMut> VisitableMut<V> for $ty {
                     #[inline]
-                    fn visit_mut(&mut self, v: &mut V) -> V::Result { v.[<$m _mut>](self) }
+                    fn visit_mut(&mut self, v: &mut V) -> V::Result { ensure_sufficient_stack(|| v.[<$m _mut>](self)) }
                 }
                 impl<V: VisitorOwned> VisitableOwned<V> for $ty {
                     #[inline]
-                    fn visit_owned(self, v: &mut V) -> V::Result { v.[<$m _owned>](self) }
+                    fn visit_owned(self, v: &mut V) -> V::Result { ensure_sufficient_stack(|| v.[<$m _owned>](self)) }
                 }
             )*
         }

@@ -1,4 +1,5 @@
 use super::{Visitor, VisitorMut, VisitorOwned, VisitorResult};
+use crate::ptr::{P, PVec};
 use crate::try_visit;
 
 /// Dispatch for [`Visitor`]: `node.visit(v)` calls the hook for the type of `node`.
@@ -6,13 +7,17 @@ use crate::try_visit;
 /// For an AST node of type `Foo`, `node.visit(v)` is `v.visit_foo(node)`. It is also implemented for containers of
 /// nodes, so it works on any field of a node without unwrapping it first:
 ///
-/// - `Box<T>` visits the `T`.
+/// - [`P<T>`](crate::ptr::P) and `Box<T>` visit the `T`.
 /// - `Option<T>` visits the `T` if there is one, and does nothing for `None`.
-/// - `Vec<T>` and `[T]` visit each element in order, stopping at the first one that returns `Break`.
+/// - [`PVec<T>`](crate::ptr::PVec), `Vec<T>` and `[T]` visit each element in order, stopping at the first one that
+///   returns `Break`.
 ///
 /// Inside a hook, call `.visit(self)` on the node's *children*. Calling it on the node the hook was given calls the
 /// same hook again and recurses forever; use [`Walkable::walk`](crate::walk::Walkable::walk) to visit the node's
 /// children instead.
+///
+/// Visiting a node also makes sure there is stack left to do it, so a traversal that goes from node to node this way
+/// can follow a tree of any depth. Calling a hook directly (`v.visit_foo(node)`) skips that.
 pub trait Visitable<'ast, V: Visitor<'ast>> {
     /// Call `v`'s hook for this node, or for each node in this container.
     fn visit(&'ast self, v: &mut V) -> V::Result;
@@ -53,6 +58,26 @@ impl<V: VisitorOwned, T: VisitableOwned<V>> VisitableOwned<V> for Box<T> {
     #[inline]
     fn visit_owned(self, v: &mut V) -> V::Result {
         (*self).visit_owned(v)
+    }
+}
+
+// P
+impl<'ast, V: Visitor<'ast>, T: Visitable<'ast, V>> Visitable<'ast, V> for P<T> {
+    #[inline]
+    fn visit(&'ast self, v: &mut V) -> V::Result {
+        (**self).visit(v)
+    }
+}
+impl<V: VisitorMut, T: VisitableMut<V>> VisitableMut<V> for P<T> {
+    #[inline]
+    fn visit_mut(&mut self, v: &mut V) -> V::Result {
+        (**self).visit_mut(v)
+    }
+}
+impl<V: VisitorOwned, T: VisitableOwned<V>> VisitableOwned<V> for P<T> {
+    #[inline]
+    fn visit_owned(self, v: &mut V) -> V::Result {
+        self.into_inner().visit_owned(v)
     }
 }
 
@@ -119,5 +144,25 @@ impl<V: VisitorOwned, T: VisitableOwned<V>> VisitableOwned<V> for Vec<T> {
             try_visit!(x.visit_owned(v));
         }
         V::Result::output()
+    }
+}
+
+// PVec
+impl<'ast, V: Visitor<'ast>, T: Visitable<'ast, V>> Visitable<'ast, V> for PVec<T> {
+    #[inline]
+    fn visit(&'ast self, v: &mut V) -> V::Result {
+        self.as_slice().visit(v)
+    }
+}
+impl<V: VisitorMut, T: VisitableMut<V>> VisitableMut<V> for PVec<T> {
+    #[inline]
+    fn visit_mut(&mut self, v: &mut V) -> V::Result {
+        self.as_mut_slice().visit_mut(v)
+    }
+}
+impl<V: VisitorOwned, T: VisitableOwned<V>> VisitableOwned<V> for PVec<T> {
+    #[inline]
+    fn visit_owned(self, v: &mut V) -> V::Result {
+        self.into_vec().visit_owned(v)
     }
 }

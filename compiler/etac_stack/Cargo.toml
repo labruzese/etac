@@ -1,0 +1,11 @@
+[package]
+name = "etac_stack"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+
+[dependencies]
+stacker.workspace = true
+
+[lints]
+workspace = true

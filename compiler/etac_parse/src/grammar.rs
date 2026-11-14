@@ -1,12 +1,13 @@
 //! The Eta grammar
 
 use etac_ast::ast::*;
-use etac_errors::guarantee::ErrorGuaranteed;
+use etac_ast::ptr::P;
 use etac_lexer::Tok;
 use etac_lexer::token::{Token, TokenKind};
 use etac_source::Span;
+use etac_stack::ensure_sufficient_stack;
 
-use crate::parser::{Expected, List, MAX_HEIGHT, Parser};
+use crate::parser::{Expected, List, Parser};
 use crate::token_set::{TokenSet, ts};
 
 // ---- first / follow sets ----
@@ -75,8 +76,8 @@ pub fn program(p: &mut Parser) -> Program {
 
     Program {
         span: p.finish(m),
-        uses,
-        definitions,
+        uses: uses.into(),
+        definitions: definitions.into(),
     }
 }
 
@@ -103,7 +104,7 @@ pub fn interface(p: &mut Parser) -> Interface {
 
     Interface {
         span: p.finish(m),
-        items,
+        items: items.into(),
     }
 }
 
@@ -295,8 +296,8 @@ fn method_decl(p: &mut Parser) -> MethodDecl {
     MethodDecl {
         span: p.finish(m),
         id,
-        params,
-        ret_types,
+        params: params.into(),
+        ret_types: ret_types.into(),
     }
 }
 
@@ -359,7 +360,7 @@ fn glob_decl_value(p: &mut Parser) -> Option<GlobDeclValue> {
         return None;
     }
     if p.at_any(LIT_FIRST) {
-        let (lit, _) = lit_at(p);
+        let lit = lit_at(p);
         check_int_range(p, &lit);
         return Some(GlobDeclValue::Literal(lit));
     }
@@ -415,30 +416,25 @@ fn block(p: &mut Parser) -> Block {
     p.expect_close(Tok!['}'], open, "block");
     Block {
         span: p.finish(m),
-        stmts,
+        stmts: stmts.into(),
     }
 }
 
 /// ```text
 /// stmt ::= if | while | return | block | assign | decls | call
 /// ```
+///
+/// Statements nest as deep as the program wants them to, so this is one of the two places the parser makes sure it
+/// has the stack to go on. The other is [`expr_bp`].
 fn stmt(p: &mut Parser) -> StmtKind {
-    if let Err(reported) = p.enter() {
-        return StmtKind::Error(Error {
-            span: p.skip_until(STMT_FOLLOW),
-            reported,
-        });
-    }
-    let out = match p.cur() {
+    ensure_sufficient_stack(|| match p.cur() {
         Tok![if] => StmtKind::If(if_stmt(p)),
         Tok![while] => StmtKind::While(while_stmt(p)),
         Tok![return] => StmtKind::Return(return_stmt(p)),
         Tok!['{'] => StmtKind::Block(block(p)),
         k if STMT_FIRST.contains(k) => assign_or_decl(p),
         _ => StmtKind::Error(p.err_and_recover(Expected::Stmt, STMT_FOLLOW)),
-    };
-    p.leave();
-    out
+    })
 }
 
 /// ```text
@@ -447,9 +443,8 @@ fn stmt(p: &mut Parser) -> StmtKind {
 ///
 /// `else` binds to the nearest `if`
 ///
-/// An `else if` is an `if` nested in an `else`, but a chain of them is parsed in a loop: recursing through
-/// [`stmt`] for every branch would run a long chain into the recursion cap, and one branch per case is how such
-/// chains are written.
+/// An `else if` is an `if` nested in an `else`, but a chain of them is parsed in a loop: one branch per case is how
+/// such chains are written, and there is no reason for a long one to cost a level of recursion per case.
 fn if_stmt(p: &mut Parser) -> IfStmt {
     // Each `if` of the chain, outermost first. The `else` that would complete it is not known yet.
     let mut arms = Vec::new();
@@ -466,58 +461,27 @@ fn if_stmt(p: &mut Parser) -> IfStmt {
         }
         if !p.nth_at(1, Tok![if]) {
             p.bump(Tok![else]);
-            else_branch = Some(Box::new(stmt(p)));
-            break;
-        }
-        if !p.enter_link() {
-            else_branch = Some(Box::new(StmtKind::Error(else_if_too_deep(p))));
+            else_branch = Some(P::new(stmt(p)));
             break;
         }
         p.bump(Tok![else]);
     }
-    p.leave_links(arms.len() as u32 - 1);
 
     // Nest them, from the last `if` outwards. Every `if` runs to the end of the chain.
     let mut nested: Option<IfStmt> = None;
     for (m, cond, then_branch) in arms.into_iter().rev() {
         let else_branch = match nested.take() {
-            Some(inner) => Some(Box::new(StmtKind::If(inner))),
+            Some(inner) => Some(P::new(StmtKind::If(inner))),
             None => else_branch.take(),
         };
         nested = Some(IfStmt {
             span: p.finish(m),
-            cond: Box::new(cond),
-            then_branch: Box::new(then_branch),
+            cond: P::new(cond),
+            then_branch: P::new(then_branch),
             else_branch,
         });
     }
     nested.expect("the loop pushes at least one `if`")
-}
-
-/// Report an `else if` that would nest the tree past [`MAX_HEIGHT`], and read the rest of its chain without
-/// building it. Returns the error node standing in for what was read.
-fn else_if_too_deep(p: &mut Parser) -> Error {
-    let m = p.start();
-    let d = p
-        .dcx()
-        .new_err(p.cur_span(), "this chain of `else if` is too long")
-        .with_message(format!("statements are nested more than {MAX_HEIGHT} deep here"))
-        .with_note("every `else if` nests inside the one before it; split the chain up");
-    let reported = p.report(d);
-
-    while p.eat(Tok![else]) {
-        if !p.at(Tok![if]) {
-            stmt(p);
-            break;
-        }
-        p.bump(Tok![if]);
-        condition(p);
-        stmt(p);
-    }
-    Error {
-        span: p.finish(m),
-        reported,
-    }
 }
 
 /// ```text
@@ -530,8 +494,8 @@ fn while_stmt(p: &mut Parser) -> WhileStmt {
     let body = stmt(p);
     WhileStmt {
         span: p.finish(m),
-        cond: Box::new(cond),
-        body: Box::new(body),
+        cond: P::new(cond),
+        body: P::new(body),
     }
 }
 
@@ -578,7 +542,7 @@ fn return_stmt(p: &mut Parser) -> ReturnStmt {
     p.eat(Tok![;]);
     ReturnStmt {
         span: p.finish(m),
-        values,
+        values: values.into(),
     }
 }
 
@@ -635,7 +599,7 @@ fn assign_or_decl(p: &mut Parser) -> StmtKind {
         return StmtKind::Assign(AssignStmt {
             span: p.finish(m),
             targets,
-            values,
+            values: values.into(),
         });
     }
 
@@ -766,38 +730,11 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
     };
 
     // The dimensions as written, outermost first.
-    let mut dims: Vec<Option<Box<ExprKind>>> = Vec::new();
+    let mut dims: Vec<Option<P<ExprKind>>> = Vec::new();
     let mut first_unsized: Option<Span> = None;
     while p.at(Tok!['[']) {
         let dm = p.start();
         let open = p.bump(Tok!['[']);
-
-        // Each dimension nests the type one level deeper.
-        if dims.len() as u32 == MAX_HEIGHT {
-            let d = p
-                .dcx()
-                .new_err(open, "this array type has too many dimensions")
-                .with_message(format!("this is dimension {}", MAX_HEIGHT + 1))
-                .with_note(format!("an array type can have at most {MAX_HEIGHT} dimensions"));
-            let reported = p.report(d);
-            // Read the rest of the dimensions without keeping them.
-            let mut open = open;
-            loop {
-                if !p.at(Tok![']']) {
-                    let saved = p.enter_recovery(ts![']']);
-                    expr(p);
-                    p.leave_recovery(saved);
-                }
-                if !p.expect_close(Tok![']'], open, "array dimension") || !p.at(Tok!['[']) {
-                    break;
-                }
-                open = p.bump(Tok!['[']);
-            }
-            return TypeKind::Error(Error {
-                span: p.finish(m),
-                reported,
-            });
-        }
 
         let size = if p.at(Tok![']']) {
             None
@@ -805,7 +742,7 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
             let saved = p.enter_recovery(ts![']']);
             let e = expr(p);
             p.leave_recovery(saved);
-            Some(Box::new(e))
+            Some(P::new(e))
         };
         p.expect_close(Tok![']'], open, "array dimension");
         let dim_span = p.finish(dm);
@@ -843,7 +780,7 @@ fn ty(p: &mut Parser, sizes: Sizes) -> TypeKind {
     for size in dims.into_iter().rev() {
         typ = TypeKind::Array(ArrType {
             span,
-            of: Box::new(typ),
+            of: P::new(typ),
             size,
         });
     }
@@ -883,85 +820,52 @@ const PREFIX_BP: u8 = 13;
 /// expr ::= unop expr | expr binop expr | primary
 /// ```
 pub fn expr(p: &mut Parser) -> ExprKind {
-    expr_h(p).0
-}
-
-/// An expression and the height of its tree, for the productions that nest it in a bigger expression.
-///
-/// The height is how [`MAX_HEIGHT`] is enforced: a leaf is 1 high, and every node is one higher than its tallest
-/// child. Each production that loops checks the height it has reached, and so no expression is ever taller.
-fn expr_h(p: &mut Parser) -> (ExprKind, u32) {
     expr_bp(p, 0, false)
 }
 
 /// `negated` says the expression is the operand of a unary `-`, which is the one place the literal
 /// `9223372036854775808` may be written: see [`check_int_range`].
-fn expr_bp(p: &mut Parser, min_bp: u8, negated: bool) -> (ExprKind, u32) {
-    if let Err(reported) = p.enter() {
-        let span = p.skip_until(STMT_FOLLOW);
-        return (ExprKind::Error(Error { span, reported }), 1);
-    }
-    let m = p.start();
+///
+/// Every expression inside another goes through here, however it nests (parentheses, operands, arguments, indices),
+/// so this is where the parser makes sure it has the stack to go on. An operator chain is a loop and costs none, but
+/// it builds a tree as deep as the chain is long; what makes that safe to walk and to drop afterwards is how the
+/// tree [owns its children](etac_ast::ptr).
+fn expr_bp(p: &mut Parser, min_bp: u8, negated: bool) -> ExprKind {
+    ensure_sufficient_stack(|| {
+        let m = p.start();
 
-    let (mut lhs, mut height) = if p.at_any(ts![-, !]) {
-        let op = unary_op(p);
-        let (operand, height) = expr_bp(p, PREFIX_BP, matches!(op.kind, UOpKind::Neg));
-        let unary = ExprKind::Unary(UnaryExpr {
-            span: p.finish(m),
-            op,
-            operand: Box::new(operand),
-        });
-        (unary, height + 1)
-    } else {
-        primary(p, negated)
-    };
-
-    while let Some((lbp, rbp, kind)) = infix(p.cur()) {
-        if lbp < min_bp {
-            break;
-        }
-        let op = BinOp {
-            span: p.cur_span(),
-            kind,
-        };
-        let op_span = op.span;
-        p.bump_any();
-        let (rhs, rhs_height) = expr_bp(p, rbp, false);
-        height = height.max(rhs_height) + 1;
-        lhs = ExprKind::Binary(BinaryExpr {
-            span: p.finish(m),
-            op,
-            lhs: Box::new(lhs),
-            rhs: Box::new(rhs),
-        });
-
-        if height > MAX_HEIGHT {
-            let reported = too_tall(p, op_span);
-            // Read the rest of the chain without building on it: an operand at a time, whatever the operators.
-            while infix(p.cur()).is_some() {
-                p.bump_any();
-                expr_bp(p, PREFIX_BP, false);
-            }
-            lhs = ExprKind::Error(Error {
+        let mut lhs = if p.at_any(ts![-, !]) {
+            let op = unary_op(p);
+            let operand = expr_bp(p, PREFIX_BP, matches!(op.kind, UOpKind::Neg));
+            ExprKind::Unary(UnaryExpr {
                 span: p.finish(m),
-                reported,
+                op,
+                operand: P::new(operand),
+            })
+        } else {
+            primary(p, negated)
+        };
+
+        while let Some((lbp, rbp, kind)) = infix(p.cur()) {
+            if lbp < min_bp {
+                break;
+            }
+            let op = BinOp {
+                span: p.cur_span(),
+                kind,
+            };
+            p.bump_any();
+            let rhs = expr_bp(p, rbp, false);
+            lhs = ExprKind::Binary(BinaryExpr {
+                span: p.finish(m),
+                op,
+                lhs: P::new(lhs),
+                rhs: P::new(rhs),
             });
-            height = 1;
         }
-    }
 
-    p.leave();
-    (lhs, height)
-}
-
-/// Report an expression that grew past [`MAX_HEIGHT`], at the operator or index that took it there.
-fn too_tall(p: &mut Parser, at: Span) -> ErrorGuaranteed {
-    let d = p
-        .dcx()
-        .new_err(at, "this expression is too large")
-        .with_message(format!("the expression is more than {MAX_HEIGHT} operations deep here"))
-        .with_note("split it up, storing the parts in variables");
-    p.report(d)
+        lhs
+    })
 }
 
 fn unary_op(p: &mut Parser) -> UOp {
@@ -979,70 +883,48 @@ fn unary_op(p: &mut Parser) -> UOp {
 /// ```text
 /// primary ::= literal | ident | proc_call | length_call | "(" expr ")" | primary "[" expr "]"
 /// ```
-fn primary(p: &mut Parser, negated: bool) -> (ExprKind, u32) {
+fn primary(p: &mut Parser, negated: bool) -> ExprKind {
     let m = p.start();
 
-    let (mut e, mut height) = match p.cur() {
-        Tok![ident] if p.nth_at(1, Tok!['(']) => {
-            let (call, height) = proc_call(p);
-            (ExprKind::Call(call), height)
-        }
-        Tok![ident] => (ExprKind::Id(ident_at(p)), 1),
-        Tok![length] => {
-            let (call, height) = length_call(p);
-            (ExprKind::Length(call), height)
-        }
+    let mut e = match p.cur() {
+        Tok![ident] if p.nth_at(1, Tok!['(']) => ExprKind::Call(proc_call(p)),
+        Tok![ident] => ExprKind::Id(ident_at(p)),
+        Tok![length] => ExprKind::Length(length_call(p)),
         Tok!['('] => {
             let open = p.bump(Tok!['(']);
             let saved = p.enter_recovery(ts![')']);
-            let inner = expr_h(p);
+            let inner = expr(p);
             p.leave_recovery(saved);
             p.expect_close(Tok![')'], open, "parenthesised expression");
             inner // parentheses group; they leave no node behind
         }
         k if LIT_FIRST.contains(k) => {
-            let (lit, height) = lit_at(p);
+            let lit = lit_at(p);
             if !negated {
                 check_int_range(p, &lit);
             }
-            (ExprKind::Lit(lit), height)
+            ExprKind::Lit(lit)
         }
-        _ => (ExprKind::Error(p.err_and_recover(Expected::Expr, STMT_FOLLOW)), 1),
+        _ => ExprKind::Error(p.err_and_recover(Expected::Expr, STMT_FOLLOW)),
     };
 
     // indexing binds tighter than every operator, and chains.
     while p.at(Tok!['[']) {
-        let im = p.start();
-        let (index, index_height) = index_suffix(p);
-        let index_span = p.finish(im);
-        height = height.max(index_height) + 1;
+        let index = index_suffix(p);
         e = ExprKind::Index(ExprIndex {
             span: p.finish(m),
-            array: Box::new(e),
-            index: Box::new(index),
+            array: P::new(e),
+            index: P::new(index),
         });
-
-        if height > MAX_HEIGHT {
-            let reported = too_tall(p, index_span);
-            // Read the rest of the chain without building on it.
-            while p.at(Tok!['[']) {
-                index_suffix(p);
-            }
-            e = ExprKind::Error(Error {
-                span: p.finish(m),
-                reported,
-            });
-            height = 1;
-        }
     }
-    (e, height)
+    e
 }
 
 /// The `[expr]` after something being indexed.
-fn index_suffix(p: &mut Parser) -> (ExprKind, u32) {
+fn index_suffix(p: &mut Parser) -> ExprKind {
     let open = p.bump(Tok!['[']);
     let saved = p.enter_recovery(ts![']']);
-    let index = expr_h(p);
+    let index = expr(p);
     p.leave_recovery(saved);
     p.expect_close(Tok![']'], open, "index");
     index
@@ -1051,41 +933,32 @@ fn index_suffix(p: &mut Parser) -> (ExprKind, u32) {
 /// ```text
 /// proc_call ::= ident "(" expr,* ")"
 /// ```
-fn proc_call(p: &mut Parser) -> (ProcCall, u32) {
+fn proc_call(p: &mut Parser) -> ProcCall {
     let m = p.start();
     let id = ident_at(p);
     let open = p.bump(Tok!['(']);
     let saved = p.enter_recovery(ts![')'].union(TokenSet::of(Tok![,])));
-    let mut tallest = 0;
     let (args, _) = p.separated(
         /* sepr */ Tok![,],
         /* close */ ts![')'],
         /* first */ EXPR_FIRST,
         /* what */ Expected::Expr,
         /* kind */ List::Any,
-        /* elem */ |p| Some(expr_under(p, &mut tallest)),
+        /* elem */ |p| Some(expr(p)),
     );
     p.leave_recovery(saved);
     p.expect_close(Tok![')'], open, "argument list");
-    let call = ProcCall {
+    ProcCall {
         span: p.finish(m),
         id,
-        args,
-    };
-    (call, tallest + 1)
-}
-
-/// An expression that is one of several children of a node: `tallest` keeps the height of the tallest so far.
-fn expr_under(p: &mut Parser, tallest: &mut u32) -> ExprKind {
-    let (e, height) = expr_h(p);
-    *tallest = (*tallest).max(height);
-    e
+        args: args.into(),
+    }
 }
 
 /// ```text
 /// length_call ::= "length" "(" expr ")"
 /// ```
-fn length_call(p: &mut Parser) -> (LengthCall, u32) {
+fn length_call(p: &mut Parser) -> LengthCall {
     let m = p.start();
     p.bump(Tok![length]);
 
@@ -1093,25 +966,23 @@ fn length_call(p: &mut Parser) -> (LengthCall, u32) {
         let Err(reported) = p.expect(Tok!['(']) else {
             unreachable!("`expect` reports a token that is not there")
         };
-        let call = LengthCall {
+        return LengthCall {
             span: p.finish(m),
-            param: Box::new(ExprKind::Error(Error {
+            param: P::new(ExprKind::Error(Error {
                 span: p.gap_span(),
                 reported,
             })),
         };
-        return (call, 2);
     }
     let open = p.bump(Tok!['(']);
     let saved = p.enter_recovery(ts![')']);
-    let (param, height) = expr_h(p);
+    let param = expr(p);
     p.leave_recovery(saved);
     p.expect_close(Tok![')'], open, "argument list");
-    let call = LengthCall {
+    LengthCall {
         span: p.finish(m),
-        param: Box::new(param),
-    };
-    (call, height + 1)
+        param: P::new(param),
+    }
 }
 
 // ---- literals & identifiers ----
@@ -1156,13 +1027,12 @@ fn ident(p: &mut Parser) -> Option<Ident> {
     }
 }
 
-/// A literal and the height of its tree: 1, unless it is an array literal with elements.
-fn lit_at(p: &mut Parser) -> (LitKind, u32) {
+/// Consume a literal the caller has already checked for.
+fn lit_at(p: &mut Parser) -> LitKind {
     if p.at(Tok!['{']) {
-        let (array, height) = array_lit(p);
-        return (LitKind::Array(ArrayLitKind::Array(array)), height);
+        return LitKind::Array(ArrayLitKind::Array(array_lit(p)));
     }
-    let lit = match p.cur() {
+    match p.cur() {
         Tok![int_lit] => LitKind::Int(int_lit_at(p)),
         Tok![bool_lit] => {
             let (tok, span) = p.bump_any();
@@ -1180,8 +1050,7 @@ fn lit_at(p: &mut Parser) -> (LitKind, u32) {
             LitKind::Array(ArrayLitKind::String(StringLit { span, value }))
         }
         k => unreachable!("lit_at on {k}"),
-    };
-    (lit, 1)
+    }
 }
 
 fn int_lit_at(p: &mut Parser) -> IntLit {
@@ -1194,26 +1063,24 @@ fn int_lit_at(p: &mut Parser) -> IntLit {
 /// ```text
 /// array_lit ::= "{" expr,* ","? "}"
 /// ```
-fn array_lit(p: &mut Parser) -> (ArrayLit, u32) {
+fn array_lit(p: &mut Parser) -> ArrayLit {
     let m = p.start();
     let open = p.bump(Tok!['{']);
     let saved = p.enter_recovery(ts!['}'].union(TokenSet::of(Tok![,])));
-    let mut tallest = 0;
     let (value, _) = p.separated(
         /* sepr */ Tok![,],
         /* close */ ts!['}'],
         /* first */ EXPR_FIRST,
         /* what */ Expected::Expr,
         /* kind */ List::Trailing,
-        /* elem */ |p| Some(expr_under(p, &mut tallest)),
+        /* elem */ |p| Some(expr(p)),
     );
     p.leave_recovery(saved);
     p.expect_close(Tok!['}'], open, "array literal");
-    let array = ArrayLit {
+    ArrayLit {
         span: p.finish(m),
-        value,
-    };
-    (array, tallest + 1)
+        value: value.into(),
+    }
 }
 
 // ---- helpers ----

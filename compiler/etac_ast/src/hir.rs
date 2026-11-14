@@ -9,10 +9,12 @@ use std::sync::Arc;
 
 use etac_source::Span;
 
+use crate::ptr::PVec;
+
 pub struct Program {
     pub span: Span,
-    pub uses: Vec<Use>,
-    pub definitions: Vec<DefinitionKind>,
+    pub uses: PVec<Use>,
+    pub definitions: PVec<DefinitionKind>,
 }
 
 pub struct Use {

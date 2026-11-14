@@ -23,6 +23,7 @@ lasso 			= { version = "0.7", features = ["multi-threaded"] }
 rustc-hash 		= "2"
 indenter		= { version = "0.3.4", features = ["std"] }
 paste 			= "1.0.15"
+stacker			= "0.1"
 
 # internal
 etac_ast      		= { path = "compiler/etac_ast" }
@@ -36,6 +37,7 @@ etac_session  		= { path = "compiler/etac_session" }
 etac_source 		= { path = "compiler/etac_source" }
 etac_resolve  		= { path = "compiler/etac_resolve" }
 etac_frontend		= { path = "compiler/etac_frontend" }
+etac_stack		= { path = "compiler/etac_stack" }
 
 # debug / testing
 etac_debug      = { path = "compiler/etac_debug" }

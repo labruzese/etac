@@ -2,6 +2,8 @@ use etac_errors::guarantee::ErrorGuaranteed;
 use etac_intern::Symbol;
 use etac_source::Span;
 
+use crate::ptr::{P, PVec};
+
 /// Stands in for a piece of the tree that could not be built.
 ///
 /// An error node is proof that the problem was reported: it cannot be made without the [`ErrorGuaranteed`] that only
@@ -18,13 +20,13 @@ pub struct Error {
 
 pub struct Program {
     pub span: Span,
-    pub uses: Vec<Use>,
-    pub definitions: Vec<DefinitionKind>,
+    pub uses: PVec<Use>,
+    pub definitions: PVec<DefinitionKind>,
 }
 
 pub struct Interface {
     pub span: Span,
-    pub items: Vec<InterfaceItemKind>,
+    pub items: PVec<InterfaceItemKind>,
 }
 
 pub struct Use {
@@ -48,8 +50,8 @@ pub enum InterfaceItemKind {
 pub struct MethodDecl {
     pub span: Span,
     pub id: Ident,
-    pub params: Vec<Decl>,
-    pub ret_types: Vec<TypeKind>,
+    pub params: PVec<Decl>,
+    pub ret_types: PVec<TypeKind>,
 }
 
 pub struct Method {
@@ -85,13 +87,13 @@ pub enum StmtKind {
 
 pub struct AssignStmt {
     pub span: Span,
-    pub targets: Vec<TargetKind>,
-    pub values: Vec<ExprKind>,
+    pub targets: PVec<TargetKind>,
+    pub values: PVec<ExprKind>,
 }
 
 pub struct MultiDeclStmt {
     pub span: Span,
-    pub decls: Vec<Decl>,
+    pub decls: PVec<Decl>,
 }
 
 pub struct Decl {
@@ -102,31 +104,31 @@ pub struct Decl {
 
 pub struct IfStmt {
     pub span: Span,
-    pub cond: Box<ExprKind>,
-    pub then_branch: Box<StmtKind>,
-    pub else_branch: Option<Box<StmtKind>>,
+    pub cond: P<ExprKind>,
+    pub then_branch: P<StmtKind>,
+    pub else_branch: Option<P<StmtKind>>,
 }
 
 pub struct WhileStmt {
     pub span: Span,
-    pub cond: Box<ExprKind>,
-    pub body: Box<StmtKind>,
+    pub cond: P<ExprKind>,
+    pub body: P<StmtKind>,
 }
 
 pub struct ReturnStmt {
     pub span: Span,
-    pub values: Vec<ExprKind>,
+    pub values: PVec<ExprKind>,
 }
 
 pub struct ProcCall {
     pub span: Span,
     pub id: Ident,
-    pub args: Vec<ExprKind>,
+    pub args: PVec<ExprKind>,
 }
 
 pub struct Block {
     pub span: Span,
-    pub stmts: Vec<StmtKind>,
+    pub stmts: PVec<StmtKind>,
 }
 
 // Types
@@ -140,8 +142,8 @@ pub enum TypeKind {
 
 pub struct ArrType {
     pub span: Span,
-    pub of: Box<TypeKind>,
-    pub size: Option<Box<ExprKind>>,
+    pub of: P<TypeKind>,
+    pub size: Option<P<ExprKind>>,
 }
 
 // Targets & LValues
@@ -215,25 +217,25 @@ pub struct StringLit {
 
 pub struct ArrayLit {
     pub span: Span,
-    pub value: Vec<ExprKind>,
+    pub value: PVec<ExprKind>,
 }
 
 pub struct ExprIndex {
     pub span: Span,
-    pub array: Box<ExprKind>,
-    pub index: Box<ExprKind>,
+    pub array: P<ExprKind>,
+    pub index: P<ExprKind>,
 }
 
 pub struct LengthCall {
     pub span: Span,
-    pub param: Box<ExprKind>,
+    pub param: P<ExprKind>,
 }
 
 // Operators
 pub struct UnaryExpr {
     pub span: Span,
     pub op: UOp,
-    pub operand: Box<ExprKind>,
+    pub operand: P<ExprKind>,
 }
 
 pub struct UOp {
@@ -249,8 +251,8 @@ pub enum UOpKind {
 pub struct BinaryExpr {
     pub span: Span,
     pub op: BinOp,
-    pub lhs: Box<ExprKind>,
-    pub rhs: Box<ExprKind>,
+    pub lhs: P<ExprKind>,
+    pub rhs: P<ExprKind>,
 }
 
 pub struct BinOp {
