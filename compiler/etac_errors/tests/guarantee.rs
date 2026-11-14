@@ -2,7 +2,7 @@
 
 use etac_errors::dcx::DiagCtx;
 use etac_errors::emitter::IoEmitter;
-use etac_errors::guarentee::ErrorGuaranteed;
+use etac_errors::guarantee::ErrorGuaranteed;
 use etac_source::Span;
 
 #[test]

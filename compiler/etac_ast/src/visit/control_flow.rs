@@ -46,7 +46,7 @@ impl<T> VisitorResult for ControlFlow<T> {
 
 /// Evaluates a [`VisitorResult`], returning it from the enclosing function if it is a `Break`.
 ///
-/// Basically `?` for visitor control flow however to be generic over the visitor we need a seperate macro since the
+/// Basically `?` for visitor control flow however to be generic over the visitor we need a separate macro since the
 /// result type might be `()` which the [`Try`](std::ops::Try) doesn't support.
 ///
 /// ```

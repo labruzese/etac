@@ -14,8 +14,8 @@ pub struct SpanPrinter<'ast, 'sm, NodeT> {
 }
 
 impl<'ast, 'sm, NodeT> SpanPrinter<'ast, 'sm, NodeT> {
-    pub const SPAN_ELIPSE_AT_CHAR_NUM: usize = 120;
-    pub const SPAN_ELIPSE_AT_LINE_NUM: usize = 6;
+    pub const SPAN_ELLIPSIS_AT_CHAR_NUM: usize = 120;
+    pub const SPAN_ELLIPSIS_AT_LINE_NUM: usize = 6;
     pub fn new(node: &'ast NodeT, sm: &'sm SourceMap) -> Self {
         SpanPrinter { node, sm }
     }
@@ -44,27 +44,27 @@ struct SpanPrinterWriter<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> {
 
 impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> SpanPrinterWriter<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> {
     fn write(&mut self, tag: &str, span: &Span) -> ControlFlow<fmt::Error> {
-        let seac = SpanPrinter::<'ast, 'sm, NodeT>::SPAN_ELIPSE_AT_CHAR_NUM;
-        let seal = SpanPrinter::<'ast, 'sm, NodeT>::SPAN_ELIPSE_AT_LINE_NUM;
+        let seac = SpanPrinter::<'ast, 'sm, NodeT>::SPAN_ELLIPSIS_AT_CHAR_NUM;
+        let seal = SpanPrinter::<'ast, 'sm, NodeT>::SPAN_ELLIPSIS_AT_LINE_NUM;
 
         let raw = self.printer.sm.slice(*span);
         let s = Self::dedent(raw);
-        let s = Self::elipse_lines(&s, seal);
+        let s = Self::ellipsize_lines(&s, seal);
 
         let mut lines = s.lines();
         Self::into_cf(writeln!(
             self.out,
             "{tag:<width$}> {}",
-            Self::elipse_line(lines.next().unwrap_or_default(), seac),
+            Self::ellipsize_line(lines.next().unwrap_or_default(), seac),
             width = 10
         ))?;
         for line in lines {
-            Self::into_cf(writeln!(self.out, "          > {}", Self::elipse_line(line, seac)))?;
+            Self::into_cf(writeln!(self.out, "          > {}", Self::ellipsize_line(line, seac)))?;
         }
         ControlFlow::Continue(())
     }
 
-    fn elipse_lines<'s>(str: &'s str, limit: usize) -> Cow<'s, str> {
+    fn ellipsize_lines<'s>(str: &'s str, limit: usize) -> Cow<'s, str> {
         let half = (limit / 2).max(1);
         let head = str.match_indices('\n').nth(half - 1).map(|(i, _)| i);
         let tail = str.rmatch_indices('\n').nth(half - 1).map(|(i, _)| i + 1);
@@ -74,7 +74,7 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> SpanPrinterWriter<'ast, 'sm, 'buf, 'prt
         }
     }
 
-    fn elipse_line<'s>(line: &'s str, limit: usize) -> Cow<'s, str> {
+    fn ellipsize_line<'s>(line: &'s str, limit: usize) -> Cow<'s, str> {
         if line.len() > limit {
             let half = limit / 2;
             let head = line.floor_char_boundary(half);
@@ -130,7 +130,7 @@ impl<'ast, 'sm, 'buf, 'prt, 'fmt, NodeT> Visitor<'ast> for SpanPrinterWriter<'as
 
     fn visit_interface(&mut self, n: &'ast Interface) -> Self::Result {
         let Interface { span, .. } = n;
-        self.write("interfce", span)?;
+        self.write("interface", span)?;
         n.walk(self)
     }
 

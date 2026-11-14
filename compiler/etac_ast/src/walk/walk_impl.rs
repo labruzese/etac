@@ -72,7 +72,7 @@ macro_rules! atom {
     };
 }
 
-// ast specfic impls
+// ast specific impls
 
 impl_walk! {crate::ast::Program, |self, v| {
     let crate::ast::Program { span: _, uses, definitions } = self;

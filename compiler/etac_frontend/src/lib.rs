@@ -28,7 +28,7 @@ use std::sync::{Arc, Mutex, OnceLock, PoisonError};
 use etac_ast::ast::{Interface, Program};
 use etac_errors::{
     dcx::{DiagBuilder, DiagCtx},
-    guarentee::ErrorGuaranteed,
+    guarantee::ErrorGuaranteed,
 };
 use etac_intern::EtacInterner;
 use etac_lexer::{EtaLexer, Tokens};

@@ -9,7 +9,7 @@ pub enum Level {
 
 pub mod dcx;
 pub mod emitter;
-pub mod guarentee;
+pub mod guarantee;
 
 #[cfg(debug_assertions)]
 mod drop_bomb;

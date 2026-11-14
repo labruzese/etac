@@ -320,7 +320,7 @@ fn body_in_interface() {
             (interface
               (decl f (params) (returns int))
               (decl g (params) (returns bool)))
-            interfce  > f(): int {
+            interface > f(): int {
                       >     return 1
                       > }
                       > g(): bool

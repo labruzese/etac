@@ -43,7 +43,7 @@ impl<'a> Cursor<'a> {
         self.pos - self.base >= self.input.len() as u32
     }
 }
-// move cursor to the end of the curent char
+// move cursor to the end of the current char
 fn finish_char(cursor: &mut Cursor, start: u32) -> (char, u32) {
     while cursor.peek().is_some_and(|b| b & 0b1100_0000 == 0b1000_0000) {
         cursor.next();
@@ -188,7 +188,7 @@ fn decode_escape(cursor: &mut Cursor) -> Result<char, InternalLexerError> {
             let end = cursor.loc();
 
             // Reject UTF-16 surrogate halves (U+D800–U+DFFF). These are not valid Unicode scalar values and cannot be
-            // represented a `char`.
+            // represented as a `char`.
             if (0xD800..=0xDFFF).contains(&cp) {
                 return Err(InternalLexerError {
                     span: Span::new(esc_start, end),

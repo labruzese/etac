@@ -711,7 +711,7 @@ fn complex_interface() {
               (decl noop (params) (returns))
               (decl identity (params (: x (array int))) (returns (array int)))
               (decl matrix (params (: m (array (array int)))) (returns (array (array int)))))
-            interfce  > add(a: int, b: int): int
+            interface > add(a: int, b: int): int
                       > subtract(a: int, b: int): int
                       > divide(a: int, b: int): int, int
                       > noop()
@@ -1195,7 +1195,7 @@ fn error_empty_eti() {
         expect![[r#"
             src0.eti: parse(recovered)
             (interface)
-            interfce  > 
+            interface > 
 
             Error: an interface must declare at least one method
                ╭─[ src0.eti:1:9 ]
@@ -1287,7 +1287,7 @@ fn error_eti_unfinished() {
             src0.eti: parse(recovered)
             (interface
               (decl f (params) (returns)))
-            interfce  > f():
+            interface > f():
             mdecl     > f():
             id        > f
 
@@ -3857,7 +3857,7 @@ fn io() {
               (decl readln (params) (returns (array int)))
               (decl getchar (params) (returns int))
               (decl eof (params) (returns bool)))
-            interfce  > print(str: int[])     // Print a string to standard output.
+            interface > print(str: int[])     // Print a string to standard output.
                       > println(str: int[])   // Print a string to standard output, followed by a newline.
                       > readln() : int[]      // Read from standard input until a newline.
                       > getchar() : int       // Read a single character from standard input.

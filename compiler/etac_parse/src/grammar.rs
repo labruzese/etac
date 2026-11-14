@@ -46,7 +46,7 @@ pub fn program(p: &mut Parser) -> Program {
         let start = p.pos();
 
         if p.at(Tok![use]) {
-            // use's must come first, report and error, add it, and carry on.
+            // `use`s must come first: report an error, add it anyway, and carry on.
             let at = p.cur_span();
             let u = use_stmt(p);
             let span = u.as_ref().map_or(at, |u| u.span);
@@ -574,7 +574,7 @@ enum TargetItem {
 /// call   ::= proc_call
 /// ```
 ///
-/// All three start the same way, parse the prefix, then let existance of `=` decide.
+/// All three start the same way, parse the prefix, then let existence of `=` decide.
 fn assign_or_decl(p: &mut Parser) -> StmtKind {
     let m = p.start();
 
@@ -1179,7 +1179,7 @@ fn array_lit(p: &mut Parser) -> (ArrayLit, u32) {
 // ---- helpers ----
 
 /// Every list loop calls this. A production that consumes nothing turns its enclosing
-/// loop into a hang, worst case we'll skip one extra token for the guarentee that we
+/// loop into a hang, worst case we'll skip one extra token for the guarantee that we
 /// never hang
 #[inline]
 fn force_progress(p: &mut Parser, before: usize) {

@@ -9,7 +9,7 @@
 //! # Traversal order
 //!
 //! All three flavors visit a node's children in the same order: the order its fields are declared in
-//! [`ast`](crate::ast), with two exceptions.
+//! [`ast`](crate::ast), with three exceptions.
 //!
 //! - [`Decl`] and [`GlobDecl`] visit their type before their name (`typ`, then `id`).
 //! - [`AssignStmt`] visits its values before its targets.

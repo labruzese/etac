@@ -9,7 +9,7 @@ use crate::emitter::IoEmitter;
 
 #[cfg(debug_assertions)]
 use crate::drop_bomb::DropBomb;
-use crate::guarentee::{EmissionGuarantee, ErrorGuaranteed, Recorded};
+use crate::guarantee::{EmissionGuarantee, ErrorGuaranteed, Recorded};
 
 #[derive(Debug)]
 pub struct Diagnostic {
