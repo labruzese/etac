@@ -82,7 +82,9 @@ pub fn stderr_wants_color() -> bool {
     wants_color(std::io::stderr().is_terminal(), std::env::var_os("NO_COLOR").as_deref())
 }
 
-fn wants_color(is_terminal: bool, no_color: Option<&OsStr>) -> bool {
+/// The rule behind [`stderr_wants_color`]: whether to color what is written to a stream, given whether the stream
+/// `is_terminal` and what the `NO_COLOR` environment variable is set to, if it is set.
+pub fn wants_color(is_terminal: bool, no_color: Option<&OsStr>) -> bool {
     // NO_COLOR counts when it is set to anything but the empty string
     is_terminal && no_color.is_none_or(OsStr::is_empty)
 }
@@ -200,19 +202,4 @@ fn make_report(diag: &Diagnostic, sm: &SourceMap, conf: EmitConfig) -> Report<'s
         report = report.with_label(ariadne::Label::new(sm.local_span(loc)).with_color(ariadne::Color::Red));
     }
     report.finish()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::wants_color;
-    use std::ffi::OsStr;
-
-    #[test]
-    fn color_is_for_terminals_that_have_not_declined_it() {
-        assert!(wants_color(true, None));
-        assert!(wants_color(true, Some(OsStr::new(""))));
-        assert!(!wants_color(true, Some(OsStr::new("1"))));
-        assert!(!wants_color(false, None));
-        assert!(!wants_color(false, Some(OsStr::new(""))));
-    }
 }

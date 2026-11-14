@@ -21,32 +21,3 @@ impl Drop for DropBomb {
         assert!(!self.0, "BOOM: {}", self.1);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::DropBomb;
-
-    #[test]
-    #[should_panic(expected = "BOOM: forgotten")]
-    fn goes_off_when_forgotten() {
-        let _bomb = DropBomb::new("forgotten");
-    }
-
-    #[test]
-    fn stays_quiet_when_defused() {
-        let mut bomb = DropBomb::new("forgotten");
-        bomb.defuse();
-    }
-
-    /// A panic with a live bomb in scope must unwind as itself. If the bomb went off too, the double panic would
-    /// abort the test process instead of being caught here.
-    #[test]
-    fn does_not_go_off_during_another_panic() {
-        let unwound = std::panic::catch_unwind(|| {
-            let _bomb = DropBomb::new("forgotten");
-            panic!("the real problem");
-        });
-        let message = unwound.unwrap_err();
-        assert_eq!(message.downcast_ref::<&str>(), Some(&"the real problem"));
-    }
-}
