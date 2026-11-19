@@ -276,3 +276,45 @@ pub enum BinOpKind {
     LAnd,
     LOr,
 }
+
+impl ExprKind {
+    pub fn span(&self) -> Span {
+        match self {
+            ExprKind::Id(n) => n.span,
+            ExprKind::Lit(l) => l.span(),
+            ExprKind::Index(n) => n.span,
+            ExprKind::Call(n) => n.span,
+            ExprKind::Length(n) => n.span,
+            ExprKind::Unary(n) => n.span,
+            ExprKind::Binary(n) => n.span,
+            ExprKind::Error(e) => e.span,
+        }
+    }
+}
+
+impl LitKind {
+    pub fn span(&self) -> Span {
+        match self {
+            LitKind::Int(n) => n.span,
+            LitKind::Bool(n) => n.span,
+            LitKind::Char(n) => n.span,
+            LitKind::Array(ArrayLitKind::String(n)) => n.span,
+            LitKind::Array(ArrayLitKind::Array(n)) => n.span,
+        }
+    }
+}
+
+impl StmtKind {
+    pub fn span(&self) -> Span {
+        match self {
+            StmtKind::Assign(n) => n.span,
+            StmtKind::Decls(n) => n.span,
+            StmtKind::If(n) => n.span,
+            StmtKind::While(n) => n.span,
+            StmtKind::Return(n) => n.span,
+            StmtKind::Call(n) => n.span,
+            StmtKind::Block(n) => n.span,
+            StmtKind::Error(e) => e.span,
+        }
+    }
+}

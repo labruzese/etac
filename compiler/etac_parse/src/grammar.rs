@@ -397,7 +397,7 @@ fn block(p: &mut Parser) -> Block {
             (_, Some(ret_span), false) => {
                 let d = p
                     .dcx()
-                    .new_err(stmt_span(&s), "this statement is unreachable")
+                    .new_err(s.span(), "this statement is unreachable")
                     .with_message("unreachable")
                     .with_label(ret_span, "the block already returned here")
                     .with_note("`return` must be the last statement in a block");
@@ -662,7 +662,7 @@ fn assign_or_decl(p: &mut Parser) -> StmtKind {
             TargetItem::Expr(ExprKind::Call(c)) => StmtKind::Call(c),
             TargetItem::Expr(ExprKind::Error(e)) => StmtKind::Error(e),
             TargetItem::Expr(e) => {
-                let span = expr_span(&e);
+                let span = e.span();
                 let d = p
                     .dcx()
                     .new_err(span, format!("{} is not a statement", expr_noun(&e)))
@@ -714,7 +714,7 @@ fn into_target(p: &mut Parser, item: TargetItem) -> TargetKind {
             // Already reported by whoever produced it.
             ExprKind::Error(e) => TargetKind::Error(e),
             other => {
-                let span = expr_span(&other);
+                let span = other.span();
                 let d = p
                     .dcx()
                     .new_err(span, format!("cannot assign to {}", expr_noun(&other)))
@@ -1144,41 +1144,5 @@ fn expr_noun(e: &ExprKind) -> &'static str {
         ExprKind::Unary(_) => "a unary expression",
         ExprKind::Binary(_) => "a binary expression",
         ExprKind::Error(_) => "this",
-    }
-}
-
-pub fn expr_span(e: &ExprKind) -> Span {
-    match e {
-        ExprKind::Id(n) => n.span,
-        ExprKind::Lit(l) => lit_span(l),
-        ExprKind::Index(n) => n.span,
-        ExprKind::Call(n) => n.span,
-        ExprKind::Length(n) => n.span,
-        ExprKind::Unary(n) => n.span,
-        ExprKind::Binary(n) => n.span,
-        ExprKind::Error(e) => e.span,
-    }
-}
-
-pub fn lit_span(l: &LitKind) -> Span {
-    match l {
-        LitKind::Int(n) => n.span,
-        LitKind::Bool(n) => n.span,
-        LitKind::Char(n) => n.span,
-        LitKind::Array(ArrayLitKind::String(n)) => n.span,
-        LitKind::Array(ArrayLitKind::Array(n)) => n.span,
-    }
-}
-
-pub fn stmt_span(s: &StmtKind) -> Span {
-    match s {
-        StmtKind::Assign(n) => n.span,
-        StmtKind::Decls(n) => n.span,
-        StmtKind::If(n) => n.span,
-        StmtKind::While(n) => n.span,
-        StmtKind::Return(n) => n.span,
-        StmtKind::Call(n) => n.span,
-        StmtKind::Block(n) => n.span,
-        StmtKind::Error(e) => e.span,
     }
 }
